@@ -31,13 +31,20 @@ jobs:
       - name: Build documentation
         run: mdbook build docs
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
+      - name: Assemble site
+        run: |
+          mkdir -p _site/docs
+          cp -R docs/book/* _site/docs/
+          cp index.html _site/
+          cp -R assets _site/
+
+            - name: Setup Pages
+              uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/book
+          path: _site
 
   deploy:
     environment:
