@@ -1,0 +1,1378 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    ```
+    <title>Beverly — UI for Systems That Move</title>
+
+    <style>
+      html {
+        scroll-behavior: smooth;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        background: #000;
+        color: #f8fafc;
+        overflow-x: hidden;
+      }
+
+      /* =========================================================
+     SPLASH / ABOVE THE FOLD
+     ========================================================= */
+
+      .splash-container {
+        height: 100vh;
+        min-height: 600px;
+        width: 100%;
+        position: relative;
+        overflow: hidden;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        background:
+          radial-gradient(
+            circle at 50% 45%,
+            rgba(99, 102, 241, 0.13),
+            transparent 25%
+          ),
+          radial-gradient(circle at 50% 50%, #171923 0%, #08080c 42%, #000 100%);
+      }
+
+      /*
+   * Subtle technical grid.
+   * Keeps the splash feeling like a system interface rather
+   * than a conventional marketing hero.
+   */
+      .splash-grid {
+        position: absolute;
+        inset: 0;
+
+        opacity: 0.12;
+
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.035) 1px,
+            transparent 1px
+          );
+
+        background-size: 64px 64px;
+
+        mask-image: linear-gradient(
+          to bottom,
+          transparent 0%,
+          black 25%,
+          black 70%,
+          transparent 100%
+        );
+
+        pointer-events: none;
+      }
+
+      /*
+   * Ambient glow behind the logo.
+   */
+      .splash-glow {
+        position: absolute;
+
+        width: 420px;
+        height: 420px;
+
+        border-radius: 50%;
+
+        background: radial-gradient(
+          circle,
+          rgba(129, 140, 248, 0.16) 0%,
+          rgba(99, 102, 241, 0.06) 35%,
+          transparent 72%
+        );
+
+        filter: blur(10px);
+
+        animation: ambient-pulse 8s ease-in-out infinite alternate;
+
+        pointer-events: none;
+      }
+
+      /*
+   * Logo is deliberately the ONLY major visual element
+   * above the fold.
+   */
+      .floating-logo {
+        position: relative;
+        z-index: 2;
+
+        width: min(190px, 42vw);
+        height: auto;
+
+        display: block;
+
+        filter: drop-shadow(0 25px 45px rgba(0, 0, 0, 0.65))
+          drop-shadow(0 0 35px rgba(129, 140, 248, 0.12));
+
+        animation: logo-float 6s ease-in-out infinite;
+
+        cursor: pointer;
+
+        transition:
+          filter 0.4s ease,
+          transform 0.4s ease;
+      }
+
+      .floating-logo:hover {
+        filter: drop-shadow(0 30px 50px rgba(0, 0, 0, 0.7))
+          drop-shadow(0 0 50px rgba(129, 140, 248, 0.25));
+      }
+
+      /*
+   * Bottom navigation / first interaction.
+   */
+      .splash-enter {
+        position: absolute;
+
+        left: 50%;
+        bottom: 32px;
+
+        transform: translateX(-50%);
+
+        z-index: 3;
+
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+
+        color: #94a3b8;
+
+        text-decoration: none;
+
+        font-size: 0.72rem;
+        font-weight: 650;
+
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+
+        padding: 11px 18px;
+
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 999px;
+
+        background: rgba(255, 255, 255, 0.025);
+
+        backdrop-filter: blur(14px);
+
+        transition:
+          color 0.25s ease,
+          background 0.25s ease,
+          border-color 0.25s ease,
+          transform 0.25s ease;
+      }
+
+      .splash-enter:hover {
+        color: #f8fafc;
+
+        background: rgba(255, 255, 255, 0.07);
+
+        border-color: rgba(255, 255, 255, 0.2);
+
+        transform: translateX(-50%) translateY(-2px);
+      }
+
+      .splash-enter-arrow {
+        font-size: 0.9rem;
+
+        animation: arrow-bounce 2s ease-in-out infinite;
+      }
+
+      /*
+   * Small status indicator.
+   */
+      .splash-status {
+        position: absolute;
+
+        top: 28px;
+        left: 50%;
+
+        transform: translateX(-50%);
+
+        z-index: 3;
+
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        color: #475569;
+
+        font-size: 0.65rem;
+        font-weight: 600;
+
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .status-dot {
+        width: 5px;
+        height: 5px;
+
+        border-radius: 50%;
+
+        background: #818cf8;
+
+        box-shadow: 0 0 8px rgba(129, 140, 248, 0.8);
+      }
+
+      /* =========================================================
+     JUMBOTRON
+     ========================================================= */
+
+      .jumbotron {
+        min-height: 100vh;
+
+        display: flex;
+        align-items: center;
+
+        padding: 120px 24px;
+
+        background:
+          radial-gradient(
+            circle at 75% 30%,
+            rgba(99, 102, 241, 0.12),
+            transparent 30%
+          ),
+          linear-gradient(180deg, #050505 0%, #090a10 100%);
+
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .jumbotron-container {
+        width: min(1120px, 100%);
+        margin: 0 auto;
+      }
+
+      .jumbotron-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+
+        margin-bottom: 24px;
+
+        color: #a5b4fc;
+
+        font-size: 0.75rem;
+        font-weight: 700;
+
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .jumbotron-eyebrow::before {
+        content: "";
+
+        width: 6px;
+        height: 6px;
+
+        border-radius: 50%;
+
+        background: #818cf8;
+
+        box-shadow: 0 0 12px rgba(129, 140, 248, 0.8);
+      }
+
+      .jumbotron-title {
+        max-width: 1050px;
+
+        font-size: clamp(3.4rem, 8vw, 7.5rem);
+
+        line-height: 0.95;
+
+        letter-spacing: -0.07em;
+
+        font-weight: 750;
+
+        background: linear-gradient(
+          135deg,
+          #ffffff 10%,
+          #e2e8f0 55%,
+          #818cf8 100%
+        );
+
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .jumbotron-description {
+        max-width: 760px;
+
+        margin-top: 32px;
+
+        color: #94a3b8;
+
+        font-size: clamp(1.05rem, 2vw, 1.3rem);
+
+        line-height: 1.7;
+      }
+
+      .jumbotron-description strong {
+        color: #e2e8f0;
+        font-weight: 600;
+      }
+
+      .jumbotron-actions {
+        display: flex;
+        gap: 12px;
+
+        margin-top: 38px;
+
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        min-height: 48px;
+
+        padding: 0 22px;
+
+        border-radius: 999px;
+
+        text-decoration: none;
+
+        font-size: 0.9rem;
+        font-weight: 650;
+
+        transition:
+          transform 0.25s ease,
+          background 0.25s ease,
+          border-color 0.25s ease,
+          box-shadow 0.25s ease;
+      }
+
+      .btn-primary {
+        background: #f8fafc;
+        color: #050505;
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-2px);
+
+        box-shadow: 0 12px 30px rgba(255, 255, 255, 0.12);
+      }
+
+      .btn-secondary {
+        color: #e2e8f0;
+
+        background: rgba(255, 255, 255, 0.035);
+
+        border: 1px solid rgba(255, 255, 255, 0.12);
+
+        backdrop-filter: blur(12px);
+      }
+
+      .btn-secondary:hover {
+        transform: translateY(-2px);
+
+        background: rgba(255, 255, 255, 0.07);
+
+        border-color: rgba(255, 255, 255, 0.25);
+      }
+
+      /* =========================================================
+     THESIS
+     ========================================================= */
+
+      .thesis-section {
+        padding: 150px 24px;
+
+        background: #08090e;
+
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .thesis-container {
+        width: min(1080px, 100%);
+        margin: 0 auto;
+      }
+
+      .section-label {
+        color: #818cf8;
+
+        font-size: 0.72rem;
+        font-weight: 700;
+
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .thesis-title {
+        max-width: 900px;
+
+        margin-top: 18px;
+
+        font-size: clamp(2.5rem, 5.5vw, 5rem);
+
+        line-height: 1.03;
+
+        letter-spacing: -0.05em;
+      }
+
+      .thesis-title span {
+        color: #64748b;
+      }
+
+      .thesis-copy {
+        max-width: 760px;
+
+        margin-top: 28px;
+
+        color: #94a3b8;
+
+        font-size: 1.1rem;
+
+        line-height: 1.75;
+      }
+
+      /* =========================================================
+     FOUR PILLARS
+     ========================================================= */
+
+      .pillars-section {
+        padding: 40px 24px 150px;
+
+        background: #08090e;
+      }
+
+      .pillars-container {
+        width: min(1080px, 100%);
+        margin: 0 auto;
+      }
+
+      .pillars-grid {
+        display: grid;
+
+        grid-template-columns: repeat(2, 1fr);
+
+        gap: 16px;
+      }
+
+      .pillar {
+        min-height: 390px;
+
+        position: relative;
+
+        overflow: hidden;
+
+        padding: 34px;
+
+        border-radius: 22px;
+
+        border: 1px solid rgba(255, 255, 255, 0.08);
+
+        background:
+          radial-gradient(
+            circle at 100% 0%,
+            rgba(129, 140, 248, 0.08),
+            transparent 42%
+          ),
+          rgba(255, 255, 255, 0.025);
+
+        transition:
+          transform 0.3s ease,
+          border-color 0.3s ease;
+      }
+
+      .pillar:hover {
+        transform: translateY(-5px);
+
+        border-color: rgba(129, 140, 248, 0.3);
+      }
+
+      .pillar-number {
+        color: #475569;
+
+        font-size: 0.7rem;
+        font-weight: 700;
+
+        letter-spacing: 0.16em;
+      }
+
+      .pillar h3 {
+        max-width: 470px;
+
+        margin-top: 80px;
+
+        font-size: clamp(1.8rem, 3vw, 2.5rem);
+
+        line-height: 1.08;
+
+        letter-spacing: -0.04em;
+      }
+
+      .pillar p {
+        max-width: 470px;
+
+        margin-top: 18px;
+
+        color: #94a3b8;
+
+        line-height: 1.65;
+
+        font-size: 0.96rem;
+      }
+
+      .pillar-stat {
+        position: absolute;
+
+        right: 28px;
+        bottom: 24px;
+
+        color: rgba(165, 180, 252, 0.18);
+
+        font-size: 3.5rem;
+        font-weight: 800;
+
+        letter-spacing: -0.06em;
+      }
+
+      /* =========================================================
+     COMPONENTS
+     ========================================================= */
+
+      .components-section {
+        padding: 150px 24px;
+
+        background: #050505;
+
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .components-container {
+        width: min(1080px, 100%);
+        margin: 0 auto;
+      }
+
+      .components-header {
+        max-width: 720px;
+
+        margin-bottom: 60px;
+      }
+
+      .components-header h2 {
+        margin-top: 18px;
+
+        font-size: clamp(2.5rem, 5vw, 4.5rem);
+
+        line-height: 1.04;
+
+        letter-spacing: -0.05em;
+      }
+
+      .components-header p {
+        margin-top: 20px;
+
+        color: #64748b;
+
+        font-size: 1.05rem;
+
+        line-height: 1.7;
+      }
+
+      .component-grid {
+        display: grid;
+
+        grid-template-columns: repeat(3, 1fr);
+
+        gap: 12px;
+      }
+
+      .component-chip {
+        min-height: 110px;
+
+        padding: 20px;
+
+        border-radius: 14px;
+
+        border: 1px solid rgba(255, 255, 255, 0.07);
+
+        background: rgba(255, 255, 255, 0.025);
+      }
+
+      .component-chip strong {
+        display: block;
+
+        color: #e2e8f0;
+
+        font-size: 0.95rem;
+      }
+
+      .component-chip span {
+        display: block;
+
+        margin-top: 8px;
+
+        color: #475569;
+
+        font-size: 0.82rem;
+
+        line-height: 1.45;
+      }
+
+      /* =========================================================
+     SOVEREIGNTY
+     ========================================================= */
+
+      .sovereignty-section {
+        padding: 150px 24px;
+
+        background:
+          radial-gradient(
+            circle at 50% 0%,
+            rgba(129, 140, 248, 0.14),
+            transparent 40%
+          ),
+          linear-gradient(180deg, #090a10 0%, #030303 100%);
+
+        border-top: 1px solid rgba(255, 255, 255, 0.07);
+      }
+
+      .sovereignty-container {
+        width: min(1080px, 100%);
+        margin: 0 auto;
+      }
+
+      .sovereignty-title {
+        max-width: 900px;
+
+        margin-top: 18px;
+
+        font-size: clamp(2.7rem, 6vw, 5.5rem);
+
+        line-height: 1;
+
+        letter-spacing: -0.06em;
+      }
+
+      .sovereignty-title span {
+        color: #64748b;
+      }
+
+      .sovereignty-copy {
+        max-width: 720px;
+
+        margin-top: 25px;
+
+        color: #94a3b8;
+
+        font-size: 1.1rem;
+
+        line-height: 1.75;
+      }
+
+      .sovereignty-grid {
+        display: grid;
+
+        grid-template-columns: repeat(3, 1fr);
+
+        gap: 12px;
+
+        margin-top: 55px;
+      }
+
+      .sovereignty-card {
+        padding: 28px;
+
+        border-radius: 16px;
+
+        border: 1px solid rgba(255, 255, 255, 0.07);
+
+        background: rgba(255, 255, 255, 0.025);
+      }
+
+      .sovereignty-card strong {
+        display: block;
+
+        color: #f8fafc;
+
+        font-size: 1rem;
+      }
+
+      .sovereignty-card span {
+        display: block;
+
+        margin-top: 10px;
+
+        color: #64748b;
+
+        line-height: 1.6;
+
+        font-size: 0.88rem;
+      }
+
+      /* =========================================================
+     CTA
+     ========================================================= */
+
+      .cta-section {
+        padding: 150px 24px;
+
+        text-align: center;
+
+        background: #000;
+      }
+
+      .cta-container {
+        max-width: 850px;
+        margin: 0 auto;
+      }
+
+      .cta-container h2 {
+        font-size: clamp(2.8rem, 6vw, 5.5rem);
+
+        line-height: 1;
+
+        letter-spacing: -0.06em;
+      }
+
+      .cta-container p {
+        max-width: 650px;
+
+        margin: 24px auto 0;
+
+        color: #64748b;
+
+        font-size: 1.05rem;
+
+        line-height: 1.7;
+      }
+
+      /* =========================================================
+     FOOTER
+     ========================================================= */
+
+      .site-footer {
+        padding: 80px 24px 30px;
+
+        background: #030303;
+
+        border-top: 1px solid rgba(255, 255, 255, 0.07);
+
+        color: #94a3b8;
+      }
+
+      .footer-container {
+        width: min(1080px, 100%);
+        margin: 0 auto;
+      }
+
+      .footer-grid {
+        display: grid;
+
+        grid-template-columns: 2fr 1fr 1fr;
+
+        gap: 60px;
+
+        margin-bottom: 70px;
+      }
+
+      .footer-heading {
+        color: #f1f5f9;
+
+        font-size: 1rem;
+        font-weight: 650;
+
+        margin-bottom: 18px;
+      }
+
+      .brand-col p {
+        max-width: 340px;
+
+        color: #475569;
+
+        font-size: 0.9rem;
+
+        line-height: 1.65;
+      }
+
+      .footer-nav {
+        list-style: none;
+
+        display: flex;
+        flex-direction: column;
+
+        gap: 11px;
+      }
+
+      .footer-nav a {
+        color: #64748b;
+
+        text-decoration: none;
+
+        font-size: 0.9rem;
+
+        transition: color 0.2s ease;
+      }
+
+      .footer-nav a:hover {
+        color: #f8fafc;
+      }
+
+      .footer-bottom {
+        padding-top: 28px;
+
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+
+        display: flex;
+
+        align-items: center;
+        justify-content: space-between;
+
+        color: #475569;
+
+        font-size: 0.8rem;
+      }
+
+      .footer-legal {
+        display: flex;
+        gap: 20px;
+      }
+
+      .footer-legal a {
+        color: #475569;
+        text-decoration: none;
+      }
+
+      .footer-legal a:hover {
+        color: #94a3b8;
+      }
+
+      /* =========================================================
+     ANIMATION
+     ========================================================= */
+
+      @keyframes logo-float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+
+        50% {
+          transform: translateY(-14px);
+        }
+      }
+
+      @keyframes ambient-pulse {
+        0% {
+          transform: scale(0.85);
+          opacity: 0.55;
+        }
+
+        100% {
+          transform: scale(1.15);
+          opacity: 1;
+        }
+      }
+
+      @keyframes arrow-bounce {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+
+        50% {
+          transform: translateY(3px);
+        }
+      }
+
+      /* =========================================================
+     RESPONSIVE
+     ========================================================= */
+
+      @media (max-width: 800px) {
+        .pillars-grid,
+        .sovereignty-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .component-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .footer-grid {
+          grid-template-columns: 1fr;
+          gap: 38px;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .component-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .floating-logo {
+          width: 145px;
+        }
+
+        .jumbotron-title {
+          font-size: 3.5rem;
+        }
+
+        .pillar {
+          min-height: 340px;
+          padding: 26px;
+        }
+
+        .pillar h3 {
+          margin-top: 60px;
+        }
+
+        .pillar-stat {
+          font-size: 2.6rem;
+        }
+
+        .footer-bottom {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 16px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+    ```
+  </head>
+
+  <body>
+    ```
+    <!-- =======================================================
+     ABOVE-THE-FOLD SPLASH
+
+     Keep this intentionally lightweight.
+
+     Later this becomes the "shell" that loads first,
+     while the rest of the site can be lazy-loaded after
+     initial paint.
+     ======================================================= -->
+
+    <section class="splash-container">
+      <div class="splash-grid"></div>
+
+      <div class="splash-glow"></div>
+
+      <div class="splash-status">
+        <span class="status-dot"></span>
+        Beverly System
+      </div>
+
+      <img
+        src="assets/beverly_logo_final.png"
+        alt="Beverly"
+        class="floating-logo"
+      />
+
+      <a href="#jumbotron" class="splash-enter" aria-label="Explore Beverly">
+        Explore Beverly
+        <span class="splash-enter-arrow">↓</span>
+      </a>
+    </section>
+
+    <!-- =======================================================
+     JUMBOTRON
+
+     This is now the first actual marketing section.
+     ======================================================= -->
+
+    <section id="jumbotron" class="jumbotron">
+      <div class="jumbotron-container">
+        <span class="jumbotron-eyebrow">
+          The UI system for modern systems
+        </span>
+
+        <h1 class="jumbotron-title">
+          UI for systems<br />
+          that move.
+        </h1>
+
+        <p class="jumbotron-description">
+          Beverly is an elite UI kit and design system for
+          <strong>data-intensive applications</strong> — from financial
+          terminals and observability platforms to telemetry systems and AI
+          agent control planes.
+        </p>
+
+        <div class="jumbotron-actions">
+          <a href="#pillars" class="btn btn-primary"> Explore the System </a>
+
+          <a href="#components" class="btn btn-secondary"> View Components </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================
+     THESIS
+     ======================================================= -->
+
+    <section class="thesis-section">
+      <div class="thesis-container">
+        <span class="section-label"> Beyond the Dashboard </span>
+
+        <h2 class="thesis-title">
+          The web was built around documents.
+          <span>Modern software is built around streams.</span>
+        </h2>
+
+        <p class="thesis-copy">
+          Traditional UI kits were designed for CRUD applications, marketing
+          sites, and conventional dashboards. Modern systems are different: live
+          telemetry, financial markets, massive datasets, event streams, logs,
+          AI agents, and continuously changing state.
+          <br /><br />
+          Beverly provides the primitives for those systems.
+        </p>
+      </div>
+    </section>
+
+    <!-- =======================================================
+     FOUR PILLARS
+     ======================================================= -->
+
+    <section id="pillars" class="pillars-section">
+      <div class="pillars-container">
+        <div class="pillars-grid">
+          <article class="pillar">
+            <span class="pillar-number"> 01 / THROUGHPUT </span>
+
+            <h3>Beyond the browser bottleneck.</h3>
+
+            <p>
+              Components engineered for interfaces where thousands of values
+              change every second. Virtualized lists, high-density tables,
+              canvas/WebGL visualization, and zero-latency state updates are
+              first-class primitives.
+            </p>
+
+            <div class="pillar-stat">100K+</div>
+          </article>
+
+          <article class="pillar">
+            <span class="pillar-number"> 02 / DUAL CONTROL </span>
+
+            <h3>Built for humans. Structured for agents.</h3>
+
+            <p>
+              Modern software is no longer operated exclusively by a person.
+              Beverly introduces deterministic interaction primitives for
+              command bars, tool calls, agent activity, structured outputs,
+              approvals, and autonomous workflows.
+            </p>
+
+            <div class="pillar-stat">HUMAN + AI</div>
+          </article>
+
+          <article class="pillar">
+            <span class="pillar-number"> 03 / SOVEREIGNTY </span>
+
+            <h3>Your interface shouldn't phone home.</h3>
+
+            <p>
+              Fully self-hosted, offline-first primitives with zero telemetry
+              and no dependency on external CDNs, hosted fonts, or
+              cloud-controlled infrastructure.
+            </p>
+
+            <div class="pillar-stat">OFFLINE</div>
+          </article>
+
+          <article class="pillar">
+            <span class="pillar-number"> 04 / ACCESSIBILITY </span>
+
+            <h3>Complex interfaces. Accessible by default.</h3>
+
+            <p>
+              WCAG 2.2 AA is part of the primitive, not a compliance pass added
+              afterward. Keyboard navigation, semantic structure, focus
+              management, ARIA patterns, trees, command palettes, filters, and
+              dense data interfaces are designed together.
+            </p>
+
+            <div class="pillar-stat">AA</div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================
+     COMPONENTS
+     ======================================================= -->
+
+    <section id="components" class="components-section">
+      <div class="components-container">
+        <div class="components-header">
+          <span class="section-label"> The Primitive Layer </span>
+
+          <h2>Not another button library.</h2>
+
+          <p>
+            Beverly starts where conventional component libraries stop. The
+            system is designed around the interaction patterns of
+            high-performance, data-heavy, AI-native software.
+          </p>
+        </div>
+
+        <div class="component-grid">
+          <div class="component-chip">
+            <strong>Virtualized Data Views</strong>
+            <span>
+              High-density interfaces built for large, continuously changing
+              datasets.
+            </span>
+          </div>
+
+          <div class="component-chip">
+            <strong>Command Surfaces</strong>
+            <span>
+              Keyboard-first commands that can also be addressed
+              programmatically.
+            </span>
+          </div>
+
+          <div class="component-chip">
+            <strong>Agent Tool Cards</strong>
+            <span>
+              Structured rendering for tool calls, results, states, and
+              approvals.
+            </span>
+          </div>
+
+          <div class="component-chip">
+            <strong>Telemetry Interfaces</strong>
+            <span>
+              Visual primitives for live system state and operational
+              monitoring.
+            </span>
+          </div>
+
+          <div class="component-chip">
+            <strong>Data Grids & Trees</strong>
+            <span>
+              Dense information architecture without sacrificing keyboard
+              accessibility.
+            </span>
+          </div>
+
+          <div class="component-chip">
+            <strong>Streaming States</strong>
+            <span>
+              Loading, partial, live, stale, error, and updating states as
+              native primitives.
+            </span>
+          </div>
+
+          <div class="component-chip">
+            <strong>Glass & Surface System</strong>
+            <span>
+              Layered surfaces, depth, blur, gradients, borders, and adaptive
+              themes.
+            </span>
+          </div>
+
+          <div class="component-chip">
+            <strong>Interaction Feedback</strong>
+            <span>
+              Focus, hover, selection, validation, transitions, and state
+              changes.
+            </span>
+          </div>
+
+          <div class="component-chip">
+            <strong>Human + Agent Controls</strong>
+            <span>
+              One interaction model for people, automation, and autonomous
+              systems.
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================
+     SOVEREIGNTY
+     ======================================================= -->
+
+    <section class="sovereignty-section">
+      <div class="sovereignty-container">
+        <span class="section-label"> Sovereign by Default </span>
+
+        <h2 class="sovereignty-title">
+          Build inside your network.
+          <span>Stay in control.</span>
+        </h2>
+
+        <p class="sovereignty-copy">
+          Enterprise software shouldn't have to surrender its infrastructure
+          just to get a beautiful interface. Beverly is designed to run where
+          your application runs — including private networks, regulated
+          environments, and fully air-gapped systems.
+        </p>
+
+        <div class="sovereignty-grid">
+          <div class="sovereignty-card">
+            <strong>Zero Telemetry</strong>
+            <span>
+              No analytics beacons, tracking scripts, or silent phone-home
+              dependencies.
+            </span>
+          </div>
+
+          <div class="sovereignty-card">
+            <strong>Fully Self-Hosted</strong>
+            <span>
+              Own the assets, components, fonts, icons, and runtime. No external
+              CDN required.
+            </span>
+          </div>
+
+          <div class="sovereignty-card">
+            <strong>Air-Gapped Ready</strong>
+            <span>
+              Designed for environments where external network access simply
+              isn't available.
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================
+     CTA
+     ======================================================= -->
+
+    <section class="cta-section">
+      <div class="cta-container">
+        <span class="section-label"> Build the Interface Layer </span>
+
+        <h2>Stop designing around the dashboard.</h2>
+
+        <p>
+          Build interfaces for the systems you're actually running:
+          high-throughput, AI-native, data-intensive, accessible, and sovereign.
+        </p>
+
+        <div class="jumbotron-actions">
+          <a href="#components" class="btn btn-primary"> Explore Components </a>
+
+          <a href="#jumbotron" class="btn btn-secondary"> Back to Top </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================
+     FOOTER
+     ======================================================= -->
+
+    <footer class="site-footer">
+      <div class="footer-container">
+        <div class="footer-grid">
+          <div class="brand-col">
+            <h4 class="footer-heading">Beverly UI</h4>
+
+            <p>
+              A high-performance design system for modern, data-intensive
+              software.
+            </p>
+          </div>
+
+          <div>
+            <h4 class="footer-heading">System</h4>
+
+            <ul class="footer-nav">
+              <li>
+                <a href="#components"> Components </a>
+              </li>
+
+              <li>
+                <a href="#pillars"> Performance </a>
+              </li>
+
+              <li>
+                <a href="#pillars"> Accessibility </a>
+              </li>
+
+              <li>
+                <a href="#pillars"> AI Interaction </a>
+              </li>
+
+              <li>
+                <a href="#pillars"> Sovereignty </a>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 class="footer-heading">Resources</h4>
+
+            <ul class="footer-nav">
+              <li>
+                <a href="#docs"> Documentation </a>
+              </li>
+
+              <li>
+                <a href="#changelog"> Changelog </a>
+              </li>
+
+              <li>
+                <a href="#licensing"> Licensing </a>
+              </li>
+
+              <li>
+                <a href="#community"> Community </a>
+              </li>
+
+              <li>
+                <a href="#support"> Support </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <p>&copy; 2026 Beverly UI. All rights reserved.</p>
+
+          <div class="footer-legal">
+            <a href="#privacy"> Privacy </a>
+
+            <a href="#terms"> Terms </a>
+          </div>
+        </div>
+      </div>
+    </footer>
+    ```
+  </body>
+</html>
