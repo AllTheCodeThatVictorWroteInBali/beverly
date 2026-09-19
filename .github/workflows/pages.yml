@@ -1,4 +1,4 @@
-name: Deploy Beverly Docs
+name: Deploy Beverly
 
 on:
   push:
@@ -34,12 +34,17 @@ jobs:
       - name: Assemble site
         run: |
           mkdir -p _site/docs
+
           cp -R docs/book/* _site/docs/
+
           cp index.html _site/
           cp -R assets _site/
 
-            - name: Setup Pages
-              uses: actions/configure-pages@v5
+          echo "=== Published site ==="
+          find _site -maxdepth 2 -type f | sort
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
