@@ -55,12 +55,10 @@ Here, the larger spacing separates the title block from the content area, while 
 
 ```rust
 fn build_card(mut commands: Commands) {
-	commands.spawn(BeverlyCard::new("Deployment status")
-		.padding(Spacing::md)
-		.with_children(|card| {
-			card.spawn(BeverlyText::body("All services are healthy."));
-			card.spawn(BeverlyText::subtitle("Last updated 2 minutes ago"));
-		}));
+	commands.spawn(BeverlyCard::new("Deployment status")).with_children(|card| {
+		card.spawn(BeverlyText::new("All services are healthy."));
+		card.spawn(BeverlyText::new("Last updated 2 minutes ago"));
+	});
 }
 ```
 

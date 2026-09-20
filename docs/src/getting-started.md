@@ -22,8 +22,9 @@ fn setup_ui(mut commands: Commands) {
         BeverlyAppShell::new(),
         BeverlyTheme::dark(),
     )).with_children(|parent| {
-        parent.spawn(BeverlyCard::new("Welcome")
-            .with_body("Your first Beverly screen"));
+        parent.spawn(BeverlyCard::new("Welcome")).with_children(|card| {
+            card.spawn(BeverlyText::new("Your first Beverly screen"));
+        });
         parent.spawn(BeverlyButton::primary("Start"));
     });
 }
@@ -48,8 +49,9 @@ fn setup_workspace(mut commands: Commands) {
         parent.spawn(BeverlyMainPane::new()).with_children(|main| {
             main.spawn(BeverlyHeader::new("Workspace"));
             main.spawn(BeverlyStack::vertical()).with_children(|stack| {
-                stack.spawn(BeverlyCard::new("Summary")
-                    .with_body("Everything is running normally."));
+                stack.spawn(BeverlyCard::new("Summary")).with_children(|card| {
+                    card.spawn(BeverlyText::new("Everything is running normally."));
+                });
                 stack.spawn(BeverlyButton::primary("Create task"));
             });
         });

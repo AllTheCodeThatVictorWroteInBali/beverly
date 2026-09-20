@@ -53,4 +53,18 @@ Data-heavy apps rely on high-density tables, filters, and navigation controls. T
 
 AI interfaces combine prompts, status surfaces, alerts, and action controls. A robust design makes trust and state visible with secondary details rather than only flashy motion.
 
-In every case, the idea is the same: start with an app shell, layer the screen hierarchy, then add controls and effects only where they make the task easier and the interface more understandable.
+## Design rule across examples
+
+In every case, the idea is the same: start with an app shell, layer the screen hierarchy, then add controls and effects only where they make the task easier and the interface more understandable. A good example does not merely show a pretty composition; it demonstrates the reasoning behind the layout, hierarchy, and interaction model.
+
+## Example composition checklist
+
+Before a screen is considered done, ask:
+
+- Can the key actions be reached by keyboard?
+- Does focus move predictably after a panel or modal opens?
+- Can the user understand the important states without relying on color alone?
+- Does reduced motion still leave the interface legible and stable?
+- Is the visual density justified by the task and the surface's purpose?
+
+If the answer to those questions is yes, the example is likely a strong Beverly pattern rather than just a decorative mockup.

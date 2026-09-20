@@ -14,6 +14,16 @@ A typical Beverly widget is a small stateful unit with these concerns:
 
 This matches the pattern used in systems like block_studio: UI widgets are built from a small shared surface model, then specialized with different semantic and visual treatments. Title and text follow the same rule: they are lightweight content primitives that inherit the app's typography and surface rules instead of carrying their own isolated styling system.
 
+## Composition model
+
+Beverly components are meant to be composed into app shells, form sections, toolbars, panels, and data surfaces. The best results usually come from building the screen in layers:
+
+1. start with layout primitives such as stacks, grids, containers, and panels
+2. add semantic content blocks like titles, text, cards, and badges
+3. add interaction primitives like buttons, inputs, toggles, and selects
+4. place contextual controls such as dropdowns, modals, and tooltips where they help the task
+5. apply motion, effects, and visual emphasis only where they improve clarity
+
 ## Title
 
 Titles are the high-emphasis text primitive for screens, panels, cards, and section headers. Use them when you need a clear hierarchy marker that tells the user what area they are looking at.
@@ -37,8 +47,9 @@ fn build_dashboard(mut commands: Commands) {
         NodeBundle::default(),
         BeverlyStack::vertical(),
     )).with_children(|parent| {
-        parent.spawn(BeverlyCard::new("Summary")
-            .with_body("Realtime metrics and AI actions"));
+        parent.spawn(BeverlyCard::new("Summary")).with_children(|card| {
+            card.spawn(BeverlyText::new("Realtime metrics and AI actions"));
+        });
         parent.spawn(BeverlyButton::primary("Open report"));
     });
 }
@@ -60,5 +71,6 @@ fn build_dashboard(mut commands: Commands) {
 - modals and toasts for important feedback
 - tables and pagination for dense data views
 - navigation, tabs, and search for multi-surface applications
+- avatars, badges, and dividers for compact interface signals
 
 Each component should remain legible in light and dark themes and degrade gracefully when motion or contrast settings are reduced.

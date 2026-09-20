@@ -53,10 +53,11 @@ use beverly::prelude::*;
 fn build_summary_card(mut commands: Commands) {
     commands.spawn((
         NodeBundle::default(),
-        BeverlyCard::new("Team overview")
-            .with_body("12 active tasks and 3 alerts pending")
-            .with_action(BeverlyButton::secondary("View details")),
-    ));
+        BeverlyCard::new("Team overview"),
+    )).with_children(|card| {
+        card.spawn(BeverlyText::new("12 active tasks and 3 alerts pending"));
+        card.spawn(BeverlyButton::secondary("View details"));
+    });
 }
 ```
 
@@ -191,14 +192,15 @@ fn spawn_loading_state(mut commands: Commands) {
 
     commands.spawn((
         NodeBundle::default(),
-        BeverlyStatus::new("Uploading")
-            .with_progress(72)
-            .with_transition(if prefers_reduced_motion {
-                TransitionPolicy::Instant
-            } else {
-                TransitionPolicy::Fade
-            }),
-    ));
+        BeverlyStatus::new("Uploading"),
+    )).with_children(|status| {
+        status.spawn(BeverlyText::new("72% complete"));
+        if prefers_reduced_motion {
+            status.insert(TransitionPolicy::Instant);
+        } else {
+            status.insert(TransitionPolicy::Fade);
+        }
+    });
 }
 ```
 
@@ -254,6 +256,96 @@ A good status system combines:
 
 For example, an error should not depend only on a red border or an icon. It should also include explanatory text and a clear path to recovery.
 
+## Accessible interaction patterns
+
+Accessibility is not just about a correct HTML or Bevy role assignment. It is also about the interaction model the user experiences as they move through the interface.
+
+A good accessibility pattern makes several things true at the same time:
+
+- interactive controls are reachable by pointer and keyboard
+- state changes are communicated in a way users can perceive
+- layout and focus remain stable while content updates
+- important actions stay visible without requiring complex visual memory
+- users can recover from mistakes without losing their place
+
+This matters because accessibility is often shaped by the sequence of interactions, not only the final appearance. A screen may look polished but still be frustrating if the user cannot determine what happens next, where focus went, or whether a prior action succeeded.
+
+### Predictable action patterns
+
+Beverly should encourage predictable action patterns across all components:
+
+- confirmation before irreversible actions
+- visible progress during long-running tasks
+- clear error states with specific recovery paths
+- actions that have obvious names and outcomes
+- consistent patterns for opening, dismissing, and returning from dialogs and side panels
+
+The goal is not to make every control feel identical. The goal is to ensure that when a user interacts with an element, the interface responds in a way that is obvious, stable, and recoverable.
+
+### Recoverability and error guidance
+
+Accessible interfaces are forgiving. When something goes wrong, the user should understand what happened and what to do next.
+
+This means:
+
+- show errors near the relevant field or action
+- preserve entered information when a validation failure occurs
+- make destructive actions explicit and reversible when possible
+- keep focus on the failed control or the nearest relevant recovery action
+- describe the issue in plain language, not only in color or iconography
+
+A poor pattern is one where the user sees a red border but no message, or where a dialog closes without returning focus to the original action. Those failures create friction and can become blockers for users with cognitive or motor differences.
+
+### Progressive disclosure and clarity
+
+Many interfaces become less accessible as they gather more content, options, and controls. Beverly should prefer progressive disclosure and clear hierarchy over trying to make everything visually equal.
+
+That means:
+
+- important actions should be obvious and easy to reach
+- secondary actions should not compete visually with primary actions
+- dense layouts should still preserve a clear reading order
+- tooltips, popovers, and menus should not hide essential context from keyboard users
+- multi-step workflows should keep the user oriented at each step
+
+In other words, more power should not mean more noise. Good accessibility design makes the important path easier, not harder.
+
+## Policy-aware accessibility
+
+Accessibility is also shaped by environment and user preference. The system should not treat reduced motion, high contrast, or low-vision preferences as optional extras.
+
+At the foundation level, Beverly should support policies such as:
+
+- reduced motion for animation-heavy states
+- high-contrast mode for interfaces where subtle visual separation is insufficient
+- effective focus visibility under custom themes and branded surfaces
+- stronger text legibility when transparency or blur reduces clarity
+
+These policies should be part of the design system, not something each individual component manually implements. Once the system understands user preference, accessibility decisions become more consistent across the UI.
+
+### Example: policy-driven contrast and motion
+
+```rust
+use bevy::prelude::*;
+use beverly::prelude::*;
+
+fn apply_accessibility_policy(mut commands: Commands) {
+    let reduce_motion = true;
+    let high_contrast = false;
+
+    commands.spawn((
+        NodeBundle::default(),
+        BeverlySurface::new()
+            .with_policy(AccessibilityPolicy::from_context(
+                reduce_motion,
+                high_contrast,
+            )),
+    ));
+}
+```
+
+This is the practical version of accessibility as a system concern: the application responds to context without requiring developers to hand-tune every widget for each preference.
+
 ## Practical implementation guidance
 
 Beverly should encourage developers to build accessibility into the component lifecycle:
@@ -264,6 +356,8 @@ Beverly should encourage developers to build accessibility into the component li
 4. support keyboard-first operation
 5. test contrast and motion behavior at the theme level
 6. verify that critical flows still work when visual effects are reduced
+7. ensure recovery and error states are understandable without relying on color alone
+8. validate that navigation remains coherent in dense, dynamic interfaces
 
 ### Example: component pattern checklist
 

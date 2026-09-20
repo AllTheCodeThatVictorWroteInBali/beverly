@@ -53,7 +53,7 @@ fn build_app(mut commands: Commands) {
     )).with_children(|parent| {
         parent.spawn(BeverlyCard::new("Deploy"));
         parent.spawn(BeverlyButton::new("Ship"));
-        parent.spawn(BeverlyText::body("Ready to release"));
+        parent.spawn(BeverlyText::new("Ready to release"));
     });
 }
 ```

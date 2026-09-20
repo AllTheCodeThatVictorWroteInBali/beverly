@@ -5,6 +5,9 @@ Inputs capture user-provided text or scalar values. Beverly inputs should feel n
 ## Example
 
 ```rust
+use bevy::prelude::*;
+use beverly::prelude::*;
+
 fn build_form(mut commands: Commands) {
     commands.spawn((
         NodeBundle::default(),
@@ -25,8 +28,8 @@ Common states include:
 - invalid
 - disabled
 
-Use a visible validation hint and keep field errors close to the relevant control.
+Use a visible validation hint and keep field errors close to the relevant control. A field without clear guidance can create friction even if the control itself is technically editable.
 
 ## Accessibility
 
-Associate each input with a visible label, keep focus order logical, and ensure the control remains operable with a keyboard and screen reader.
+Associate each input with a visible label, keep focus order logical, and ensure the control remains operable with a keyboard and screen reader. Error state should also be clear and actionable, not only indicated through an unlabeled color change.
