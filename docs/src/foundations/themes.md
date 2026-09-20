@@ -1,0 +1,88 @@
+# Themes
+
+Themes let Beverly applications define a single visual language that can be swapped across light, dark, high-contrast, and branded variants without changing widget logic.
+
+A theme acts as the shared source of truth for visual tokens such as:
+
+- colors
+- typography
+- spacing
+- borders and radii
+- shadows
+- motion values
+- interaction states
+
+## Why themes matter
+
+A UI feels cohesive when the same design vocabulary is reused everywhere. If each widget chooses its own colors, spacing, and emphasis independently, the product becomes visually inconsistent and hard to maintain.
+
+Beverly keeps these decisions at the theme layer so screens, panels, controls, and text all inherit the same design system.
+
+## Built-in modes
+
+Beverly is designed around a small set of standard theme modes:
+
+- Light
+- Dark
+- High contrast
+- Custom branded variants
+
+These are not separate implementations of every component. Instead, they are alternate token sets that preserve the same component contracts while changing the visual result.
+
+## Theme boundaries
+
+A theme should define tokens and visual defaults, not application behavior. Components and policies decide how those values are applied in context.
+
+That separation gives you a few useful properties:
+
+- the app can switch between modes without rewriting screen logic
+- semantically meaningful tokens remain stable across brand updates
+- accessibility settings such as contrast and motion can adapt without breaking component structure
+
+## Example
+
+```rust
+use bevy::prelude::*;
+use beverly::prelude::*;
+
+fn build_app(mut commands: Commands) {
+    commands.spawn((
+        NodeBundle::default(),
+        BeverlyAppShell::new(),
+        BeverlyTheme::dark(),
+    )).with_children(|parent| {
+        parent.spawn(BeverlyCard::new("Deploy"));
+        parent.spawn(BeverlyButton::new("Ship"));
+        parent.spawn(BeverlyText::body("Ready to release"));
+    });
+}
+```
+
+The app shell owns the active theme, and child components read from it. That keeps cards, buttons, text, and form controls visually consistent even when the theme changes.
+
+## Customization
+
+Applications can override individual tokens or substitute an entirely different theme while keeping the same component interfaces. This makes it practical to support a branded variant or a system-specific palette without having to rework every screen.
+
+In practice, a designer or product team can adjust the theme once and have the change propagate across the whole interface.
+
+## Conceptual structure
+
+This is the intended shape of the design system in simplified form:
+
+```rust
+let theme = Theme {
+    colors: {
+        base: "#0b1120",
+        surface: "#111827",
+        accent: "#7c3aed",
+        success: "#22c55e",
+        warning: "#f59e0b",
+        danger: "#ef4444",
+    },
+    spacing: ["xs", "sm", "md", "lg", "xl"],
+    radius: ["sm", "md", "lg"],
+};
+```
+
+The important idea is that the application uses semantic tokens rather than scattered hard-coded values. The theme gives a product its visual identity; the components give it behavior and structure.
