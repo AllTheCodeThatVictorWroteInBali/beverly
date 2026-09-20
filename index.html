@@ -81,6 +81,7 @@
 
       .splash-container {
         height: 100vh;
+        height: 100svh;
         min-height: 600px;
         width: 100%;
         position: relative;
@@ -193,7 +194,7 @@
         position: absolute;
 
         left: 50%;
-        bottom: 32px;
+        bottom: calc(32px + env(safe-area-inset-bottom));
 
         transform: translateX(-50%);
 
@@ -227,6 +228,12 @@
           background 0.25s ease,
           border-color 0.25s ease,
           transform 0.25s ease;
+      }
+
+      @supports (height: 100dvh) {
+        .splash-container {
+          height: 100dvh;
+        }
       }
 
       .splash-enter:hover {
@@ -977,6 +984,14 @@
       }
 
       @media (max-width: 520px) {
+        .splash-container {
+          min-height: 100svh;
+        }
+
+        .splash-enter {
+          bottom: calc(72px + env(safe-area-inset-bottom));
+        }
+
         .component-grid {
           grid-template-columns: 1fr;
         }
