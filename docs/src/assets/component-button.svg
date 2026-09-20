@@ -1,0 +1,21 @@
+<svg width="960" height="420" viewBox="0 0 960 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="420" rx="28" fill="#F5F7FB"/>
+  <rect x="110" y="90" width="740" height="240" rx="26" fill="#FFFFFF"/>
+  <rect x="164" y="150" width="186" height="52" rx="14" fill="#7C6AF8"/>
+  <rect x="386" y="150" width="186" height="52" rx="14" fill="#EEF3FF"/>
+  <rect x="608" y="150" width="186" height="52" rx="14" fill="#EAF0F9"/>
+  <text x="257" y="182" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="white">Primary</text>
+  <text x="454" y="182" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#2B3A57">Secondary</text>
+  <text x="672" y="182" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#475B84">Subtle</text>
+
+  <rect x="164" y="236" width="129" height="52" rx="14" fill="#7C6AF8" opacity="0.18"/>
+  <rect x="314" y="236" width="129" height="52" rx="14" fill="#EEF3FF"/>
+  <rect x="464" y="236" width="129" height="52" rx="14" fill="#EEF3FF"/>
+  <rect x="614" y="236" width="129" height="52" rx="14" fill="#EAF0F9"/>
+
+  <circle cx="226" cy="262" r="10" fill="#7C6AF8"/>
+  <rect x="246" y="255" width="46" height="14" rx="7" fill="#7C6AF8"/>
+  <rect x="338" y="255" width="52" height="14" rx="7" fill="#6E7EA7"/>
+  <rect x="488" y="255" width="52" height="14" rx="7" fill="#6E7EA7"/>
+  <rect x="638" y="255" width="52" height="14" rx="7" fill="#6E7EA7"/>
+</svg>

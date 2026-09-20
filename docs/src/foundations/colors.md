@@ -1,5 +1,7 @@
 # Colors
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Color in Beverly is composed around semantic roles rather than raw RGB values.
 
 ## One source of truth

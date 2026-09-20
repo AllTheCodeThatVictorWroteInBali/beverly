@@ -1,5 +1,7 @@
 # Virtualization
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Virtualization limits work for large data surfaces. In a UI framework like Beverly, the main idea is simple: do not create, measure, and render every row in a giant list if the user can only see a small portion of it at any given moment. Virtualization keeps the interface responsive by rendering only the items that are effectively visible, while still preserving the illusion of a complete dataset.
 
 ## Why virtualization is necessary

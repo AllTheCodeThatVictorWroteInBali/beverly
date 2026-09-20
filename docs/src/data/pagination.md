@@ -1,5 +1,7 @@
 # Pagination
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Pagination organizes large result sets into manageable pages. It is a strong pattern when the data should still feel browseable and the user may need to move across many pages deliberately.
 
 ## Example

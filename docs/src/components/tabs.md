@@ -1,5 +1,7 @@
 # Tabs
 
+<img src="../assets/tabs.svg" alt="Tabs component illustration" width="860" />
+
 Tabs organize several related views within the same area. They are useful for settings, dashboards, or content sections that share a common context and need to switch without leaving the parent surface.
 
 ## Example

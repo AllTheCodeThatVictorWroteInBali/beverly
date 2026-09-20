@@ -1,5 +1,7 @@
 # Rendering
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Rendering performance depends on practical batching, culling, and asset discipline. In Beverly, rendering is not a separate afterthought bolted onto the UI; it is part of the same ECS-driven architecture that handles layout, semantics, and interaction. The system keeps visual work organized so that a widget can render cleanly without becoming expensive or hard to reason about.
 
 ## What rendering means in ECS

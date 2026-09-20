@@ -1,5 +1,7 @@
 # Motion
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Motion is one of the clearest ways to communicate change in a UI, but it should never become the primary message. Beverly treats motion as a supportive layer: it reinforces structure, confirms state, and helps users understand transitions without distracting them from their task.
 
 ## Principles

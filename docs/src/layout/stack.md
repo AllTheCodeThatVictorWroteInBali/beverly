@@ -1,5 +1,7 @@
 # Stack
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Stacks provide vertical or horizontal grouping with spacing between elements. They are the simplest and most flexible way to compose sequences of controls, text, and content blocks in a predictable way.
 
 ## When to use

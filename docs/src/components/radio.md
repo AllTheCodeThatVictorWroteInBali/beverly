@@ -1,5 +1,7 @@
 # Radio
 
+<img src="../assets/radio.svg" alt="Radio component illustration" width="860" />
+
 Radio groups represent exclusive choices where only one option can be selected at a time. They are ideal for decision points where the user must choose a single valid answer from a small set.
 
 ## Example

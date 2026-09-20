@@ -1,5 +1,7 @@
 # Input
 
+<img src="../assets/input.svg" alt="Input component illustration" width="860" />
+
 Inputs capture user-provided text or scalar values. Beverly inputs should feel native to the app and expose strong semantics for labels, validation, and keyboard navigation.
 
 ## Example

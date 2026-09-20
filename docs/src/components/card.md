@@ -1,5 +1,7 @@
 # Card
 
+<img src="../assets/card.svg" alt="Card component illustration" width="860" />
+
 Cards group related content into a contained visual block. They are useful for dashboards, settings panels, and content summaries because they create a clear boundary without forcing a full-screen change of context.
 
 ## Example

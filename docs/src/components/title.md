@@ -1,5 +1,7 @@
 # Title
 
+<img src="../assets/title.svg" alt="Title component illustration" width="860" />
+
 Titles are the primary hierarchy marker in Beverly. They help users scan a screen quickly and understand which surface they are looking at.
 
 ## When to use

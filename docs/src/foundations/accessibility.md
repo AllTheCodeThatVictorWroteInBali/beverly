@@ -1,5 +1,7 @@
 # Accessibility
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Accessibility is not a bolt-on layer for a completed interface. It is a design constraint that shapes the structure, behavior, and visual system of every component. In Beverly, accessibility should be part of the default contract: semantic structure, keyboard reachability, stable focus, and legible states are expected before visual polish is considered complete.
 
 ## Why it matters

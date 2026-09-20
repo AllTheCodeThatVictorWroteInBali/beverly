@@ -1,5 +1,7 @@
 # Sovereignty
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 User ownership, privacy, and local control remain central in Beverly designs. Sovereignty is the principle that the user should retain meaningful control over the data, tools, and workflows that matter most in the product. In practical terms, it means an interface should not quietly depend on external infrastructure just to remain usable, understandable, or trustworthy.
 
 ## Why sovereignty matters

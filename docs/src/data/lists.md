@@ -1,5 +1,7 @@
 # Lists
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Lists represent ordinal collections with compact reading patterns. They are the simplest way to show ordered information, actions, or grouped content when tables would be too heavy for the task.
 
 ## Use cases

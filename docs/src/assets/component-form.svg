@@ -1,0 +1,14 @@
+<svg width="960" height="420" viewBox="0 0 960 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="420" rx="28" fill="#F7F9FD"/>
+  <rect x="150" y="40" width="660" height="340" rx="26" fill="#FFFFFF"/>
+  <rect x="188" y="86" width="160" height="16" rx="8" fill="#8EA3C9"/>
+  <rect x="188" y="120" width="420" height="52" rx="14" fill="#EEF3FF"/>
+  <rect x="188" y="198" width="160" height="16" rx="8" fill="#8EA3C9"/>
+  <rect x="188" y="232" width="420" height="52" rx="14" fill="#EEF3FF"/>
+
+  <rect x="188" y="304" width="18" height="18" rx="5" fill="#7C6AF8"/>
+  <rect x="214" y="309" width="120" height="10" rx="5" fill="#7B8DB5"/>
+
+  <rect x="646" y="292" width="118" height="42" rx="12" fill="#7C6AF8"/>
+  <text x="681" y="319" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="white">Save</text>
+</svg>

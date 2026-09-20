@@ -1,5 +1,7 @@
 # Divider
 
+<img src="../assets/divider.svg" alt="Divider component illustration" width="860" />
+
 Dividers create visual separation between content groups or sections. They help the eye understand where one scope ends and another begins without adding extra visual weight.
 
 ## Example

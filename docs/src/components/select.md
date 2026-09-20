@@ -1,5 +1,7 @@
 # Select
 
+<img src="../assets/select.svg" alt="Select component illustration" width="860" />
+
 Selects let users choose from a curated set of options when the list is longer than a simple toggle or radio group. They are ideal for configuration surfaces where a compact control needs to show a single chosen option while still supporting many possible values.
 
 ## Example

@@ -1,5 +1,7 @@
 # Accessibility Overview
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Accessibility is part of the core design contract, not an afterthought. Beverly treats it as a first-class product requirement: every interactive surface should be understandable by keyboard, readable in high-contrast settings, resilient under reduced-motion preferences, and labeled clearly for assistive technologies.
 
 ## Core principles

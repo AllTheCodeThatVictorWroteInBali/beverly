@@ -1,5 +1,7 @@
 # Focus Management
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Focus management keeps users oriented when an interface changes, opens panels, or updates content dynamically. In practice, a good focus model is predictable, visible, and easy to recover from when the interface state changes.
 
 ## Design rules

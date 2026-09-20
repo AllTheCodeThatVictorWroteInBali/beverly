@@ -1,5 +1,7 @@
 # Performance Overview
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Performance is an architectural requirement for Bevy-based user interfaces. In a UI framework, performance is not just about frames; it is about how much state churn, layout work, and asset cost the system creates while users work with the interface.
 
 ## Design principles

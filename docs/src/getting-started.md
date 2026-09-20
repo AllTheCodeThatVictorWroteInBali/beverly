@@ -1,5 +1,7 @@
 # Getting Started
 
+<img src="assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Beverly fits naturally into a normal Bevy app. The simplest setup is to add Beverly's plugin, build a shell, and then add widgets to that shell with ECS composition.
 
 ## Minimal app shell

@@ -2,6 +2,8 @@
 
 Beverly components are the reusable building blocks that sit on top of Bevy's ECS and layout system. They are designed to feel native in Rust applications while still being themeable, accessible, and easy to compose into larger screens.
 
+<img src="../assets/component-overview.svg" alt="Component overview illustration" width="860" />
+
 ## Component model
 
 A typical Beverly widget is a small stateful unit with these concerns:

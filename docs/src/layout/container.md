@@ -1,5 +1,7 @@
 # Container
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Containers constrain content width and align content within a page. They are the most fundamental layout primitive for building readable screens without letting content stretch unpredictably across the viewport.
 
 ## When to use

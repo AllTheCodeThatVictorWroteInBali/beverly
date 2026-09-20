@@ -1,5 +1,7 @@
 # Viewport
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Viewport primitives support full-screen composition and responsive surfaces. They are the right abstraction when the app needs a full-bleed shell, immersive canvas, or global layout container that reacts to the available screen space.
 
 ## When to use

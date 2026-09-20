@@ -1,5 +1,7 @@
 # Grid
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Grid layouts support structured alignment across rows and columns. They are ideal for dashboards, forms with repeated fields, data cards, and dense surfaces where alignment matters more than free-form stacking.
 
 ## When to use

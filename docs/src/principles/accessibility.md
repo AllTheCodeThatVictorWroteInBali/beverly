@@ -1,5 +1,7 @@
 # Accessibility
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Accessibility is a product feature and a design constraint. Beverly should treat it as a baseline quality indicator across every layer of the system, from component semantics to motion and contrast policy.
 
 ## The principle

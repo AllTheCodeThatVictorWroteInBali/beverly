@@ -1,5 +1,7 @@
 # Tables
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Tables help users compare structured information across rows and columns. They are especially valuable in operational, analytical, and audit-heavy interfaces where users need to reason across many values at once.
 
 ## Example

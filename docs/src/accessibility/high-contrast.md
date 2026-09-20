@@ -1,5 +1,7 @@
 # High Contrast
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 High-contrast modes improve legibility for users with low vision, glare sensitivity, or strong visual discomfort. Beverly should support this by ensuring that UI clarity does not depend on subtle color differences or low-contrast surfaces.
 
 ## Design expectations

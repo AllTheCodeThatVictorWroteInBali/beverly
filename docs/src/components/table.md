@@ -1,5 +1,7 @@
 # Table
 
+<img src="../assets/table.svg" alt="Table component illustration" width="860" />
+
 Tables are best for structured, comparable data. They work particularly well in admin, metrics, and audit-heavy interfaces where users need to compare values across rows and columns.
 
 ## Example

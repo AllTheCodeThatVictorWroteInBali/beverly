@@ -1,0 +1,42 @@
+<svg width="860" height="260" viewBox="0 0 860 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="80" y1="20" x2="760" y2="240" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="180" y1="30" x2="700" y2="220" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67E8F9"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="860" height="260" rx="28" fill="url(#bg)"/>
+  <circle cx="94" cy="74" r="42" fill="#1E293B"/>
+  <circle cx="92" cy="72" r="18" fill="url(#accent)" opacity="0.9"/>
+  <rect x="156" y="48" width="148" height="14" rx="7" fill="#E2E8F0" opacity="0.68"/>
+  <rect x="156" y="72" width="92" height="12" rx="6" fill="#94A3B8" opacity="0.7"/>
+
+  <rect x="66" y="118" width="728" height="104" rx="22" fill="#0B1220" stroke="#1F2937"/>
+  <rect x="95" y="142" width="94" height="12" rx="6" fill="#CBD5E1" opacity="0.7"/>
+  <rect x="95" y="163" width="170" height="10" rx="5" fill="#94A3B8" opacity="0.7"/>
+  <rect x="95" y="181" width="128" height="10" rx="5" fill="#64748B" opacity="0.7"/>
+
+  <g>
+    <rect x="580" y="136" width="90" height="52" rx="14" fill="url(#accent)" opacity="0.9"/>
+    <rect x="682" y="136" width="78" height="52" rx="14" fill="#1E293B" stroke="#334155"/>
+  </g>
+
+  <g>
+    <rect x="308" y="135" width="166" height="26" rx="13" fill="#111827" stroke="#334155"/>
+    <rect x="323" y="142" width="78" height="12" rx="6" fill="#E2E8F0" opacity="0.72"/>
+    <circle cx="453" cy="148" r="7" fill="url(#accent)"/>
+  </g>
+
+  <g>
+    <rect x="456" y="184" width="72" height="18" rx="9" fill="#1E293B" stroke="#334155"/>
+    <rect x="538" y="184" width="86" height="18" rx="9" fill="#1E293B" stroke="#334155"/>
+  </g>
+
+  <text x="92" y="108" fill="#F8FAFC" font-size="20" font-family="Arial, Helvetica, sans-serif" font-weight="700">Table</text>
+  <rect x="690" y="52" width="86" height="28" rx="14" fill="#111827" stroke="#334155"/>
+  <text x="718" y="71" text-anchor="middle" fill="#A5F3FC" font-size="12" font-family="Arial, Helvetica, sans-serif" font-weight="700">records</text>
+</svg>

@@ -1,5 +1,7 @@
 # Rendering Overview
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Beverly rendering is intentionally material-first: surfaces, paint layers, and shader-backed effects are treated as part of the UI system rather than as app-specific hacks. The design borrows from the practical reference stack used in theblocks_studio, where a shared `Surface` model is extended with gradients, shadows, blur, and glass-like material treatments.
 
 ## Core ideas

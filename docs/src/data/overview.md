@@ -1,5 +1,7 @@
 # Data Overview
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Beverly supports data-heavy interfaces with predictable presentation and interaction patterns. Data views are not just a place for raw information; they are the primary workspace for comparison, filtering, sorting, and action-taking.
 
 ## Core design principles

@@ -1,5 +1,7 @@
 # Toggle
 
+<img src="../assets/toggle.svg" alt="Toggle component illustration" width="860" />
+
 Toggles are compact on/off controls meant for settings and feature switches. They are ideal when the user needs a binary choice that should be easy to scan and quick to change.
 
 ## Example

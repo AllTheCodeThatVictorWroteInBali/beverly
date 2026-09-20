@@ -1,5 +1,7 @@
 # Pagination
 
+<img src="../assets/pagination.svg" alt="Pagination component illustration" width="860" />
+
 Pagination helps users move through large result sets or multi-page collections. It is valuable when the data set is too large to display in a single pass but still benefits from clear page boundaries.
 
 ## Example

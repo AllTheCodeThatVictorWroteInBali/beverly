@@ -1,5 +1,7 @@
 # Sorting
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Sorting tools help users reorganize information by clear criteria. Sorting is one of the most valuable ways to reduce friction in a data-heavy surface when the user wants to compare values or find outliers quickly.
 
 ## Example

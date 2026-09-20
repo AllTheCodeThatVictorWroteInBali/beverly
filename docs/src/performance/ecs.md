@@ -1,5 +1,7 @@
 # ECS
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 ECS composition allows systems and data to stay efficient and composable. In a Bevy-based UI stack like Beverly, this is not just a performance optimization; it is the organizing principle for how the application model is structured.
 
 ## What ECS means

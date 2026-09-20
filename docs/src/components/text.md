@@ -1,5 +1,7 @@
 # Text
 
+<img src="../assets/text.svg" alt="Text component illustration" width="860" />
+
 Text is the default body-content primitive in Beverly. It is used for descriptions, helper copy, metadata, and any other supporting content that should read as part of the surrounding interface rather than as a major heading.
 
 ## When to use

@@ -1,5 +1,7 @@
 # Screen Readers
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Screen-reader support depends on semantics, not decoration. A polished interface is not accessible if a screen reader cannot understand the structure, names, or state of the controls.
 
 ## Core requirements

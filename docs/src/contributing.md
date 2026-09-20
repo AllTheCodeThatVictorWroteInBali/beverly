@@ -1,5 +1,7 @@
 # Contributing
 
+<img src="assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Contributions to Beverly should focus on clear API design, performance, and accessibility.
 
 ## Principles

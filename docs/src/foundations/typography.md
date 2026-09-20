@@ -1,5 +1,7 @@
 # Typography
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Typography in Beverly is designed to support clear reading, strong hierarchy, and high readability in dense dashboards and AI-native tools.
 
 ## Global font

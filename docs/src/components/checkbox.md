@@ -1,5 +1,7 @@
 # Checkbox
 
+<img src="../assets/checkbox.svg" alt="Checkbox component illustration" width="860" />
+
 Checkboxes represent independent on/off choices within a form or settings surface. They are best for options where multiple selections can be valid at the same time.
 
 ## Example

@@ -1,5 +1,7 @@
 # Alert
 
+<img src="../assets/alert.svg" alt="Alert component illustration" width="860" />
+
 Alerts communicate notable information, warnings, or errors without blocking the entire screen. They are best for status messages that need to be noticed quickly but do not require the user to stop other work.
 
 ## When to use

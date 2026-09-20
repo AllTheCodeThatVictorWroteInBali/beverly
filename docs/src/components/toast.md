@@ -1,5 +1,7 @@
 # Toast
 
+<img src="../assets/toast.svg" alt="Toast component illustration" width="860" />
+
 Toasts display brief status changes such as successful saves, queued jobs, or transient warnings. They are useful for lightweight feedback that should not interrupt the user's flow but should still be noticeable.
 
 ## Example

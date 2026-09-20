@@ -1,5 +1,7 @@
 # Reduced Motion
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Reduced-motion preferences exist to protect users from distraction, vestibular discomfort, and motion overload. Beverly should treat motion as a design signal, not as a required delivery mechanism for understanding.
 
 ## Core principle

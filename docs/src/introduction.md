@@ -1,5 +1,7 @@
 # Beverly
 
+<img src="assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Beverly is a Rust-native UI system for Bevy that helps teams build high-performance, accessible interfaces for data-heavy and AI-driven applications.
 
 It is designed for applications that need a native ECS-first foundation, reusable UI composition, and polished visual treatment without sacrificing performance or clarity.

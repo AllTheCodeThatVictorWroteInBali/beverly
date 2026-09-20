@@ -1,5 +1,7 @@
 # Profiling
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Profiling reveals where UI behavior or asset costs are accumulating. In a system like Beverly, profiling is not a last-minute optimization step; it is part of how the architecture stays healthy as the interface grows. The goal is to identify which systems, assets, or interaction patterns are creating the most work and then fix the actual bottleneck rather than guessing.
 
 ## Why profiling matters

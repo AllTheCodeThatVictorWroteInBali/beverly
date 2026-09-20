@@ -1,5 +1,7 @@
 # Split
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Split layouts divide a surface into primary and secondary panels. They are useful in editor-style workspaces, settings pages, and dashboard shells where one area requires focus while another remains contextually available.
 
 ## When to use

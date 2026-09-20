@@ -1,5 +1,7 @@
 # Navigation
 
+<img src="../assets/navigation.svg" alt="Navigation component illustration" width="860" />
+
 Navigation components help users move between major parts of an app or workspace. They are foundational to the experience because they define the user's mental model of the product and what they can access next.
 
 ## Example

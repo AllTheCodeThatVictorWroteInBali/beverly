@@ -1,5 +1,7 @@
 # Avatar
 
+<img src="../assets/avatar.svg" alt="Avatar component illustration" width="860" />
+
 Avatars represent a person, team, or entity in a compact, recognizable form. They add identity to a list item, workspace member, or conversation without taking much space.
 
 ## When to use

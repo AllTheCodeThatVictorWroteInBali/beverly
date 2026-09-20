@@ -1,5 +1,7 @@
 # Architecture
 
+<img src="assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Beverly is structured as a layered, ECS-first UI framework for Bevy. The goal is to keep the application layer focused on workflows and business logic while the UI stack provides reusable composition, semantics, theming, and rendering primitives.
 
 ## Core layers

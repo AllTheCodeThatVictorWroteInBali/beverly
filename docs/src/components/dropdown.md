@@ -1,5 +1,7 @@
 # Dropdown
 
+<img src="../assets/dropdown.svg" alt="Dropdown component illustration" width="860" />
+
 Dropdowns reveal a contextual menu of actions or choices without permanently taking up screen space. They are useful when a compact control needs to surface a set of options or actions without overwhelming the surrounding layout.
 
 ## Example

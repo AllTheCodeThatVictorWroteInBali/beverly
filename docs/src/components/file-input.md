@@ -1,5 +1,7 @@
 # File Input
 
+<img src="../assets/file-input.svg" alt="File Input component illustration" width="860" />
+
 File inputs allow the user to select local assets or documents from the operating system file picker. They are most useful in upload workflows, media management, and content ingestion screens.
 
 ## Example

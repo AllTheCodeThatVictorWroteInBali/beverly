@@ -1,5 +1,7 @@
 # AI Interaction
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 AI features should be visible, meaningful, and aligned with user intent. In a Beverly-style product, AI is not a hidden layer that suddenly bypasses the interface. It is a cooperative capability layered onto the same design system used for the rest of the app. That means the system should remain understandable, controllable, and respectful of the user’s mental model.
 
 ## Why AI interaction is different

@@ -1,5 +1,7 @@
 # State Updates
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 State updates should be localized and predictable to avoid unnecessary churn. In a UI framework, the cost of a change is not just the value that changed; it is also the amount of dependent work that the change triggers. If one small interaction causes a large portion of the interface to recompute, the system begins to feel heavy even when the actual data is small.
 
 ## Why state churn matters

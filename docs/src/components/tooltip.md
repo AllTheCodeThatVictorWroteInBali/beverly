@@ -1,5 +1,7 @@
 # Tooltip
 
+<img src="../assets/tooltip.svg" alt="Tooltip component illustration" width="860" />
+
 Tooltips provide contextual help for controls or labels without permanently consuming layout space. They are useful when a brief explanation will help the user without cluttering the interface permanently.
 
 ## Example

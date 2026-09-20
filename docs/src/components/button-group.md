@@ -1,5 +1,7 @@
 # Button Group
 
+<img src="../assets/button-group.svg" alt="Button Group component illustration" width="860" />
+
 Button groups cluster related actions that belong together while maintaining a shared visual rhythm. They are useful when users need to choose between a small set of alternatives or perform closely related actions within a single context.
 
 ## When to use

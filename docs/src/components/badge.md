@@ -1,5 +1,7 @@
 # Badge
 
+<img src="../assets/badge.svg" alt="Badge component illustration" width="860" />
+
 Badges are compact status markers. They work well for states, counts, tags, or short labels that need to be visible at a glance without absorbing much visual weight.
 
 ## When to use

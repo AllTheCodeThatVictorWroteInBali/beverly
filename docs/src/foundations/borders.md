@@ -1,5 +1,7 @@
 # Borders
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Borders define structure, separation, and interaction emphasis. They provide a clean visual edge without needing to add heavy fills or extra decoration.
 
 In Beverly, borders are not just decorative lines. They carry meaning: a neutral border can separate surfaces, a stronger border can signal focus or active state, and a high-contrast outline can call attention to an interactive control.

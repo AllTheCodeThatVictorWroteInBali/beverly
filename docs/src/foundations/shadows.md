@@ -1,5 +1,7 @@
 # Shadows
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Shadows communicate depth and focus without overpowering interface content. Beverly uses a small set of drop-shadow presets so surfaces feel elevated consistently instead of feeling arbitrarily heavy or soft.
 
 ## Drop shadows

@@ -1,5 +1,7 @@
 # Search
 
+<img src="../assets/search.svg" alt="Search component illustration" width="860" />
+
 Search controls help users filter or locate items in a data-heavy interface. They are especially useful when a user is trying to find an item quickly without scanning a long list manually.
 
 ## Example

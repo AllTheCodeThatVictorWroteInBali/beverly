@@ -1,5 +1,7 @@
 # Modal
 
+<img src="../assets/modal.svg" alt="Modal component illustration" width="860" />
+
 Modals interrupt the current flow to request a decision or present a focused task. They are powerful for critical confirmations and short interactions that must temporarily take over the user's attention.
 
 ## Example

@@ -1,5 +1,7 @@
 # Layout Overview
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Layout primitives define how content flows and aligns across screens. In Beverly, layout is not just a visual convenience; it is the structure that keeps interfaces readable, resilient, and easy to compose across different app shells and data densities.
 
 ## Core goals

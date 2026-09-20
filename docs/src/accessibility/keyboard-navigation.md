@@ -1,5 +1,7 @@
 # Keyboard Navigation
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Keyboard navigation is a core interaction model, not a secondary mode. A design is not complete if a user cannot reach important actions, modify state, and move through content without a pointer.
 
 ## Required behavior

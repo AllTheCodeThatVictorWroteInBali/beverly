@@ -1,5 +1,7 @@
 # Filtering
 
+<img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
+
 Filtering reduces noise and helps users focus on relevant information. A useful filter system makes the user feel in control without hiding the context of the underlying data set.
 
 ## Example
