@@ -106,21 +106,25 @@ Your application should not need permission from a third-party service to render
 
 ## Status
 
-Beverly is **early-stage and actively evolving**.
+Beverly ships a working, standalone Bevy component library: a `BeverlyPlugin`, ~35 UI components, a GPU shader/material rendering system, animation, theming, and accessibility primitives, all installable as a normal crate dependency.
 
-The project is currently focused on establishing the core UI architecture, primitives, rendering system, accessibility foundations, and developer experience.
-
-APIs may change as the system matures.
-
-For the current implementation status, see the [documentation](https://beverlyui.com/docs/).
+APIs may still change as the system matures, but the crate compiles, its examples run, and its test suite passes independently of any other project.
 
 ---
 
 ## Getting Started
 
-Beverly is currently under active development.
+### Installation
 
-Once the initial API stabilizes, the intended experience will look approximately like:
+```toml
+[dependencies]
+bevy = "0.19"
+beverly = "0.1"
+```
+
+Beverly targets the same Bevy version as the version listed above (currently Bevy `0.19`).
+
+### Basic setup
 
 ```rust
 use bevy::prelude::*;
@@ -130,42 +134,42 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
+        .insert_resource(ThemeResource {
+            current: light_theme(),
+        })
+        .add_systems(Startup, setup)
         .run();
+}
+
+fn setup(mut commands: Commands) {
+    commands.spawn(Camera2d);
 }
 ```
 
-See the [Getting Started documentation](https://beverlyui.com/docs/) for the current setup and API.
+`BeverlyPlugin` wires up every component system, the rendering/material pipeline, theming, animation, and accessibility primitives in one call. Individual components can also be used without it as long as their own plugin (or the systems they depend on) is added manually; see each component's documentation for its specific requirements.
+
+### Importing the prelude
+
+```rust
+use beverly::prelude::*;
+```
+
+The prelude re-exports `BeverlyPlugin`, the theme system, rendering/styling primitives (`Paint`, `Surface`, `Border`, gradients, glass/shadow effects), icons, and the primary type for every built-in component (`Alert`, `Button`, `Card`, `Modal`, `Table`, ...).
 
 ---
 
 ## Components
 
-Beverly is being developed as a reusable system of UI primitives rather than a collection of application-specific widgets.
+Beverly ships the following components, each with its own spawn helper and (where it has runtime behavior) its own `Plugin`:
 
-The component system is expected to include primitives such as:
+Alert · Avatar · Badge · Button · Button Group · Card · Checkbox · Container · Divider · Dropdown ·
+File Input · Footer · Form · Input · Link · List Item · Modal · Nav Button · Navbar · Pagination ·
+Photo · Progress Bar · Radio · Search · Select · Sidebar · Slider · Spinner · Table · Tabs · Text/Title ·
+Textarea · Toast · Toggle · Tooltip
 
-- Button
-- Card
-- Input
-- Checkbox
-- Toggle
-- Select
-- Dropdown
-- Modal
-- Tabs
-- Navigation
-- Badge
-- Alert
-- Toast
-- Tooltip
-- Avatar
-- Divider
-- Pagination
-- Table
-- Search
-- File Input
-- Radio
-- Button Group
+Plus cross-cutting primitives: accessibility (`primitives::a11y`), focus management, keyboard
+navigation, pointer/gesture interaction, clipboard, and semantic tree helpers; and animation:
+transitions, motion, loading/skeleton placeholders, and backdrop blur.
 
 More complex application interfaces can be composed from these primitives.
 
@@ -200,6 +204,49 @@ This architecture is particularly useful for applications where UI state and app
 
 ---
 
+## Theming
+
+Every component reads its colors, gradients, and shadows from a `ThemeResource`:
+
+```rust
+use beverly::prelude::*;
+
+app.insert_resource(ThemeResource {
+    current: light_theme(), // or dark_theme()
+});
+```
+
+Themes are plain data (`ThemeColors`, `ThemeTransitions`, ...) so custom palettes can be built by
+constructing a `Theme` value directly. Components react to `ThemeChanged` to re-paint when the
+active theme is swapped at runtime.
+
+---
+
+## Shaders and assets
+
+Beverly's rendering system (`beverly::rendering`) implements gradients, borders, inner/outer
+shadows, glass/backdrop-blur effects, noise, and skeleton shimmer as a single GPU shader
+(`UiShapeMaterial`) plus a couple of small companion shaders. All of it is embedded into the
+compiled crate via Bevy's `embedded_asset!` mechanism, and Feather icon SVGs are embedded the
+same way. This means:
+
+- No `assets/` folder needs to be copied into a consuming project.
+- No custom `AssetPlugin` path configuration is required for Beverly's own assets.
+- The crate works identically whether used via a local `path` dependency or from a published
+  version on crates.io.
+
+---
+
+## Feature flags
+
+| Feature | Default | Enables |
+| --- | --- | --- |
+| `file_dialog` | on | Native file picker support for `FileInput` (via `rfd`). |
+| `http_form` | off | HTTP form submission for `Form` (via `reqwest`). |
+| `test-support` | off | Exposes headless UI-transform test fixtures for use in downstream crates' own tests. |
+
+---
+
 ## Roadmap
 
 ### Foundation
@@ -208,26 +255,26 @@ This architecture is particularly useful for applications where UI state and app
 - [x] Project website
 - [x] Documentation site
 - [x] GitHub Pages deployment
-- [ ] Design tokens
-- [ ] Theme system
-- [ ] Core layout primitives
-- [ ] Animation system
+- [x] Design tokens
+- [x] Theme system
+- [x] Core layout primitives
+- [x] Animation system
 
 ### Components
 
-- [ ] Button
-- [ ] Card
-- [ ] Input
-- [ ] Checkbox
-- [ ] Toggle
-- [ ] Select
-- [ ] Dropdown
-- [ ] Modal
-- [ ] Tabs
-- [ ] Navigation
-- [ ] Tooltip
-- [ ] Toast
-- [ ] Data table
+- [x] Button
+- [x] Card
+- [x] Input
+- [x] Checkbox
+- [x] Toggle
+- [x] Select
+- [x] Dropdown
+- [x] Modal
+- [x] Tabs
+- [x] Navigation
+- [x] Tooltip
+- [x] Toast
+- [x] Data table
 
 ### Platform
 
