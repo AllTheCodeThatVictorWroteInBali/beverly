@@ -25,24 +25,24 @@
     <link rel="icon" type="image/x-icon" href="assets/favicon_io/favicon.ico" />
     <link rel="manifest" href="assets/favicon_io/site.webmanifest" />
 
-    <title>Beverly — A Rust UI System for Bevy</title>
+    <title>Beverly — The UI for AI</title>
 
     <meta
       name="description"
-      content="Beverly is a Rust-native UI system for Bevy, built for high-performance, accessible, AI-native, and local-first applications."
+      content="Beverly is a small, native UI runtime designed for AI-native applications — fast for humans, understandable by agents, and safe by default."
     />
 
     <meta
       name="keywords"
-      content="Rust, Bevy, UI, user interface, game engine, GPU, accessibility, AI, local-first, open source"
+      content="Rust, Bevy, UI, AI, agents, native UI, GPU, local-first, open source"
     />
 
     <meta name="author" content="Beverly" />
 
-    <meta property="og:title" content="Beverly — A Rust UI System for Bevy" />
+    <meta property="og:title" content="Beverly — The UI for AI" />
     <meta
       property="og:description"
-      content="A Rust-native UI system for building high-performance, accessible interfaces with Bevy."
+      content="A small, native UI runtime for interfaces that humans and AI agents can build, read, and reason about."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://beverlyui.com/" />
@@ -52,7 +52,7 @@
     <meta name="twitter:title" content="Beverly — A Rust UI System for Bevy" />
     <meta
       name="twitter:description"
-      content="A Rust-native UI system for high-performance, accessible, AI-native applications."
+      content="A small, native UI runtime for interfaces that humans and AI agents can build, read, and reason about."
     />
 
     <style>
@@ -1081,24 +1081,21 @@
 
     <section id="jumbotron" class="jumbotron">
       <div class="jumbotron-container">
-        <span class="jumbotron-eyebrow">
-          The UI system for modern systems
-        </span>
+        <span class="jumbotron-eyebrow"> The UI for AI </span>
 
         <h1 class="jumbotron-title">
-          UI for systems<br />
-          that move.
+          Build interfaces<br />
+          humans + AI can reason about.
         </h1>
 
         <p class="jumbotron-description">
-          Beverly is an elite UI kit and design system for
-          <strong>data-intensive applications</strong> — from financial
-          terminals and observability platforms to telemetry systems and AI
-          agent control planes.
+          Beverly is a <strong>small, native UI runtime</strong> built for
+          AI-native applications — fast for humans, understandable by agents,
+          and safe by default.
         </p>
 
         <div class="jumbotron-actions">
-          <a href="#pillars" class="btn btn-primary"> Explore the System </a>
+          <a href="#pillars" class="btn btn-primary"> Explore Beverly </a>
 
           <a href="/docs" class="btn btn-secondary" target="_blank">
             View Components
@@ -1113,20 +1110,19 @@
 
     <section class="thesis-section">
       <div class="thesis-container">
-        <span class="section-label"> Beyond the Dashboard </span>
+        <span class="section-label"> The Bigger Idea </span>
 
         <h2 class="thesis-title">
-          The web was built around documents.
-          <span>Modern software is built around streams.</span>
+          AI can generate code faster than humans ever could.
+          <span>The bottleneck is the substrate.</span>
         </h2>
 
         <p class="thesis-copy">
-          Traditional UI kits were designed for CRUD applications, marketing
-          sites, and conventional dashboards. Modern systems are different: live
-          telemetry, financial markets, massive datasets, event streams, logs,
-          AI agents, and continuously changing state.
+          AI-native applications need interfaces for conversations, tools,
+          workflows, approvals, data, files, realtime events, and continuously
+          changing state. The UI is no longer decoration — it is infrastructure.
           <br /><br />
-          Beverly provides the primitives for those systems.
+          Beverly provides a reliable, composable substrate for building it.
         </p>
       </div>
     </section>
@@ -1139,62 +1135,62 @@
       <div class="pillars-container">
         <div class="pillars-grid">
           <article class="pillar">
-            <span class="pillar-number"> 01 / THROUGHPUT </span>
+            <span class="pillar-number"> 01 / SMALL </span>
 
-            <h3>Beyond the browser bottleneck.</h3>
+            <h3>A runtime you can actually ship.</h3>
 
             <p>
-              Components engineered for interfaces where thousands of values
-              change every second. Virtualized lists, high-density tables,
-              canvas/WebGL visualization, and zero-latency state updates are
-              first-class primitives.
+              A small native runtime with fast startup, low overhead, local
+              execution, and no browser required. Beverly is designed to live
+              inside the product — from desktop applications to embedded
+              devices.
             </p>
 
-            <div class="pillar-stat">100K+</div>
+            <div class="pillar-stat">SMALL</div>
           </article>
 
           <article class="pillar">
-            <span class="pillar-number"> 02 / DUAL CONTROL </span>
+            <span class="pillar-number"> 02 / AGENT-FRIENDLY </span>
 
-            <h3>Built for humans. Structured for agents.</h3>
+            <h3>Built for humans. Understandable by agents.</h3>
 
             <p>
-              Modern software is no longer operated exclusively by a person.
-              Beverly introduces deterministic interaction primitives for
-              command bars, tool calls, agent activity, structured outputs,
-              approvals, and autonomous workflows.
+              Predictable APIs, strongly typed primitives, explicit state,
+              deterministic layouts, and semantic components give both people
+              and AI a vocabulary for building interfaces. If an agent can
+              understand the primitives, it can build the interface.
             </p>
 
             <div class="pillar-stat">HUMAN + AI</div>
           </article>
 
           <article class="pillar">
-            <span class="pillar-number"> 03 / SOVEREIGNTY </span>
+            <span class="pillar-number"> 03 / SAFE </span>
 
-            <h3>Your interface shouldn't phone home.</h3>
+            <h3>AI generates. Rust verifies.</h3>
 
             <p>
-              Fully self-hosted, offline-first primitives with zero telemetry
-              and no dependency on external CDNs, hosted fonts, or
-              cloud-controlled infrastructure.
+              Rust's ownership, type system, exhaustive matching, and compile-
+              time guarantees constrain entire classes of mistakes before the
+              application ships. Probabilistic generation gets a predictable
+              systems substrate.
             </p>
 
-            <div class="pillar-stat">OFFLINE</div>
+            <div class="pillar-stat">RUST</div>
           </article>
 
           <article class="pillar">
-            <span class="pillar-number"> 04 / ACCESSIBILITY </span>
+            <span class="pillar-number"> 04 / LOCAL </span>
 
-            <h3>Complex interfaces. Accessible by default.</h3>
+            <h3>Your AI's interface can live next to your AI.</h3>
 
             <p>
-              WCAG 2.2 AA is part of the primitive, not a compliance pass added
-              afterward. Keyboard navigation, semantic structure, focus
-              management, ARIA patterns, trees, command palettes, filters, and
-              dense data interfaces are designed together.
+              Run next to your models, files, databases, microphones, cameras,
+              sensors, GPUs, and private data. No mandatory cloud UI layer and
+              no requirement that every interaction cross a network boundary.
             </p>
 
-            <div class="pillar-stat">AA</div>
+            <div class="pillar-stat">LOCAL</div>
           </article>
         </div>
       </div>
@@ -1209,12 +1205,13 @@
         <div class="components-header">
           <span class="section-label"> The Primitive Layer </span>
 
-          <h2>Not another button library.</h2>
+          <h2>Small primitives. Huge surface area.</h2>
 
           <p>
-            Beverly starts where conventional component libraries stop. The
-            system is designed around the interaction patterns of
-            high-performance, data-heavy, AI-native software.
+            Beverly does not need hundreds of abstractions. A small set of
+            composable, strongly typed primitives can become the foundation for
+            complex AI interfaces — from conversations and dashboards to tools,
+            workflows, inspectors, and realtime systems.
           </p>
         </div>
 
@@ -1222,15 +1219,14 @@
           <div class="component-chip">
             <strong>Virtualized Data Views</strong>
             <span>
-              High-density interfaces built for large, continuously changing
-              datasets.
+              Large datasets without turning the UI into a bottleneck.
             </span>
           </div>
 
           <div class="component-chip">
             <strong>Command Surfaces</strong>
             <span>
-              Keyboard-first commands that can also be addressed
+              Actions that humans can invoke directly and agents can address
               programmatically.
             </span>
           </div>
@@ -1238,24 +1234,23 @@
           <div class="component-chip">
             <strong>Agent Tool Cards</strong>
             <span>
-              Structured rendering for tool calls, results, states, and
-              approvals.
+              Structured rendering for tool calls, results, states, approvals,
+              and autonomous work.
             </span>
           </div>
 
           <div class="component-chip">
             <strong>Telemetry Interfaces</strong>
             <span>
-              Visual primitives for live system state and operational
-              monitoring.
+              Live system state, events, logs, and realtime operational views.
             </span>
           </div>
 
           <div class="component-chip">
             <strong>Data Grids & Trees</strong>
             <span>
-              Dense information architecture without sacrificing keyboard
-              accessibility.
+              Structured information primitives that remain composable as
+              complexity grows.
             </span>
           </div>
 
@@ -1270,7 +1265,7 @@
           <div class="component-chip">
             <strong>Glass & Surface System</strong>
             <span>
-              Layered surfaces, depth, blur, gradients, borders, and adaptive
+              GPU-native depth, blur, gradients, glass, borders, and adaptive
               themes.
             </span>
           </div>
@@ -1278,16 +1273,16 @@
           <div class="component-chip">
             <strong>Interaction Feedback</strong>
             <span>
-              Focus, hover, selection, validation, transitions, and state
-              changes.
+              Focus, hover, selection, validation, transitions, animation, and
+              state changes.
             </span>
           </div>
 
           <div class="component-chip">
             <strong>Human + Agent Controls</strong>
             <span>
-              One interaction model for people, automation, and autonomous
-              systems.
+              One semantic interaction model for people, automation, and AI
+              agents.
             </span>
           </div>
         </div>
@@ -1300,42 +1295,42 @@
 
     <section class="sovereignty-section">
       <div class="sovereignty-container">
-        <span class="section-label"> Sovereign by Default </span>
+        <span class="section-label"> Local by Default </span>
 
         <h2 class="sovereignty-title">
-          Build inside your network.
-          <span>Stay in control.</span>
+          The UI belongs with the application.
+          <span>Not behind a browser boundary.</span>
         </h2>
 
         <p class="sovereignty-copy">
-          Enterprise software shouldn't have to surrender its infrastructure
-          just to get a beautiful interface. Beverly is designed to run where
-          your application runs — including private networks, regulated
-          environments, and fully air-gapped systems.
+          AI applications increasingly need direct access to models, files,
+          databases, devices, sensors, GPUs, and private data. Beverly treats
+          local execution as a first-class assumption, so the interface can run
+          where the intelligence and data already live.
         </p>
 
         <div class="sovereignty-grid">
           <div class="sovereignty-card">
-            <strong>Zero Telemetry</strong>
+            <strong>No Browser Required</strong>
             <span>
-              No analytics beacons, tracking scripts, or silent phone-home
-              dependencies.
+              Ship a native interface without turning your application into a
+              web application first.
             </span>
           </div>
 
           <div class="sovereignty-card">
-            <strong>Fully Self-Hosted</strong>
+            <strong>Private by Design</strong>
             <span>
-              Own the assets, components, fonts, icons, and runtime. No external
-              CDN required.
+              Keep models, data, files, and interactions on the machine or
+              network where they belong.
             </span>
           </div>
 
           <div class="sovereignty-card">
-            <strong>Air-Gapped Ready</strong>
+            <strong>GPU-Native</strong>
             <span>
-              Designed for environments where external network access simply
-              isn't available.
+              Shaders, animation, glass, effects, and realtime visualization are
+              first-class capabilities.
             </span>
           </div>
         </div>
@@ -1350,11 +1345,11 @@
       <div class="cta-container">
         <span class="section-label"> Build the Interface Layer </span>
 
-        <h2>Stop designing around the dashboard.</h2>
+        <h2>The UI for AI starts here.</h2>
 
         <p>
-          Build interfaces for the systems you're actually running:
-          high-throughput, AI-native, data-intensive, accessible, and sovereign.
+          Build interfaces that are fast for humans, understandable by agents,
+          local by default, GPU-native, and safe to ship.
         </p>
 
         <div class="jumbotron-actions">
@@ -1375,10 +1370,7 @@
           <div class="brand-col">
             <h4 class="footer-heading">Beverly UI</h4>
 
-            <p>
-              A high-performance design system for modern, data-intensive
-              software.
-            </p>
+            <p>A small, native UI runtime for AI-native applications.</p>
 
             <a
               href="https://github.com/AllTheCodeThatVictorWroteInBali/beverly"
@@ -1410,19 +1402,19 @@
               </li>
 
               <li>
-                <a href="#pillars"> Performance </a>
+                <a href="#pillars"> Small Runtime </a>
               </li>
 
               <li>
-                <a href="#pillars"> Accessibility </a>
+                <a href="#pillars"> Safe by Default </a>
               </li>
 
               <li>
-                <a href="#pillars"> AI Interaction </a>
+                <a href="#pillars"> Agent-Friendly </a>
               </li>
 
               <li>
-                <a href="#pillars"> Sovereignty </a>
+                <a href="#pillars"> Local-First </a>
               </li>
             </ul>
           </div>

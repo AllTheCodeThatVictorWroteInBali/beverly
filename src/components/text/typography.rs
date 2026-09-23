@@ -14,7 +14,7 @@ impl FontFamily {
 
 impl Default for FontFamily {
     fn default() -> Self {
-        Self("SFNS".to_string())
+        Self("DefaultSans".to_string())
     }
 }
 

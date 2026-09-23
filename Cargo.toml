@@ -1,6 +1,6 @@
 [package]
 name = "beverly"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 description = "A Rust-native, accessible UI component library for Bevy."
 license = "Apache-2.0"
@@ -10,7 +10,15 @@ documentation = "https://beverlyui.com/docs/"
 readme = "README.md"
 keywords = ["bevy", "ui", "gamedev", "accessibility", "components"]
 categories = ["game-development", "gui"]
-exclude = ["docs/", "assets/", "index.html"]
+exclude = ["docs/", "index.html"]
+
+include = [
+    "src/**",
+    "assets/**",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+]
 
 [lib]
 name = "beverly"

@@ -3,8 +3,8 @@ use bevy::picking::{
     pointer::PointerButton,
 };
 use bevy::prelude::*;
-use bevy::text::ComputedTextBlock;
-use bevy::ui::{ComputedUiRenderTargetInfo, UiScale};
+use bevy::text::{ComputedTextBlock, FontCx};
+use bevy::ui::{ui_surface::UiSurface, ComputedUiRenderTargetInfo, UiScale};
 use parley::editing::Selection;
 
 use super::{
@@ -17,6 +17,7 @@ use super::{
     TypographyPlugin,
     TypographyShapingPlugin,
 };
+use crate::components::title::ThemedTitle;
 use crate::theme::{ThemeColors, ThemeResource};
 
 #[derive(Component, Clone, Debug, Default)]
@@ -68,9 +69,13 @@ impl ThemedText {
 }
 
 fn themed_text_system(
-    theme: Res<ThemeResource>,
-    mut query: Query<(&ThemedText, &mut TextFont, &mut TextColor)>,
+    theme: Option<Res<ThemeResource>>,
+    mut query: Query<(&ThemedText, &mut TextFont, &mut TextColor), Without<Typography>>,
 ) {
+    let Some(theme) = theme else {
+        return;
+    };
+
     let colors = theme.current.colors;
     let typography = theme.current.typography;
 
@@ -104,7 +109,10 @@ fn font_size_to_px(font_size: &FontSize) -> f32 {
 }
 
 fn bootstrap_typography_from_text_system(
-    mut query: Query<(&mut Typography, Option<&TextFont>, Option<&TextColor>), Added<Typography>>,
+    mut query: Query<
+        (&mut Typography, Option<&TextFont>, Option<&TextColor>),
+        (Added<Typography>, Without<ThemedText>, Without<ThemedTitle>),
+    >,
 ) {
     for (mut typography, text_font, text_color) in &mut query {
         if typography.sync_to_bevy {
@@ -122,7 +130,10 @@ fn bootstrap_typography_from_text_system(
 }
 
 fn apply_typography_to_text_system(
-    mut query: Query<(&Typography, &mut Text, &mut TextFont, &mut TextColor), Changed<Typography>>,
+    mut query: Query<
+        (&Typography, &mut Text, &mut TextFont, &mut TextColor),
+        (Changed<Typography>, Without<ThemedText>, Without<ThemedTitle>),
+    >,
 ) {
     for (typography, mut text, mut font, mut color) in &mut query {
         if !typography.sync_to_bevy {
@@ -149,7 +160,11 @@ fn apply_typography_to_text_system(
 fn mirror_text_into_typography_system(
     mut query: Query<
         (&mut Typography, Option<&TextFont>, Option<&TextColor>, Option<&Text>),
-        Or<(Changed<TextFont>, Changed<TextColor>, Changed<Text>)>,
+        (
+            Or<(Changed<TextFont>, Changed<TextColor>, Changed<Text>)>,
+            Without<ThemedText>,
+            Without<ThemedTitle>,
+        ),
     >,
 ) {
     for (mut typography, text_font, text_color, text) in &mut query {
@@ -337,15 +352,20 @@ pub struct ThemedTextPlugin;
 
 impl Plugin for ThemedTextPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((
-            TypographyPlugin,
-            TypographyFontManagerPlugin,
-            TypographyShapingPlugin,
-            TypographyLayoutPlugin,
-            TypographyGlyphAtlasPlugin,
-            TextRenderItemPlugin,
-            TypographyDebugPlugin,
-        ));
+        app.init_resource::<ThemeResource>()
+            .init_resource::<Time>()
+            .init_resource::<UiScale>()
+            .init_resource::<UiSurface>()
+            .init_resource::<FontCx>()
+            .add_plugins((
+                TypographyPlugin,
+                TypographyFontManagerPlugin,
+                TypographyShapingPlugin,
+                TypographyLayoutPlugin,
+                TypographyGlyphAtlasPlugin,
+                TextRenderItemPlugin,
+                TypographyDebugPlugin,
+            ));
 
         // Every Text node gets selection support, not just ones wrapped in ThemedText/ThemedTitle.
         app.register_required_components::<Text, HighlightableText>();
@@ -371,10 +391,30 @@ mod tests {
     #[test]
     fn plain_text_entity_gets_highlightable_text() {
         let mut app = App::new();
-        app.add_plugins(ThemedTextPlugin);
+        app.add_plugins((AssetPlugin::default(), ThemedTextPlugin));
 
         let entity = app.world_mut().spawn(Text::new("Videos")).id();
 
         assert!(app.world().get::<HighlightableText>(entity).is_some());
+    }
+
+    #[test]
+    fn themed_text_entities_with_typography_do_not_conflict() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), ThemedTextPlugin));
+        app.init_asset::<Font>();
+        app.init_resource::<ThemeResource>();
+        let entity = app
+            .world_mut()
+            .spawn((
+                Text::new("Videos"),
+                Typography::default(),
+                ThemedText::new(TextRole::Body),
+            ))
+            .id();
+
+        app.update();
+
+        assert!(app.world().get::<TextFont>(entity).is_some());
     }
 }

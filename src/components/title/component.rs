@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::components::text::HighlightableText;
+use crate::components::text::{HighlightableText, Typography};
 use crate::theme::{ThemeColors, ThemeResource, ThemeTypography};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -44,7 +44,7 @@ impl ThemedTitle {
 
 fn themed_title_system(
     theme: Res<ThemeResource>,
-    mut query: Query<(&ThemedTitle, &mut TextFont, &mut TextColor)>,
+    mut query: Query<(&ThemedTitle, &mut TextFont, &mut TextColor), Without<Typography>>,
 ) {
     let colors = theme.current.colors;
     let typography = theme.current.typography;

@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use bevy::asset::embedded_asset;
+
 use bevy::prelude::*;
 
 use super::typography::Typography;
@@ -56,11 +58,50 @@ pub struct LoadedFontFace {
 #[derive(Resource, Debug, Default)]
 pub struct TypographyFontManager {
     initialized: bool,
+    default_family: String,
     by_family: HashMap<String, Vec<LoadedFontFace>>,
     fallback_chains: HashMap<String, Vec<String>>,
 }
 
 impl TypographyFontManager {
+    pub const DEFAULT_FAMILY: &str = "DefaultSans";
+
+    pub fn set_default_family(&mut self, family: impl Into<String>) {
+        self.default_family = family.into();
+    }
+
+    pub fn default_family(&self) -> &str {
+        self.default_family.as_str()
+    }
+
+    pub fn register_font_file(
+        &mut self,
+        family: impl Into<String>,
+        asset_path: impl Into<String>,
+        asset_server: &AssetServer,
+        weight: FontWeight,
+        style: FontStyle,
+    ) {
+        let family = family.into();
+        let asset_path = asset_path.into();
+        let handle = asset_server.load(asset_path.clone());
+        let bytes = std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets").join(&asset_path))
+            .map(Arc::new)
+            .unwrap_or_else(|error| {
+                warn!(
+                    "failed to read custom font file {}: {error}; the family is still registered with an empty byte buffer",
+                    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .join("assets")
+                        .join(&asset_path)
+                        .display()
+                );
+                Arc::new(Vec::new())
+            });
+
+        self.register_face(family.clone(), weight, style, asset_path, handle, bytes);
+        self.default_family = family;
+    }
+
     pub fn register_face(
         &mut self,
         family: impl Into<String>,
@@ -165,30 +206,75 @@ fn initialize_font_manager(
         }
     };
 
-    let sfns = asset_server.load("fonts/SFNS.ttf");
+    let maybe_register = |manager: &mut TypographyFontManager,
+                          family: &str,
+                          asset_path: &str,
+                          weight: FontWeight,
+                          style: FontStyle| {
+        let asset_path = asset_path.to_string();
+        let disk_path = asset_root.join(&asset_path);
+        if !disk_path.exists() {
+            warn!(
+                "skipping optional bundled font {} because it is not present in the installed crate; the app can override the default by registering its own font family",
+                disk_path.display()
+            );
+            return;
+        }
+
+        let handle = asset_server.load(asset_path.clone());
+        manager.register_face(
+            family,
+            weight,
+            style,
+            asset_path.clone(),
+            handle,
+            read_font_bytes(&asset_path),
+        );
+    };
+
+    // DefaultSans is embedded into the binary (see `TypographyFontManagerPlugin::build`), so it
+    // always resolves regardless of the consuming app's working directory or assets/ folder.
+    let default_sans_path = "embedded://beverly/components/text/fonts/DefaultSans.ttf";
     manager.register_face(
-        "SFNS",
+        TypographyFontManager::DEFAULT_FAMILY,
         FontWeight::NORMAL,
         FontStyle::Normal,
+        default_sans_path.to_string(),
+        asset_server.load(default_sans_path),
+        Arc::new(include_bytes!("fonts/DefaultSans.ttf").to_vec()),
+    );
+
+    maybe_register(
+        &mut manager,
+        "SFNS",
         "fonts/SFNS.ttf",
-        sfns,
-        read_font_bytes("fonts/SFNS.ttf"),
-    );
-
-    let symbols = asset_server.load("fonts/AppleSymbols.ttf");
-    manager.register_face(
-        "AppleSymbols",
         FontWeight::NORMAL,
         FontStyle::Normal,
+    );
+    maybe_register(
+        &mut manager,
+        "AppleSymbols",
         "fonts/AppleSymbols.ttf",
-        symbols,
-        read_font_bytes("fonts/AppleSymbols.ttf"),
+        FontWeight::NORMAL,
+        FontStyle::Normal,
     );
 
-    manager.set_fallback_chain(
-        "SFNS",
-        vec!["AppleSymbols".to_string()],
-    );
+    if !manager.default_family.is_empty() {
+        manager.set_default_family(TypographyFontManager::DEFAULT_FAMILY);
+    }
+
+    if manager.by_family.contains_key(TypographyFontManager::DEFAULT_FAMILY) {
+        manager.set_fallback_chain(
+            TypographyFontManager::DEFAULT_FAMILY,
+            vec!["SFNS".to_string(), "AppleSymbols".to_string()],
+        );
+    } else if manager.by_family.contains_key("SFNS") {
+        manager.set_fallback_chain("SFNS", vec!["AppleSymbols".to_string()]);
+    }
+
+    if manager.default_family.is_empty() && manager.by_family.contains_key("SFNS") {
+        manager.set_default_family("SFNS");
+    }
 
     manager.initialized = true;
 }
@@ -234,7 +320,10 @@ pub struct TypographyFontManagerPlugin;
 
 impl Plugin for TypographyFontManagerPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<TypographyFontManager>()
+        embedded_asset!(app, "fonts/DefaultSans.ttf");
+
+        app.init_asset::<Font>()
+            .init_resource::<TypographyFontManager>()
             .add_systems(Startup, initialize_font_manager)
             .add_systems(
                 Update,

@@ -77,8 +77,15 @@ fn setup_loading_screen(
     asset_server: Res<AssetServer>,
     mut progress: ResMut<LoadingProgress>,
 ) {
-    let font = asset_server.load("fonts/SFNS.ttf");
-    let logo = asset_server.load("images/demo-photo.png");
+    let asset_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
+    // DefaultSans is embedded into the binary via `TypographyFontManagerPlugin`, so it always
+    // resolves regardless of the consuming app's working directory or assets/ folder.
+    let font = asset_server.load("embedded://beverly/components/text/fonts/DefaultSans.ttf");
+    let logo = if asset_root.join("images/demo-photo.png").exists() {
+        asset_server.load("images/demo-photo.png")
+    } else {
+        Handle::default()
+    };
 
     progress.current = 0;
     progress.total = 2;

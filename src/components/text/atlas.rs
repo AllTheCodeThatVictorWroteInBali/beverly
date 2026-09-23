@@ -351,11 +351,15 @@ fn rasterize_glyph(font: &FontArc, glyph_id: u32, font_size: f32) -> RasterizedG
 
 fn sync_glyph_atlas_cache(
     mut cache: ResMut<GlyphAtlasCache>,
-    mut images: ResMut<Assets<Image>>,
+    images: Option<ResMut<Assets<Image>>>,
     manager: Res<TypographyFontManager>,
     query: Query<(&Typography, &TextLayoutBlock)>,
     mut fonts: Local<ParsedFontCache>,
 ) {
+    let Some(mut images) = images else {
+        return;
+    };
+
     cache.ensure_defaults();
     fonts.retain_live_sources();
 
