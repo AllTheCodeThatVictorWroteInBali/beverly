@@ -16,17 +16,34 @@ Use a button for a direct action such as submitting, navigating, confirming, or 
 
 If the control is not an action, a different primitive is usually more appropriate. The product feels better when button usage stays meaningfully narrow and intentional.
 
-## Button styles
+## Button colors
 
-Beverly buttons are usually chosen from a small set of visual roles:
+Every `BeverlyButton` is built around one of nine semantic colors:
 
-- primary for the main action in a surface
-- secondary for supporting actions that are still important
-- subtle for low-emphasis controls that should stay available without pulling focus
-- accent for actions that benefit from stronger emphasis in a branded or highlighted context
-- icon for compact toolbars or tight control groups where text would be redundant
+- `primary` for the main action in a surface
+- `secondary` for supporting actions that are still important
+- `success`, `danger`, `warning`, and `info` for outcome- or status-driven actions
+- `light` and `dark` for buttons that need to sit on the opposite tone of surface (a dark button on a light toolbar, a light button on a dark navbar)
+- `text` for a text-only appearance with no fill or border, similar to a hyperlink
 
-Keep the hierarchy clear. Most surfaces should have one obvious primary action and a smaller number of supporting controls.
+```rust
+use bevy::prelude::*;
+use beverly::prelude::*;
+
+fn spawn_color_options(mut commands: Commands) {
+    commands.spawn(BeverlyButton::primary("Primary"));
+    commands.spawn(BeverlyButton::secondary("Secondary"));
+    commands.spawn(BeverlyButton::success("Success"));
+    commands.spawn(BeverlyButton::danger("Danger"));
+    commands.spawn(BeverlyButton::warning("Warning"));
+    commands.spawn(BeverlyButton::info("Info"));
+    commands.spawn(BeverlyButton::light("Light"));
+    commands.spawn(BeverlyButton::dark("Dark"));
+    commands.spawn(BeverlyButton::text("Text only"));
+}
+```
+
+Keep the hierarchy clear. Most surfaces should have one obvious primary action and a smaller number of supporting controls, with `success`/`danger`/`warning`/`info` reserved for actions whose color communicates a real outcome (confirm, delete, an irreversible change, a status-driven shortcut) rather than decoration.
 
 This prevents the page from collapsing into a visual pile of equally important buttons, which often makes the actual user task harder to infer.
 
@@ -37,12 +54,57 @@ use bevy::prelude::*;
 use beverly::prelude::*;
 
 fn spawn_primary_action(mut commands: Commands) {
-    commands.spawn((
-        NodeBundle::default(),
-        BeverlyButton::primary("Deploy")
-    ));
+    commands.spawn(BeverlyButton::primary("Deploy"));
 }
 ```
+
+`ButtonPlugin` (added automatically by `BeverlyPlugin`) reacts to newly-spawned `BeverlyButton`s: it builds the label/icon children, computes fill/border/text colors for the current theme and color, and wires up pointer, keyboard, and screen-reader support. No extra `Node`, `Surface`, or `AccessibilityNode` setup is required.
+
+## Outline style
+
+Every color also has an outline appearance: a transparent fill with a colored border and label, filling in with a soft tint of that color on hover and press.
+
+```rust
+use bevy::prelude::*;
+use beverly::prelude::*;
+
+fn spawn_outline_actions(mut commands: Commands) {
+    commands.spawn(BeverlyButton::primary("Preview").outline(true));
+    commands.spawn(BeverlyButton::danger("Discard").outline(true));
+}
+```
+
+Use outline buttons for secondary or lower-emphasis actions that should still carry a clear semantic color, without competing visually with a solid primary action next to them.
+
+## Disabled state
+
+Setting `disabled` does more than dim the button: it removes it from the tab order, blocks pointer and keyboard activation, and announces the disabled state to assistive technology.
+
+```rust
+use bevy::prelude::*;
+use beverly::prelude::*;
+
+fn spawn_unavailable_action(mut commands: Commands) {
+    commands.spawn(BeverlyButton::primary("Save").disabled(true));
+}
+```
+
+Disabled buttons render with the theme's neutral border/muted-text colors regardless of their configured color, so unavailability is visible even without color perception. Toggle `disabled` at runtime (`button.disabled = false`) to re-enable a control once its action becomes available again; screen readers and keyboard focus order update automatically.
+
+## Block (full width)
+
+Set `block` to stretch a button to the full width of its parent, useful when it is the single dominant action in a narrow container such as a mobile layout or a confirmation panel.
+
+```rust
+use bevy::prelude::*;
+use beverly::prelude::*;
+
+fn spawn_full_width_action(mut commands: Commands) {
+    commands.spawn(BeverlyButton::primary("Continue").block(true));
+}
+```
+
+Prefer the default content-sized width for most content areas, and reserve `block` for layouts where the button really is the dominant action, so the interface stays easy to scan.
 
 ## Button variants
 
@@ -65,27 +127,20 @@ fn spawn_action_row(mut commands: Commands) {
 
 In practice, a primary button should be reserved for the action the user is most likely to choose, while secondary and subtle buttons should support that choice without competing with it. Accent buttons are best used sparingly when the interface needs a stronger visual cue than the default hierarchy provides.
 
-## Button tags and icon buttons
+## Buttons with an icon
 
-Buttons can appear with or without text, depending on the task.
+Add a leading icon to any color/style combination with `.icon(...)`, using a bundled Feather icon name. The icon inherits the same computed foreground color as the label, so it stays legible in every state.
 
 ```rust
 use bevy::prelude::*;
 use beverly::prelude::*;
 
-fn spawn_toolbar(mut commands: Commands) {
-    commands.spawn((
-        NodeBundle::default(),
-        BeverlyButtonGroup::new()
-            .button("Save")
-            .button("More")
-    ));
-
-    commands.spawn(BeverlyButton::icon("play"));
+fn spawn_icon_button(mut commands: Commands) {
+    commands.spawn(BeverlyButton::primary("Save").icon("save"));
 }
 ```
 
-Use text buttons when the action name matters. Use icon buttons when space is constrained and the meaning is already obvious from the surrounding context.
+Use the label when the action name matters, and lean on the icon alone (a short, unambiguous label like "Search") only when space is constrained and the meaning is already obvious from the surrounding context.
 
 ## Sizing and width
 
@@ -128,14 +183,16 @@ Keep toggle-like buttons visually connected so the relationship is obvious, and 
 
 ## Accessibility
 
-- provide an accessible label
-- keep keyboard activation working with Enter and Space
-- avoid using color alone to convey state
-- support reduced motion for animated press and hover transitions
-- preserve a logical focus order inside button groups
-- make disabled actions visibly unavailable and non-interactive
+`BeverlyButton` wires every button into Beverly's shared accessibility primitives automatically, rather than leaving it to each call site:
 
-Buttons are one of the most common keyboard interaction points, so their accessibility is a high-value issue. A button that looks fine but cannot be reached or understood through keyboard navigation still fails its primary purpose.
+- **Accessible label.** The button's `label` becomes an AccessKit `Role::Button` node with a matching name, so screen readers (VoiceOver, NVDA, JAWS, Orca) announce the button's purpose, not just "button".
+- **Keyboard focus and activation.** Every button gets `TabIndex(0)` so it participates in Tab/Shift+Tab navigation, and the shared interaction pipeline maps Enter/Space (and the same tap gesture pointer uses) to the same activation action — there is no separate, pointer-only code path.
+- **Real disabled semantics, not just a dimmer look.** `disabled(true)` inserts `DisabledInteraction`, which the shared interaction system uses to force `Interaction::None` and skip activation entirely — a disabled button cannot be "accidentally" triggered by a stray click or Enter key. It also sets `TabIndex(-1)` (removed from tab order) and marks the AccessKit node disabled, so assistive technology reports it as unavailable rather than silently ignoring input.
+- **Not color alone.** Disabled buttons always render with the theme's neutral border and muted-text colors, replacing their configured color entirely — the state is visible even to users who cannot perceive color differences, on top of the non-interactive/AT-disabled semantics above.
+- **Guaranteed contrast.** Foreground (label/icon) color is chosen from the *actual rendered fill*, not just the active theme mode, so a `light` button always gets dark text and a `dark` button always gets light text, even when that's the opposite of the current theme's own text color.
+- **Reduced-motion safe.** Hover/press feedback is a static color shift (no animated easing), so there is nothing to disable for `prefers-reduced-motion` users.
+
+Buttons are one of the most common keyboard interaction points, so their accessibility is a high-value issue. A button that looks fine but cannot be reached, activated, or understood through keyboard navigation and screen readers still fails its primary purpose.
 
 ## Implementation notes
 
@@ -145,7 +202,7 @@ The button should make the product feel decisive instead of uncertain. That mean
 
 ## Styling guidance
 
-Use primary buttons for the main action, secondary buttons for supporting actions, and subtle buttons for low-priority choices. Keep spacing and touch targets consistent across screens so the interface feels predictable and easy to scan. When a page has many actions, reduce the number of high-emphasis buttons so the interface keeps a clear visual hierarchy.
+Use primary buttons for the main action, secondary buttons for supporting actions, and outline or text buttons for low-priority choices. Keep spacing and touch targets consistent across screens so the interface feels predictable and easy to scan. When a page has many actions, reduce the number of high-emphasis buttons so the interface keeps a clear visual hierarchy.
 
 ## Summary
 

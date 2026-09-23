@@ -10,6 +10,11 @@ Beverly is currently in early development, so version numbers and release conven
 
 ### Added
 
+- `BeverlyButton` component: a real, themed, accessible push button (previously an unused,
+  unwired data struct). Nine color variants (`primary`, `secondary`, `success`, `danger`,
+  `warning`, `info`, `light`, `dark`, `text`), an `outline` style, a `disabled` state that
+  actually blocks pointer/keyboard activation and is announced to screen readers (not just a
+  dimmer look), and a `block` full-width option.
 - Standalone `beverly` Rust crate: `BeverlyPlugin`, ~35 UI components, rendering/shader system,
   theming, animation, and accessibility primitives, migrated from `theblocks_studio` and
   packaged for independent use (`beverly = "0.1"`).

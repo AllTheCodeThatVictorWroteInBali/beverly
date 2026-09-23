@@ -44,6 +44,12 @@ pub struct ThemeColors {
     pub warning: Color,
     pub error: Color,
     pub info: Color,
+    /// Fixed light neutral for `light`-styled surfaces (e.g. `ButtonColor::Light`).
+    /// Deliberately does not adapt between light/dark theme modes.
+    pub light_surface: Color,
+    /// Fixed dark neutral for `dark`-styled surfaces (e.g. `ButtonColor::Dark`).
+    /// Deliberately does not adapt between light/dark theme modes.
+    pub dark_surface: Color,
     pub border: Color,
     pub border_strong: Color,
     pub focus: Color,
@@ -408,6 +414,8 @@ pub fn light_theme() -> Theme {
             warning: Color::srgb(0.851, 0.467, 0.024),
             error: Color::srgb(0.863, 0.149, 0.149),
             info: Color::srgb(0.027, 0.518, 0.761),
+            light_surface: Color::srgb(0.973, 0.976, 0.980),
+            dark_surface: Color::srgb(0.129, 0.145, 0.161),
             border: Color::srgb(0.886, 0.910, 0.941),
             border_strong: Color::srgb(0.796, 0.835, 0.882),
             focus: Color::srgb(0.231, 0.510, 0.965),
@@ -472,6 +480,8 @@ pub fn dark_theme() -> Theme {
             warning: Color::srgb(0.969, 0.682, 0.200),
             error: Color::srgb(0.933, 0.333, 0.333),
             info: Color::srgb(0.118, 0.678, 0.918),
+            light_surface: Color::srgb(0.973, 0.976, 0.980),
+            dark_surface: Color::srgb(0.129, 0.145, 0.161),
             // Subtle, low-contrast hairlines by default; `border_strong` is
             // reserved for focused/selected/validated emphasis.
             border: Color::srgb(0.165, 0.165, 0.188),

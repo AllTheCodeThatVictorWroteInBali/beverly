@@ -38,7 +38,7 @@ pub use crate::animation::skeleton::{Skeleton, SkeletonPlugin};
 pub use crate::components::alert::{Alert, AlertPlugin, AlertVariant};
 pub use crate::components::avatar::Avatar;
 pub use crate::components::badge::Badge;
-pub use crate::components::button::{Button, ButtonKind};
+pub use crate::components::button::{BeverlyButton, ButtonColor, ButtonPlugin};
 pub use crate::components::button_group::{ButtonGroup, ButtonGroupPlugin};
 pub use crate::components::card::{Card, CardPlugin};
 pub use crate::components::checkbox::{Checkbox, CheckboxPlugin};

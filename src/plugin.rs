@@ -32,6 +32,7 @@ impl Plugin for BeverlyPlugin {
             .add_plugins(crate::icons::FeatherIconsPlugin)
             // Components.
             .add_plugins(crate::components::alert::AlertPlugin)
+            .add_plugins(crate::components::button::ButtonPlugin)
             .add_plugins(crate::components::button_group::ButtonGroupPlugin)
             .add_plugins(crate::components::card::CardPlugin)
             .add_plugins(crate::components::checkbox::CheckboxPlugin)
