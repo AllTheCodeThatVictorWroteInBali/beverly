@@ -204,14 +204,7 @@ pub fn spawn_button_group(
 // ============================================================
 
 fn button_group_interaction(
-    mut interactions: Query<
-        (
-            Entity,
-            &Interaction,
-            &mut ButtonGroupItem,
-        ),
-        (Changed<Interaction>, With<Button>),
-    >,
+    interactions: Query<(Entity, &Interaction), (Changed<Interaction>, With<Button>)>,
 
     groups: Query<&ButtonGroup>,
 
@@ -226,32 +219,37 @@ fn button_group_interaction(
 
     mut events: MessageWriter<ButtonGroupEvent>,
 ) {
-    for (button_entity, interaction, mut item) in &mut interactions {
+    for (button_entity, interaction) in &interactions {
         if *interaction != Interaction::Pressed {
             continue;
         }
 
+        let Ok((_, item, _)) = buttons.get(button_entity) else {
+            continue;
+        };
         if item.disabled {
             continue;
         }
+        let item_group = item.group;
+        let item_id = item.id.clone();
 
-        let Ok(group) = groups.get(item.group) else {
+        let Ok(group) = groups.get(item_group) else {
             continue;
         };
 
         match group.selection {
             ButtonGroupSelection::None => {
                 events.write(ButtonGroupEvent {
-                    group: item.group,
+                    group: item_group,
                     button: button_entity,
-                    id: item.id.clone(),
+                    id: item_id,
                     selected: false,
                 });
             }
 
             ButtonGroupSelection::Single => {
                 for (other_entity, mut other, mut surface) in &mut buttons {
-                    if other.group != item.group {
+                    if other.group != item_group {
                         continue;
                     }
 
@@ -264,24 +262,30 @@ fn button_group_interaction(
                     });
                 }
 
-                item.selected = true;
+                if let Ok((_, mut item, _)) = buttons.get_mut(button_entity) {
+                    item.selected = true;
+                }
 
                 events.write(ButtonGroupEvent {
-                    group: item.group,
+                    group: item_group,
                     button: button_entity,
-                    id: item.id.clone(),
+                    id: item_id,
                     selected: true,
                 });
             }
 
             ButtonGroupSelection::Multiple => {
+                let Ok((_, mut item, _)) = buttons.get_mut(button_entity) else {
+                    continue;
+                };
                 item.selected = !item.selected;
+                let selected = item.selected;
 
                 events.write(ButtonGroupEvent {
-                    group: item.group,
+                    group: item_group,
                     button: button_entity,
-                    id: item.id.clone(),
-                    selected: item.selected,
+                    id: item_id,
+                    selected,
                 });
             }
         }
