@@ -1,30 +1,23 @@
 # Beverly
 
-### A Rust UI system for Bevy.
+### The UI for AI.
 
-Beverly is a Rust-native UI system for building high-performance, accessible interfaces with [Bevy](https://bevyengine.org/).
+Beverly is a small, native UI runtime for AI-native applications — fast for humans, understandable by agents, and safe by default.
 
-It is designed for applications where traditional browser UI starts to become a constraint: data-intensive interfaces, real-time applications, AI-native software, local-first tools, and systems that need to run without depending on a web stack.
+Built with Rust, Bevy, and GPU-native rendering, Beverly is for interfaces where conversations, tools, workflows, approvals, data, files, telemetry, and real-time state are part of the product — not an afterthought.
 
-**Website:** [beverlyui.com](https://beverlyui.com/)
+**Website:** [beverlyui.com](https://beverlyui.com/)  
 **Documentation:** [beverlyui.com/docs/](https://beverlyui.com/docs/)
 
 ---
 
 ## Why Beverly?
 
-Modern application interfaces increasingly need to handle:
+AI can generate code faster than humans ever could. The bottleneck is the substrate.
 
-- Large, dynamic datasets
-- High-frequency state updates
-- Real-time streaming
-- AI-generated content and actions
-- Complex interaction states
-- Offline and local-first operation
-- GPU-accelerated rendering
-- Strict control over application data
+AI-native applications need interfaces that can represent continuously changing state, structured actions, tool calls, permissions, streamed output, and complex operational data. Beverly provides a reliable, composable substrate for building those interfaces.
 
-Beverly approaches UI from a different foundation:
+Rather than placing the UI behind a browser boundary, Beverly runs as part of the application:
 
 ```text
 Rust
@@ -38,81 +31,63 @@ GPU
 Application
 ```
 
-Rather than treating UI as a layer on top of a browser, Beverly treats UI as part of the application itself.
+The result is a native interface layer that can live alongside models, files, databases, devices, sensors, GPUs, and private data.
 
 ---
 
-## Design Principles
+## Design principles
 
-### Performance
+### Small runtime
 
-Beverly is built on Bevy and Rust, providing a foundation for interfaces that need to remain responsive under high-frequency updates and large amounts of data.
+Beverly is designed to be small enough to ship: fast startup, low overhead, local execution, and no browser required. It is intended to live inside the product, from desktop software to embedded systems.
 
-The goal is not simply to make traditional UI faster. It is to make UI a first-class part of a high-performance application architecture.
+### Human + agent friendly
 
-### Accessibility
+Predictable APIs, strongly typed primitives, explicit state, deterministic layouts, and semantic components give people and AI agents a shared vocabulary for building interfaces.
 
-Accessibility is a foundational requirement rather than a final polish step.
+The same primitives should support direct human interaction, automation, and agent-driven workflows.
 
-Beverly aims to provide accessible interaction primitives including:
+### Safe by default
 
-- Keyboard navigation
-- Focus management
-- Clear interaction states
-- Reduced-motion support
-- High-contrast interfaces
-- Predictable component behavior
-- Screen-reader integration where applicable
+AI can generate; Rust can verify.
 
-The long-term target is WCAG 2.2 AA for supported interface primitives.
+Rust's ownership model, type system, exhaustive matching, and compile-time guarantees constrain broad classes of mistakes before software ships. Beverly pairs probabilistic generation with a predictable systems substrate.
 
-### AI Interaction
+### Local by default
 
-AI changes the way software is operated.
+Your AI's interface can run next to your AI.
 
-Beverly is designed around the idea that the same interface primitives should be usable by both humans and software agents.
+Beverly prioritizes local execution and developer control: no mandatory cloud UI layer, no external CDN dependency, and no requirement that every interaction crosses a network boundary.
 
-This includes primitives for:
+---
 
-- Command interfaces
-- Structured actions
-- Tool execution
-- Streaming responses
-- Agent status
-- Confirmations
-- Permissions
-- Activity and telemetry
+## Primitive layer
 
-The goal is not an "AI UI layer" bolted onto an existing application, but UI primitives that understand AI interaction as a first-class use case.
+Beverly focuses on a small set of composable, strongly typed primitives with a large practical surface area. These primitives can form interfaces for conversations, dashboards, inspectors, workflows, tools, and real-time systems.
 
-### Sovereignty
+Current and planned interface capabilities include:
 
-Beverly is designed for software that can remain under the developer's control.
-
-The project prioritizes:
-
-- Local-first operation
-- Offline capability
-- Self-hosted deployments
-- No mandatory external services
-- No mandatory telemetry
-- No external CDN dependency
-- Air-gapped environments
-- Explicit control over AI execution
-
-Your application should not need permission from a third-party service to render its interface.
+- Virtualized data views for large datasets
+- Command surfaces for human and programmatic actions
+- Agent tool cards for calls, results, states, approvals, and autonomous work
+- Telemetry interfaces for live system state, events, and logs
+- Data grids and trees for structured information
+- Streaming states for loading, partial, live, stale, error, and updating data
+- GPU-native surfaces, gradients, blur, glass, borders, and themes
+- Interaction feedback for focus, hover, selection, validation, transitions, and motion
+- Semantic controls shared by people, automation, and AI agents
 
 ---
 
 ## Status
 
-Beverly ships a working, standalone Bevy component library: a `BeverlyPlugin`, ~35 UI components, a GPU shader/material rendering system, animation, theming, and accessibility primitives, all installable as a normal crate dependency.
+Beverly is under active development.
 
-APIs may still change as the system matures, but the crate compiles, its examples run, and its test suite passes independently of any other project.
+The project currently provides a standalone Bevy component library with a `BeverlyPlugin`, built-in UI components, theming, animation, accessibility primitives, and GPU shader/material rendering. APIs may change as Beverly evolves around AI-native application workflows.
 
 ---
 
-## Getting Started
+## Getting started
 
 ### Installation
 
@@ -122,7 +97,7 @@ bevy = "0.19"
 beverly = "0.1"
 ```
 
-Beverly targets the same Bevy version as the version listed above (currently Bevy `0.19`).
+Beverly targets Bevy `0.19`.
 
 ### Basic setup
 
@@ -146,42 +121,21 @@ fn setup(mut commands: Commands) {
 }
 ```
 
-`BeverlyPlugin` wires up every component system, the rendering/material pipeline, theming, animation, and accessibility primitives in one call. Individual components can also be used without it as long as their own plugin (or the systems they depend on) is added manually; see each component's documentation for its specific requirements.
+`BeverlyPlugin` wires up Beverly's component systems, rendering/material pipeline, theming, animation, and accessibility primitives.
 
-### Importing the prelude
+### Prelude
 
 ```rust
 use beverly::prelude::*;
 ```
 
-The prelude re-exports `BeverlyPlugin`, the theme system, rendering/styling primitives (`Paint`, `Surface`, `Border`, gradients, glass/shadow effects), icons, and the primary type for every built-in component (`Alert`, `Button`, `Card`, `Modal`, `Table`, ...).
-
----
-
-## Components
-
-Beverly ships the following components, each with its own spawn helper and (where it has runtime behavior) its own `Plugin`:
-
-Alert · Avatar · Badge · Button · Button Group · Card · Checkbox · Container · Divider · Dropdown ·
-File Input · Footer · Form · Input · Link · List Item · Modal · Nav Button · Navbar · Pagination ·
-Photo · Progress Bar · Radio · Search · Select · Sidebar · Slider · Spinner · Table · Tabs · Text/Title ·
-Textarea · Toast · Toggle · Tooltip
-
-Plus cross-cutting primitives: accessibility (`primitives::a11y`), focus management, keyboard
-navigation, pointer/gesture interaction, clipboard, and semantic tree helpers; and animation:
-transitions, motion, loading/skeleton placeholders, and backdrop blur.
-
-More complex application interfaces can be composed from these primitives.
+The prelude re-exports `BeverlyPlugin`, theming, rendering and styling primitives, icons, and the primary types for Beverly's built-in components.
 
 ---
 
 ## Architecture
 
-Beverly is built around Bevy's ECS architecture and Rust's type system.
-
-The project aims to keep UI state, rendering, interaction, animation, and application state close to the same underlying execution model.
-
-A simplified architecture:
+Beverly keeps UI state, rendering, interaction, animation, and application state close to Bevy's ECS execution model.
 
 ```text
 ┌─────────────────────────────────────┐
@@ -200,112 +154,35 @@ A simplified architecture:
 └─────────────────────────────────────┘
 ```
 
-This architecture is particularly useful for applications where UI state and application state are tightly coupled.
+Beverly's rendering system supports GPU-native gradients, borders, shadows, glass and backdrop-blur effects, noise, and skeleton shimmer. Its crate assets are embedded so consuming projects do not need to copy a Beverly `assets/` directory or configure a custom asset path.
 
 ---
 
-## Theming
+## Development
 
-Every component reads its colors, gradients, and shadows from a `ThemeResource`:
-
-```rust
-use beverly::prelude::*;
-
-app.insert_resource(ThemeResource {
-    current: light_theme(), // or dark_theme()
-});
+```bash
+git clone https://github.com/AllTheCodeThatVictorWroteInBali/beverly.git
+cd beverly
+cargo check
+cargo test
+cargo fmt --check
 ```
 
-Themes are plain data (`ThemeColors`, `ThemeTransitions`, ...) so custom palettes can be built by
-constructing a `Theme` value directly. Components react to `ThemeChanged` to re-paint when the
-active theme is swapped at runtime.
+For documentation development:
 
----
+```bash
+mdbook serve docs
+```
 
-## Shaders and assets
-
-Beverly's rendering system (`beverly::rendering`) implements gradients, borders, inner/outer
-shadows, glass/backdrop-blur effects, noise, and skeleton shimmer as a single GPU shader
-(`UiShapeMaterial`) plus a couple of small companion shaders. All of it is embedded into the
-compiled crate via Bevy's `embedded_asset!` mechanism, and Feather icon SVGs are embedded the
-same way. This means:
-
-- No `assets/` folder needs to be copied into a consuming project.
-- No custom `AssetPlugin` path configuration is required for Beverly's own assets.
-- The crate works identically whether used via a local `path` dependency or from a published
-  version on crates.io.
-
----
-
-## Feature flags
-
-| Feature | Default | Enables |
-| --- | --- | --- |
-| `file_dialog` | on | Native file picker support for `FileInput` (via `rfd`). |
-| `http_form` | off | HTTP form submission for `Form` (via `reqwest`). |
-| `test-support` | off | Exposes headless UI-transform test fixtures for use in downstream crates' own tests. |
-
----
-
-## Roadmap
-
-### Foundation
-
-- [x] Public project repository
-- [x] Project website
-- [x] Documentation site
-- [x] GitHub Pages deployment
-- [x] Design tokens
-- [x] Theme system
-- [x] Core layout primitives
-- [x] Animation system
-
-### Components
-
-- [x] Button
-- [x] Card
-- [x] Input
-- [x] Checkbox
-- [x] Toggle
-- [x] Select
-- [x] Dropdown
-- [x] Modal
-- [x] Tabs
-- [x] Navigation
-- [x] Tooltip
-- [x] Toast
-- [x] Data table
-
-### Platform
-
-- [ ] Virtualized lists
-- [ ] Advanced scrolling
-- [ ] Accessibility primitives
-- [ ] GPU-native visual effects
-- [ ] Reduced-motion system
-- [ ] High-contrast system
-- [ ] AI interaction primitives
-- [ ] Command system
-- [ ] Streaming UI primitives
-
-### Applications
-
-- [ ] Component gallery
-- [ ] Example application
-- [ ] Data-intensive reference application
-- [ ] AI-native reference application
-
-The roadmap will evolve as the architecture becomes clearer.
+Then open `http://localhost:3000`.
 
 ---
 
 ## Contributing
 
-Beverly is open source and contributions are welcome.
+Beverly is open source and contributions are welcome. The project is early, so discussion and experimentation are encouraged.
 
-The project is still early, so discussion and experimentation are encouraged.
-
-Before submitting a pull request, please make sure that:
+Before submitting a pull request, run:
 
 ```bash
 cargo fmt --check
@@ -313,97 +190,22 @@ cargo check
 cargo test
 ```
 
-pass locally.
-
-For larger architectural changes, opening an issue first is encouraged so the approach can be discussed before implementation.
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for additional guidelines.
-
----
-
-## Development
-
-Clone the repository:
-
-```bash
-git clone https://github.com/AllTheCodeThatVictorWroteInBali/beverly.git
-cd beverly
-```
-
-Build the project:
-
-```bash
-cargo check
-```
-
-Run tests:
-
-```bash
-cargo test
-```
-
-Format the code:
-
-```bash
-cargo fmt
-```
-
----
-
-## Documentation
-
-The documentation is built with [mdBook](https://rust-lang.github.io/mdBook/) and published automatically through GitHub Actions.
-
-**Read the documentation:**
-https://beverlyui.com/docs/
-
-Local development:
-
-```bash
-mdbook serve docs
-```
-
-Then open:
-
-```text
-http://localhost:3000
-```
-
----
-
-## Philosophy
-
-Beverly is built around a simple idea:
-
-> **UI should be part of the application, not a separate application running beside it.**
-
-Rust provides memory safety and predictable performance.
-
-Bevy provides an ECS-based application architecture and GPU-oriented rendering foundation.
-
-Beverly provides the interface layer that connects those capabilities to modern application UX.
-
-The result is intended to be a foundation for software that is fast, accessible, intelligent, local, and under the developer's control.
+For larger architectural changes, please open an issue first. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for additional guidance.
 
 ---
 
 ## License
 
-Beverly is currently under active development.
-
-The project's license will be documented here before the first stable release.
+Licensed under the [Apache License 2.0](LICENSE).
 
 ---
 
 ## Links
 
-- **Website:** https://beverlyui.com/
-- **Documentation:** https://beverlyui.com/docs/
-- **Repository:** https://github.com/AllTheCodeThatVictorWroteInBali/beverly
-- **Issues:** https://github.com/AllTheCodeThatVictorWroteInBali/beverly/issues
-
----
+- **Website:** [beverlyui.com](https://beverlyui.com/)
+- **Documentation:** [beverlyui.com/docs/](https://beverlyui.com/docs/)
+- **Issues:** [GitHub Issues](https://github.com/AllTheCodeThatVictorWroteInBali/beverly/issues)
 
 <p align="center">
-  Built with Rust and Bevy.
+  Built with Rust, Bevy, and the belief that the UI belongs with the application.
 </p>
