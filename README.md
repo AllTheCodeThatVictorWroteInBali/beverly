@@ -7,7 +7,9 @@ Beverly is a small, native UI runtime for AI-native applications — fast for hu
 Built with Rust, Bevy, and GPU-native rendering, Beverly is for interfaces where conversations, tools, workflows, approvals, data, files, telemetry, and real-time state are part of the product — not an afterthought.
 
 **Website:** [beverlyui.com](https://beverlyui.com/)  
-**Documentation:** [beverlyui.com/docs/](https://beverlyui.com/docs/)
+**Documentation:** [beverlyui.com/docs/](https://beverlyui.com/
+docs/)
+**Crate** [crates.io/crates/beverly](https://crates.io/crates/beverly)
 
 ---
 
