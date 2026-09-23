@@ -98,6 +98,8 @@
   - [State Updates](./performance/state-updates.md)
   - [Profiling](./performance/profiling.md)
 - [Examples](./examples/overview.md)
+  - [15.1 Hello World](./examples/hello-world.md)
+  - [15.2 Button Click Event](./examples/button-click-event.md)
   - [Dashboard](./examples/dashboard.md)
   - [Media App](./examples/media-app.md)
   - [Data App](./examples/data-app.md)

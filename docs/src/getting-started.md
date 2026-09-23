@@ -74,3 +74,5 @@ fn setup_workspace(mut commands: Commands) {
 - read the component catalog in [Components](./components/overview.md)
 - review the visual system in [Foundations](./foundations/design-tokens.md)
 - browse the example patterns in [Examples Overview](./examples/overview.md)
+- start with [15.1 Hello World](./examples/hello-world.md)
+- continue with [15.2 Button Click Event](./examples/button-click-event.md)
