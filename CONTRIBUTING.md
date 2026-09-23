@@ -59,6 +59,16 @@ If applicable, also run:
 cargo clippy -- -D warnings
 ```
 
+---
+
+## `cargo beverly` CLI
+
+The `tools/cargo-beverly` workspace member is Beverly's developer CLI, exposed as
+`cargo beverly <command>` once installed (`cargo install --path tools/cargo-beverly`).
+See [tools/cargo-beverly/README.md](tools/cargo-beverly/README.md) for the available
+commands, including `cargo beverly publish` (builds a release macOS `.app` bundle into
+`dist/`).
+
 Please make sure your changes do not introduce compiler warnings or formatting failures.
 
 ---

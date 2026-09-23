@@ -9,7 +9,7 @@ Built with Rust, Bevy, and GPU-native rendering, Beverly is for interfaces where
 **Website:** [beverlyui.com](https://beverlyui.com/)  
 **Documentation:** [beverlyui.com/docs/](https://beverlyui.com/
 docs/)
-**Crate** [crates.io/crates/beverly](https://crates.io/crates/beverly)
+**Crate:** [crates.io/crates/beverly](https://crates.io/crates/beverly)
 
 ---
 
@@ -177,6 +177,41 @@ mdbook serve docs
 ```
 
 Then open `http://localhost:3000`.
+
+---
+
+## Publishing
+
+Beverly ships a developer CLI, `cargo-beverly`, for packaging Beverly (Bevy) applications for
+distribution:
+
+```bash
+cargo install --path tools/cargo-beverly
+cargo beverly publish
+```
+
+`cargo beverly publish` builds your application in release mode using Cargo metadata (package
+name, version, binary target), collects the release binary and your `assets/` directory, and
+produces a runnable application bundle in `dist/`.
+
+**macOS** is supported today, producing a standard `.app` bundle:
+
+```
+dist/
+└── MyApp.app/
+    └── Contents/
+        ├── MacOS/MyApp
+        ├── Resources/assets/...
+        └── Info.plist
+```
+
+**Windows and Linux packaging are coming soon.** The publishing pipeline already separates
+platform-independent steps (metadata, release build, asset collection) from a per-platform
+packager, so adding `WindowsPackager`/`LinuxPackager` implementations won't require redesigning
+`cargo beverly publish` itself.
+
+See [tools/cargo-beverly/README.md](tools/cargo-beverly/README.md) for full details, flags, and
+`[package.metadata.beverly]` overrides.
 
 ---
 

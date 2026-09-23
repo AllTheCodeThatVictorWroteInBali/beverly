@@ -10,7 +10,7 @@ documentation = "https://beverlyui.com/docs/"
 readme = "README.md"
 keywords = ["bevy", "ui", "gamedev", "accessibility", "components"]
 categories = ["game-development", "gui"]
-exclude = ["docs/", "index.html"]
+exclude = ["docs/", "index.html", "tools/", "dist/"]
 
 include = [
     "src/**",
@@ -23,6 +23,11 @@ include = [
 [lib]
 name = "beverly"
 path = "src/lib.rs"
+
+# `beverly` remains a regular (non-virtual) manifest: this package is still the
+# workspace root, and `tools/cargo-beverly` is an additional member alongside it.
+[workspace]
+members = ["tools/cargo-beverly"]
 
 [dependencies]
 bevy = "0.19"
