@@ -61,3 +61,6 @@ name = "cards"
 
 [[example]]
 name = "components"
+
+[[example]]
+name = "hello_world"
