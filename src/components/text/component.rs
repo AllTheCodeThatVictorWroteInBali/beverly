@@ -70,7 +70,7 @@ impl ThemedText {
 
 fn themed_text_system(
     theme: Option<Res<ThemeResource>>,
-    mut query: Query<(&ThemedText, &mut TextFont, &mut TextColor), Without<Typography>>,
+    mut query: Query<(&ThemedText, &mut TextFont, &mut TextColor, Option<&Typography>)>,
 ) {
     let Some(theme) = theme else {
         return;
@@ -79,7 +79,13 @@ fn themed_text_system(
     let colors = theme.current.colors;
     let typography = theme.current.typography;
 
-    for (themed, mut font, mut color) in &mut query {
+    for (themed, mut font, mut color, custom_typography) in &mut query {
+        // Text always carries a Typography component (required component); only defer to it
+        // once the caller has explicitly opted in via a `with_*` builder (sync_to_bevy = true).
+        if custom_typography.is_some_and(|t| t.sync_to_bevy) {
+            continue;
+        }
+
         let new_size = FontSize::Px(
             themed
                 .size_override
@@ -132,7 +138,7 @@ fn bootstrap_typography_from_text_system(
 fn apply_typography_to_text_system(
     mut query: Query<
         (&Typography, &mut Text, &mut TextFont, &mut TextColor),
-        (Changed<Typography>, Without<ThemedText>, Without<ThemedTitle>),
+        Changed<Typography>,
     >,
 ) {
     for (typography, mut text, mut font, mut color) in &mut query {

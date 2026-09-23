@@ -44,12 +44,18 @@ impl ThemedTitle {
 
 fn themed_title_system(
     theme: Res<ThemeResource>,
-    mut query: Query<(&ThemedTitle, &mut TextFont, &mut TextColor), Without<Typography>>,
+    mut query: Query<(&ThemedTitle, &mut TextFont, &mut TextColor, Option<&Typography>)>,
 ) {
     let colors = theme.current.colors;
     let typography = theme.current.typography;
 
-    for (title, mut font, mut color) in &mut query {
+    for (title, mut font, mut color, custom_typography) in &mut query {
+        // Text always carries a Typography component (required component); only defer to it
+        // once the caller has explicitly opted in via a `with_*` builder (sync_to_bevy = true).
+        if custom_typography.is_some_and(|t| t.sync_to_bevy) {
+            continue;
+        }
+
         let new_size = FontSize::Px(
             title
                 .size_override
@@ -98,5 +104,54 @@ pub struct TitlePlugin;
 impl Plugin for TitlePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, themed_title_system);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::components::text::{ThemedTextPlugin, Typography};
+    use crate::theme::ThemeResource;
+    use bevy::asset::AssetPlugin;
+
+    fn app() -> App {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), ThemedTextPlugin, TitlePlugin));
+        app.init_resource::<ThemeResource>();
+        app
+    }
+
+    #[test]
+    fn title_level_drives_font_size_by_default() {
+        let mut app = app();
+        let entity = app
+            .world_mut()
+            .spawn((Text::new("Workspace"), ThemedTitle::new(TitleLevel::H1)))
+            .id();
+
+        app.update();
+
+        let font = app.world().get::<TextFont>(entity).unwrap();
+        let expected = level_size(TitleLevel::H1, app.world().resource::<ThemeResource>().current.typography);
+        assert_eq!(font.font_size, FontSize::Px(expected));
+    }
+
+    #[test]
+    fn explicit_typography_override_takes_over_size_and_family() {
+        let mut app = app();
+        let entity = app
+            .world_mut()
+            .spawn((
+                Text::new("Workspace"),
+                ThemedTitle::new(TitleLevel::H1),
+                Typography::default().with_size(48.0).with_family("SFNS"),
+            ))
+            .id();
+
+        app.update();
+        app.update();
+
+        let font = app.world().get::<TextFont>(entity).unwrap();
+        assert_eq!(font.font_size, FontSize::Px(48.0));
     }
 }
