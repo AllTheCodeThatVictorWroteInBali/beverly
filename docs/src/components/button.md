@@ -80,6 +80,8 @@ fn spawn_outline_actions(mut commands: Commands) {
 
 Use outline buttons for secondary or lower-emphasis actions that should still carry a clear semantic color, without competing visually with a solid primary action next to them.
 
+`secondary` and `light` are themed as near-white neutrals, so their outline border/label color has very low contrast on a light page background (as visible above) — prefer their solid form, or a darker color, in light-background layouts.
+
 ## Disabled state
 
 Setting `disabled` does more than dim the button: it removes it from the tab order, blocks pointer and keyboard activation, and announces the disabled state to assistive technology.
