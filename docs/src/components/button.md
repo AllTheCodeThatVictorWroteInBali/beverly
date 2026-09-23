@@ -43,6 +43,8 @@ fn spawn_color_options(mut commands: Commands) {
 }
 ```
 
+<img src="../assets/button-colors.png" alt="Nine BeverlyButton color variants rendered side by side: primary, secondary, success, danger, warning, info, light, dark, and text only" width="860" />
+
 Keep the hierarchy clear. Most surfaces should have one obvious primary action and a smaller number of supporting controls, with `success`/`danger`/`warning`/`info` reserved for actions whose color communicates a real outcome (confirm, delete, an irreversible change, a status-driven shortcut) rather than decoration.
 
 This prevents the page from collapsing into a visual pile of equally important buttons, which often makes the actual user task harder to infer.
@@ -74,6 +76,8 @@ fn spawn_outline_actions(mut commands: Commands) {
 }
 ```
 
+<img src="../assets/button-outline.png" alt="Outline variants of each BeverlyButton color: transparent fill with a colored border and label" width="860" />
+
 Use outline buttons for secondary or lower-emphasis actions that should still carry a clear semantic color, without competing visually with a solid primary action next to them.
 
 ## Disabled state
@@ -89,6 +93,8 @@ fn spawn_unavailable_action(mut commands: Commands) {
 }
 ```
 
+<img src="../assets/button-disabled.png" alt="A disabled solid button and a disabled outline button, both rendered with muted neutral colors" width="420" />
+
 Disabled buttons render with the theme's neutral border/muted-text colors regardless of their configured color, so unavailability is visible even without color perception. Toggle `disabled` at runtime (`button.disabled = false`) to re-enable a control once its action becomes available again; screen readers and keyboard focus order update automatically.
 
 ## Block (full width)
@@ -103,6 +109,8 @@ fn spawn_full_width_action(mut commands: Commands) {
     commands.spawn(BeverlyButton::primary("Continue").block(true));
 }
 ```
+
+<img src="../assets/button-block.png" alt="A primary button stretched to the full width of its parent container" width="420" />
 
 Prefer the default content-sized width for most content areas, and reserve `block` for layouts where the button really is the dominant action, so the interface stays easy to scan.
 
