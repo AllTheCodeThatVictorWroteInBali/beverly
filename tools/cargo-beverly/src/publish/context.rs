@@ -9,15 +9,12 @@ use super::platform::Target;
 
 /// Platform-independent inputs to a single packaging run.
 pub struct PublishContext {
-    #[allow(dead_code)] // available to packagers that need it (e.g. bundle metadata)
     pub package_name: String,
     pub version: String,
     pub display_name: String,
     pub pascal_name: String,
     pub bundle_id: String,
-    #[allow(dead_code)] // always "release" today; kept for future build-profile support
     pub profile: &'static str,
-    #[allow(dead_code)] // only one packager exists today; will branch on this once more targets land
     pub target: Target,
     pub binary_path: PathBuf,
     pub assets_dir: Option<PathBuf>,

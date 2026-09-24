@@ -75,6 +75,8 @@ pub struct PublishArtifact {
     /// Root of the produced artifact, e.g. `dist/MyApp.app`.
     pub root: std::path::PathBuf,
     pub assets_included: bool,
+    /// Size in bytes of the final (stripped) packaged executable.
+    pub binary_size_bytes: u64,
 }
 
 /// Packages a built binary + assets into a platform-specific distributable.

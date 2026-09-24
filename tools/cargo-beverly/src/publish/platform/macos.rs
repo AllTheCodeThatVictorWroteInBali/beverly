@@ -3,6 +3,8 @@
 //! nothing outside `platform/` knows about bundle layout.
 
 use std::fs;
+use std::path::Path;
+use std::process::Command;
 
 use anyhow::{Context, Result};
 
@@ -38,6 +40,10 @@ impl PlatformPackager for MacOSPackager {
                 executable_path.display()
             )
         })?;
+        // Belt-and-suspenders on top of the `profile.release.strip` build
+        // default: guarantees a stripped binary even if the consumer's own
+        // Cargo.toml explicitly disables strip.
+        strip_binary(&executable_path);
 
         let assets_included = if let Some(assets_dir) = &ctx.assets_dir {
             collect_assets(assets_dir, &resources_dir.join("assets"))?;
@@ -49,10 +55,30 @@ impl PlatformPackager for MacOSPackager {
         fs::write(contents_dir.join("Info.plist"), info_plist(ctx))
             .context("failed to write Info.plist")?;
 
+        let binary_size_bytes = fs::metadata(&executable_path)
+            .with_context(|| format!("failed to stat {}", executable_path.display()))?
+            .len();
+
         Ok(PublishArtifact {
             root: bundle_root,
             assets_included,
+            binary_size_bytes,
         })
+    }
+}
+
+/// Strips debug/symbol info from the packaged executable in place. Best-effort:
+/// a missing/failing `strip` (e.g. no Xcode command line tools) just leaves the
+/// binary as-is rather than failing the whole publish.
+fn strip_binary(path: &Path) {
+    match Command::new("strip").arg(path).status() {
+        Ok(status) if status.success() => {}
+        Ok(status) => {
+            eprintln!("warning: `strip` exited with {status}; shipping unstripped binary");
+        }
+        Err(err) => {
+            eprintln!("warning: failed to run `strip` ({err}); shipping unstripped binary");
+        }
     }
 }
 
