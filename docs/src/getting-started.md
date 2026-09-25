@@ -8,16 +8,16 @@ By the end, you'll have:
 
 - A Bevy application
 - Beverly UI components
-- A button
-- A Rust Model
+- A reusable Button
+- A Rust Model containing application data
 - An application Event
 - A Controller connecting the Event to the Model
-- A working interactive UI
+- A UI that reacts to changing application state
 - A distributable application binary
 
 The complete flow we'll build is:
 
-```text
+```text id="r4q7cy"
 Button
   ↓
 Event
@@ -26,24 +26,26 @@ Controller
   ↓
 Model
   ↓
-Application State
+Application Data
+  ↓
+View
 ```
 
-The important part is that there is very little framework-specific machinery involved. Beverly is built to let you use ordinary Rust wherever possible.
+Beverly keeps application state close to ordinary Rust: the Model owns the underlying data, Events describe what happens, and Controllers connect Events to application behavior.
 
 ---
 
-## Installation
+# Installation
 
 Beverly is a Rust framework built on top of Bevy, so you'll need a working Rust development environment.
 
-### Install Rust
+## Install Rust
 
 If you don't already have Rust installed, install it using `rustup`.
 
 Verify your installation:
 
-```bash
+```bash id="7n0gup"
 rustc --version
 cargo --version
 ```
@@ -58,13 +60,13 @@ A Beverly application is a Bevy application, so Bevy is the runtime underneath B
 
 Add Bevy to your project with Cargo:
 
-```bash
+```bash id="n6x0mw"
 cargo add bevy
 ```
 
 Or add it directly to `Cargo.toml`:
 
-```toml
+```toml id="b4ajq5"
 [dependencies]
 bevy = "..."
 ```
@@ -77,13 +79,13 @@ Use the version recommended by the Beverly release you're using.
 
 Add Beverly to your project:
 
-```bash
+```bash id="l5l1ph"
 cargo add beverly
 ```
 
 Or add it directly to `Cargo.toml`:
 
-```toml
+```toml id="p6b5d1"
 [dependencies]
 bevy = "..."
 beverly = "..."
@@ -97,14 +99,14 @@ Beverly provides the application UI layer while Bevy provides the underlying run
 
 Create a new Rust binary:
 
-```bash
+```bash id="gk3xfr"
 cargo new hello_beverly
 cd hello_beverly
 ```
 
 Your project starts with:
 
-```text
+```text id="p6v7wh"
 hello_beverly/
 ├── Cargo.toml
 └── src/
@@ -115,7 +117,7 @@ At this point you have a normal Rust application.
 
 That's intentional.
 
-Beverly doesn't require a special project format or a separate application runtime.
+Beverly doesn't require a special project format or separate application runtime.
 
 ---
 
@@ -123,7 +125,7 @@ Beverly doesn't require a special project format or a separate application runti
 
 Add Bevy and Beverly:
 
-```bash
+```bash id="9c2m2s"
 cargo add bevy
 cargo add beverly
 ```
@@ -138,7 +140,7 @@ The exact versions will depend on the Beverly release you're using.
 
 Let's start with the smallest possible Beverly application.
 
-```rust
+```rust id="j4lqf9"
 use bevy::prelude::*;
 use beverly::prelude::*;
 
@@ -158,7 +160,7 @@ fn setup(mut commands: Commands) {
 
 Run it:
 
-```bash
+```bash id="0j5wte"
 cargo run
 ```
 
@@ -170,129 +172,302 @@ You now have a native application using Rust, Bevy, and Beverly.
 
 ---
 
-# Your First Component
+# Your First Component — A Button
 
-Let's make the application interactive.
+Let's add an interactive Button.
 
-Create a button:
-
-```rust
+```rust id="l7j8pn"
 button("Click Me")
 ```
 
-A complete example might look like:
+The Button is not a one-off piece of UI.
 
-```rust
-fn setup(mut commands: Commands) {
-    commands.spawn(
-        button("Click Me")
-    );
-}
+**Beverly components are reusable assets.**
+
+Once you have a Button, you can use that same component throughout your application:
+
+```rust id="0pmf2m"
+button("Save")
+
+button("Cancel")
+
+button("Delete")
+
+button("Create User")
 ```
 
-Beverly components are designed to be composable.
+You can also compose components into larger reusable UI structures:
 
-For example:
-
-```rust
+```rust id="0j38qj"
 card()
     .padding(16)
     .radius(12)
     .children([
         text("Welcome to Beverly"),
-        button("Click Me"),
+        button("Get Started"),
     ])
 ```
 
-Components describe the UI.
+This is the foundation of Beverly's component model:
 
-Behavior comes from Events and Controllers.
+**Build a primitive once. Compose and reuse it everywhere.**
+
+Components can encapsulate their own presentation and interaction behavior while remaining composable with the rest of the application.
 
 ---
 
 # Your First Model
 
+The Model is where your application's underlying data lives.
+
 A Model is just Rust.
 
-You don't need a special state-management framework to create one.
+For this example, we'll keep track of how many times our Button has been clicked:
 
-Start with a simple struct:
-
-```rust
+```rust id="4i3z9k"
 struct AppModel {
     clicks: u32,
 }
 ```
 
-We can give it ordinary Rust methods:
+The Model owns this data.
 
-```rust
+Expose it through getters and setters:
+
+```rust id="9c5h9v"
 impl AppModel {
-    fn click(&mut self) {
-        self.clicks += 1;
+    fn clicks(&self) -> u32 {
+        self.clicks
+    }
 
-        println!("Clicks: {}", self.clicks);
+    fn set_clicks(&mut self, clicks: u32) {
+        self.clicks = clicks;
+    }
+
+    fn increment_clicks(&mut self) {
+        self.set_clicks(self.clicks() + 1);
     }
 }
 ```
 
-The Model owns its state.
+The underlying data stays inside the Model.
 
-When something needs to modify that state, it receives mutable access:
+The View reads it through getters:
 
-```rust
-fn click(&mut self)
+```rust id="5v7j0x"
+model.clicks()
 ```
 
-This is one of Beverly's fundamental principles:
+Application behavior changes it through setters or Model methods:
 
-> **Your application state is ordinary Rust state.**
+```rust id="4p5d2s"
+model.increment_clicks();
+```
 
-You can use structs, enums, methods, `Result`, `Option`, traits, iterators, and everything else Rust provides.
-
-Beverly doesn't need to replace Rust's type system with another state-management abstraction.
+The Model is therefore the source of truth for application state.
 
 ---
 
 # Your First Event
 
-Now we need a way for the UI to communicate that something happened.
+Now define the Event that represents the user's action:
 
-Define an Event:
-
-```rust
+```rust id="9f2k4m"
 event! {
     App::Clicked
 }
 ```
 
-Events are the vocabulary of your application.
-
 The Event represents:
 
 > "The user clicked."
 
-An Event can be produced by many different sources:
+Events are the vocabulary of your application.
 
-- A button
+The same Event can be produced by different sources:
+
+- A Button
 - A keyboard shortcut
 - An API
 - Another application
 - An AI agent
 
-The producer doesn't need to know what happens next.
-
-It only needs to emit the Event.
+The source doesn't need to know what happens next. It emits the Event.
 
 ---
 
 # Your First Interactive UI
 
-Now we'll connect everything together.
+Now connect the Button to the Event:
 
-Our application has four pieces:
+```rust id="q8s1nd"
+button("Click Me")
+    .on("click", Event::App::Clicked)
+```
 
-```text
+That's the Button's entire application-level interaction contract:
+
+```text id="6w3t4k"
+click
+  ↓
+Event::App::Clicked
+```
+
+The Controller decides what happens next:
+
+```rust id="4k8d6p"
+controller! {
+    App::Clicked => Model::App::increment_clicks,
+}
+```
+
+The complete flow is:
+
+```text id="b8f5g1"
+┌─────────────┐
+│    Button   │
+│             │
+│  on click   │
+└──────┬──────┘
+       │
+       ▼
+Event::App::Clicked
+       │
+       ▼
+┌─────────────┐
+│ Controller  │
+│             │
+│ Event →     │
+│ Action      │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│    Model    │
+│             │
+│ Owns Data   │
+└─────────────┘
+```
+
+The Button doesn't need to know about the Model.
+
+The Model doesn't need to know about the Button.
+
+The Controller connects them through the Event.
+
+---
+
+# Reading Model Data
+
+Now display the number of clicks in the UI.
+
+The View reads the Model through its getter:
+
+```rust id="u1m2c9"
+text(format!("Clicks: {}", model.clicks()))
+```
+
+The Model remains the source of truth:
+
+```text id="k3z8ha"
+             Model
+               │
+          owns application
+              data
+               │
+               ▼
+             Getter
+               │
+               ▼
+              View
+```
+
+When the Model changes, the View sees the updated state on the next frame.
+
+---
+
+# State Updates at 60 FPS
+
+Beverly's UI is continuously updated as part of Bevy's rendering loop.
+
+At 60 frames per second, the application is evaluating and rendering the current state of the UI roughly every 16.7 milliseconds.
+
+That means a Model change can be reflected in the UI almost immediately.
+
+```text id="x7h4kw"
+Model changes
+     ↓
+Next update
+     ↓
+View reads current state
+     ↓
+Render
+```
+
+There is no need to manually synchronize a separate UI state store with your application state.
+
+The UI is a projection of the current Model state.
+
+This makes state changes feel immediate and keeps the mental model simple:
+
+> **Change the Model. The UI reflects the Model.**
+
+---
+
+# Updating Model Data
+
+When application behavior needs to change state, it goes through the Model's public API.
+
+For example:
+
+```rust id="v4m7q2"
+impl AppModel {
+    fn set_clicks(&mut self, clicks: u32) {
+        self.clicks = clicks.min(100);
+    }
+}
+```
+
+Now the Model can enforce its own invariants.
+
+Every caller gets the same behavior.
+
+The UI doesn't need to know that clicks are limited to 100.
+
+The Controller doesn't need to know.
+
+The Model owns the rule because the Model owns the data.
+
+---
+
+# State Management
+
+Beverly uses ordinary Rust for application state.
+
+Your Model is the state layer:
+
+```rust id="r5j2x8"
+struct AppModel {
+    clicks: u32,
+}
+```
+
+There is no need to introduce another state-management abstraction simply to keep the UI synchronized with your application.
+
+The basic relationship is:
+
+```text id="n4v8xq"
+        Model
+          │
+       owns data
+          │
+          ▼
+         View
+```
+
+Events handle interaction:
+
+```text id="s8k3jm"
 View
  ↓
 Event
@@ -302,73 +477,31 @@ Controller
 Model
 ```
 
-The View contains the button.
-
-The button emits:
-
-```rust
-Event::App::Clicked
-```
-
-The Controller connects that Event to the Model:
-
-```rust
-controller! {
-    App::Clicked => Model::App::click,
-}
-```
-
-The Model handles the action:
-
-```rust
-impl AppModel {
-    fn click(&mut self) {
-        self.clicks += 1;
-
-        println!("Clicks: {}", self.clicks);
-    }
-}
-```
-
-The important distinction is:
-
-**The View doesn't call the Model directly.**
-
-Instead:
-
-```text
-Button
-  ↓
-Event::App::Clicked
-  ↓
-Controller
-  ↓
-Model::App::click
-  ↓
-State changes
-```
-
-This gives the application a clear separation between:
-
-- What happened
-- What should happen
-- Who owns the state
+Together, these form Beverly's application state model.
 
 ---
 
 # Putting It Together
 
-A small Beverly application can therefore look conceptually like this:
+A small Beverly application can therefore look like this:
 
-```rust
+```rust id="z3h7vn"
 struct AppModel {
     clicks: u32,
 }
 
 impl AppModel {
-    fn click(&mut self) {
-        self.clicks += 1;
-        println!("Clicks: {}", self.clicks);
+    fn clicks(&self) -> u32 {
+        self.clicks
+    }
+
+    fn set_clicks(&mut self, clicks: u32) {
+        self.clicks = clicks;
+    }
+
+    fn increment_clicks(&mut self) {
+        self.set_clicks(self.clicks() + 1);
+        println!("Clicks: {}", self.clicks());
     }
 }
 
@@ -377,27 +510,55 @@ event! {
 }
 
 controller! {
-    App::Clicked => Model::App::click,
+    App::Clicked => Model::App::increment_clicks,
 }
 ```
 
 And the View:
 
-```rust
+```rust id="6h5r9x"
 card()
     .padding(16)
+    .radius(12)
     .children([
-        text("Hello, Beverly"),
+        text(format!("Clicks: {}", model.clicks())),
         button("Click Me")
             .on("click", Event::App::Clicked),
     ])
 ```
 
-The exact runtime/bootstrap syntax may vary by Beverly version, but the architecture remains the same:
+The architecture is:
 
-```text
-View → Event → Controller → Model
+```text id="c4q9sv"
+View
+ │
+ │ Event
+ ▼
+Controller
+ │
+ │ Action
+ ▼
+Model
+ │
+ │ owns
+ ▼
+Application Data
+ │
+ ▼
+View
 ```
+
+The Button is reusable.
+
+The Model is ordinary Rust.
+
+The Event defines the application's vocabulary.
+
+The Controller connects Events to behavior.
+
+The View projects the current state.
+
+And because Beverly continuously renders the application at 60 FPS, changes to that state can be reflected immediately.
 
 ---
 
@@ -405,13 +566,13 @@ View → Event → Controller → Model
 
 Run the application during development with:
 
-```bash
+```bash id="q8f4ml"
 cargo run
 ```
 
 For faster iteration, use:
 
-```bash
+```bash id="j5w8xp"
 cargo check
 ```
 
@@ -419,13 +580,13 @@ when you only need to verify that the project compiles.
 
 Build an optimized binary with:
 
-```bash
+```bash id="r2x9nk"
 cargo build --release
 ```
 
 The resulting application will be placed in Cargo's standard release directory:
 
-```text
+```text id="8d3k5w"
 target/release/
 ```
 
@@ -437,7 +598,7 @@ As your application grows, keep the application organized around its responsibil
 
 A simple project might look like:
 
-```text
+```text id="v6p2qn"
 hello_beverly/
 ├── Cargo.toml
 ├── src/
@@ -455,7 +616,7 @@ hello_beverly/
 
 For a larger application:
 
-```text
+```text id="y9q4bk"
 src/
 ├── main.rs
 ├── model/
@@ -491,15 +652,15 @@ The goal is for Beverly commands to feel like normal Cargo commands while adding
 
 During development:
 
-```bash
+```bash id="f7m2qc"
 cargo beverly build
 ```
 
-This should behave like a normal build while providing Beverly-specific defaults and tooling.
+This provides a Beverly-oriented build workflow while still producing a normal Rust application.
 
 You can still use:
 
-```bash
+```bash id="k3n8vp"
 cargo build
 ```
 
@@ -511,7 +672,7 @@ because Beverly is ultimately a Rust application.
 
 When you're ready to distribute your application:
 
-```bash
+```bash id="x4m7st"
 cargo beverly publish
 ```
 
@@ -519,25 +680,25 @@ The publish command builds the application in release mode and produces the arti
 
 For example:
 
-```bash
+```bash id="h8q2vc"
 cargo beverly publish --target macos
 ```
 
-The goal is to make the difference between development and distribution explicit:
+The workflow becomes:
 
-```text
+```text id="p5j9rn"
 cargo beverly build
-    ↓
-Development build
+        ↓
+Development
 
 cargo beverly publish
-    ↓
-Distribution build
+        ↓
+Distribution
 ```
 
 Platform support can be extended over time:
 
-```bash
+```bash id="n7v3kx"
 cargo beverly publish --target macos
 cargo beverly publish --target windows
 cargo beverly publish --target linux
@@ -553,20 +714,14 @@ You've now built a complete Beverly application.
 
 The architecture is:
 
-```text
+```text id="w6k2qm"
                     ┌─────────────┐
                     │    View     │
                     │             │
                     │   Button    │
                     └──────┬──────┘
                            │
-                           ▼
-                    ┌─────────────┐
-                    │    Event    │
-                    │             │
-                    │ App::Clicked│
-                    └──────┬──────┘
-                           │
+                           │ Event
                            ▼
                     ┌─────────────┐
                     │ Controller  │
@@ -575,43 +730,37 @@ The architecture is:
                     │ Action      │
                     └──────┬──────┘
                            │
+                           │ Action
                            ▼
                     ┌─────────────┐
                     │    Model    │
                     │             │
-                    │ clicks += 1 │
+                    │  Owns Data  │
+                    │             │
+                    │  Getters    │
+                    │  Setters    │
+                    └──────┬──────┘
+                           │
+                           │ Current State
+                           ▼
+                    ┌─────────────┐
+                    │    View     │
+                    │             │
+                    │  60 FPS     │
                     └─────────────┘
 ```
 
-This pattern scales.
+The core idea is simple:
 
-A button click can become:
+> **The Model is your state. Events are your application vocabulary. Controllers connect Events to behavior. Views project the current state.**
 
-```text
-Event → Model
-```
+The Button you built today can be reused throughout the application.
 
-Or a more complex application pipeline:
+The Model you wrote is ordinary Rust.
 
-```text
-Event
-  ↓
-Validate
-  ↓
-Load Data
-  ↓
-Process
-  ↓
-AI
-  ↓
-Save
-  ↓
-Emit Result Event
-```
+And the same Event system that handles your first Button can eventually connect forms, data interfaces, background processes, APIs, and AI agents.
 
-The same Event system can be used by humans, APIs, background processes, and AI agents.
-
-That is the foundation of Beverly.
+That's the foundation of Beverly.
 
 ---
 
