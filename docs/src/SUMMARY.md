@@ -2,7 +2,11 @@
 
 - [Introduction](./introduction.md)
 - [Getting Started](./getting-started.md)
-- [Architecture](./architecture.md)
+- [Architecture](./architecture/architecture.md)
+  - [Models](./architecture/model.md)
+  - [Views](./architecture/view.md)
+  - [Events](./architecture/event.md)
+  - [Controller](./architecture/controller.md)
 - [Principles](./principles/performance.md)
   - [Accessibility](./principles/accessibility.md)
   - [AI Interaction](./principles/ai-interaction.md)
