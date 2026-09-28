@@ -30,6 +30,7 @@
   - [Forms](./components/forms/overview.md)
     - [Form](./components/forms/form.md)
     - [Input](./components/forms/input.md)
+    - [Textarea](./components/forms/textarea.md)
     - [Checkbox](./components/checkbox.md)
     - [Toggle](./components/toggle.md)
     - [Select](./components/select.md)
