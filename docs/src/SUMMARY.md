@@ -31,7 +31,7 @@
     - [Form](./components/forms/form.md)
     - [Input](./components/forms/input.md)
     - [Textarea](./components/forms/textarea.md)
-    - [Checkbox](./components/checkbox.md)
+    - [Checkbox](./components/forms/checkbox.md)
     - [Toggle](./components/toggle.md)
     - [Select](./components/select.md)
     - [Search](./components/search.md)
