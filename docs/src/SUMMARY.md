@@ -28,6 +28,7 @@
     - [Text](./components/typography/text.md)
     - [Title](./components/typography/title.md)
   - [Forms](./components/forms/overview.md)
+    - [Form](./components/forms/form.md)
     - [Input](./components/input.md)
     - [Checkbox](./components/checkbox.md)
     - [Toggle](./components/toggle.md)
