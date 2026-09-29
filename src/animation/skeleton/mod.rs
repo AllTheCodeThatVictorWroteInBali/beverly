@@ -12,6 +12,7 @@ pub use crate::rendering::ShimmerDirection as SkeletonDirection;
 use bevy::prelude::*;
 use bevy::ui::UiSystems;
 use crate::theme::{AccessibilityVisualPolicyResource, ThemeResource};
+use crate::primitives::semantic::SemanticAccessibilityPlugin;
 
 /// Resolves skeleton authoring before native layout and Surface material sync.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -21,6 +22,9 @@ pub struct SkeletonPlugin;
 
 impl Plugin for SkeletonPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<SemanticAccessibilityPlugin>() {
+            app.add_plugins(SemanticAccessibilityPlugin);
+        }
         app.init_resource::<ThemeResource>()
             .init_resource::<AccessibilityVisualPolicyResource>()
             .add_systems(

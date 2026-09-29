@@ -1,10 +1,11 @@
-use bevy::a11y::AccessibilityNode;
 use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 use bevy::window::{CursorIcon, PrimaryWindow, SystemCursorIcon};
 
 use crate::rendering::{OuterShadow, Paint, Surface};
 use crate::primitives::a11y;
+use crate::primitives::interaction::InteractionAction;
+use crate::primitives::semantic::{SemanticNode, SemanticRole, SemanticValue};
 use crate::components::text::{TextRole, ThemedText};
 use crate::theme::ThemeResource;
 
@@ -161,19 +162,25 @@ pub fn spawn_slider(
     let mut fill_entity = None;
     let mut thumb_entity = None;
     let mut value_text = None;
+    let mut semantic = SemanticNode::new(SemanticRole::Slider).label(
+        slider
+            .accessible_label
+            .clone()
+            .unwrap_or_else(|| "Slider".to_string()),
+    );
+    semantic.state.disabled = slider.disabled;
+    semantic.semantic_value = SemanticValue::Range {
+        value: slider.value as f64,
+        min: slider.min as f64,
+        max: slider.max as f64,
+        step: slider.step.map(f64::from),
+    };
+    semantic.actions = vec![InteractionAction::Increment, InteractionAction::Decrement];
 
     let mut slider_entity = parent.spawn((
         Button,
         a11y::TabIndex(if slider.disabled { -1 } else { 0 }),
-        a11y::slider_node(
-            slider
-                .accessible_label
-                .clone()
-                .unwrap_or_else(|| "Slider".to_string()),
-            slider.value,
-            slider.min,
-            slider.max,
-        ),
+        semantic,
         Node {
             width: Val::Px(style.width),
             min_height: Val::Px(36.0),
@@ -569,14 +576,6 @@ fn slider_cursor_icon(
 // Accessibility
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Keeps the AccessKit numeric value / disabled state in sync for screen readers.
-fn slider_a11y_system(mut sliders: Query<(&Slider, &mut AccessibilityNode), Changed<Slider>>) {
-    for (slider, mut node) in &mut sliders {
-        node.0.set_numeric_value(slider.value as f64);
-        a11y::set_disabled(&mut node, slider.disabled);
-    }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Plugin
 // ─────────────────────────────────────────────────────────────────────────────
@@ -585,13 +584,15 @@ pub struct SliderPlugin;
 
 impl Plugin for SliderPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::primitives::semantic::SemanticAccessibilityPlugin>() {
+            app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
+        }
         app.add_message::<SliderChanged>()
             .add_systems(
                 Update,
                 (
                     slider_interaction,
                     slider_cursor_icon,
-                    slider_a11y_system,
                 ),
             )
             .add_systems(PostUpdate, update_slider_visuals);

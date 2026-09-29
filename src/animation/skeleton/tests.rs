@@ -1,5 +1,4 @@
-use accesskit::{Live, Role};
-use bevy::{a11y::AccessibilityNode, prelude::*};
+use bevy::prelude::*;
 
 use super::*;
 use crate::rendering::{Paint, Shimmer, Surface};
@@ -7,6 +6,7 @@ use crate::theme::{
     AccessibilityContrastMode, AccessibilityVisualPolicy, AccessibilityVisualPolicyResource,
     ThemeChanged, ThemeMode, ThemePlugin, ThemeResource, dark_theme, light_theme,
 };
+use crate::primitives::semantic::{AnnouncementPriority, SemanticNode, SemanticRole};
 
 fn app() -> App {
     let mut app = App::new();
@@ -52,7 +52,7 @@ fn skeleton_circle_uses_canonical_surface_radius_and_required_node() {
     assert_eq!(surface(&app, entity).shape, Surface::rounded_rect_fill(24.0, Color::WHITE).shape);
     let pickable = app.world().get::<Pickable>(entity).unwrap();
     assert!(!pickable.should_block_lower && !pickable.is_hoverable);
-    assert!(app.world().get::<AccessibilityNode>(entity).is_none());
+    assert!(app.world().get::<SemanticNode>(entity).is_none());
 }
 
 #[test]
@@ -90,24 +90,24 @@ fn skeleton_text_lines_have_one_busy_polite_region_and_optional_final_width() {
     assert_eq!(node.flex_direction, FlexDirection::Column);
     assert_eq!(node.row_gap, Val::Px(10.0));
     assert_eq!(node.width, Val::Px(240.0));
-    let accessibility = &app.world().get::<AccessibilityNode>(group).unwrap().0;
-    assert_eq!(accessibility.role(), Role::Group);
-    assert_eq!(accessibility.label(), Some("Loading messages"));
-    assert!(accessibility.is_busy());
-    assert_eq!(accessibility.live(), Some(Live::Polite));
+    let semantic = app.world().get::<SemanticNode>(group).unwrap();
+    assert_eq!(semantic.role, SemanticRole::Generic);
+    assert_eq!(semantic.label.as_deref(), Some("Loading messages"));
+    assert!(semantic.state.busy);
+    assert_eq!(semantic.live, Some(AnnouncementPriority::Polite));
     let children: Vec<Entity> = app.world().get::<Children>(group).unwrap().iter().collect();
     assert_eq!(children.len(), 3);
     for (index, child) in children.into_iter().enumerate() {
         assert_eq!(app.world().get::<Node>(child).unwrap().width, Val::Percent(if index == 2 { 60.0 } else { 100.0 }));
-        assert!(app.world().get::<AccessibilityNode>(child).is_none());
+        assert!(app.world().get::<SemanticNode>(child).is_none());
         assert!(!app.world().get::<Pickable>(child).unwrap().should_block_lower);
     }
     app.world_mut().get_mut::<SkeletonGroup>(group).unwrap().busy = false;
     app.world_mut().get_mut::<SkeletonGroup>(group).unwrap().label = "Messages loaded".into();
     app.update();
-    let accessibility = &app.world().get::<AccessibilityNode>(group).unwrap().0;
-    assert!(!accessibility.is_busy());
-    assert_eq!(accessibility.label(), Some("Messages loaded"));
+    let semantic = app.world().get::<SemanticNode>(group).unwrap();
+    assert!(!semantic.state.busy);
+    assert_eq!(semantic.label.as_deref(), Some("Messages loaded"));
 }
 
 fn surface_optional(app: &App, entity: Entity) -> Option<&Surface> { app.world().get::<Surface>(entity) }
@@ -128,17 +128,17 @@ fn skeleton_group_preserves_custom_layout_and_handles_empty_and_single_line() {
 }
 
 #[derive(Resource, Default)]
-struct Writes { surfaces: usize, nodes: usize, accessibility: usize }
+struct Writes { surfaces: usize, nodes: usize, semantics: usize }
 
 fn count_changes(
     surfaces: Query<(), (With<Skeleton>, Changed<Surface>)>,
     nodes: Query<(), (With<Skeleton>, Changed<Node>)>,
-    accessibility: Query<(), (With<SkeletonGroup>, Changed<AccessibilityNode>)>,
+    semantics: Query<(), (With<SkeletonGroup>, Changed<SemanticNode>)>,
     mut writes: ResMut<Writes>,
 ) {
     writes.surfaces = surfaces.iter().count();
     writes.nodes = nodes.iter().count();
-    writes.accessibility = accessibility.iter().count();
+    writes.semantics = semantics.iter().count();
 }
 
 #[test]
@@ -159,7 +159,7 @@ fn skeleton_theme_switch_updates_in_same_frame_and_steady_state_is_clean() {
     for _ in 0..4 {
         app.update();
         let writes = app.world().resource::<Writes>();
-        assert_eq!((writes.surfaces, writes.nodes, writes.accessibility), (0, 0, 0));
+        assert_eq!((writes.surfaces, writes.nodes, writes.semantics), (0, 0, 0));
     }
     app.world_mut().resource_mut::<ThemeResource>().current.colors.primary = Color::BLACK;
     app.update();

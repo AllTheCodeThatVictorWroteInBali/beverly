@@ -2,146 +2,147 @@
 
 <img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
 
-Shaders are the most powerful way to express the “look” of a Beverly surface without creating one-off widget code. In a Bevy-based UI system, shader work should sit behind a shared material interface so widgets remain consistent while their surface properties change. The point is not to make every component custom-drawn with bespoke code; the point is to give surfaces a controlled visual language that can be reused, parameterized, and tuned at runtime.
+In Beverly, most UI shader work is expressed through a `Surface`, not through a different shader for every widget. A `Surface` describes a shape and its visual data; Beverly's rendering plugin turns that description into a shared GPU material. Cards, panels, and controls can therefore share one renderer while keeping their own meaning and behavior.
 
-## What a shader is doing here
+> **Describe the surface in Rust. Let the renderer translate it for the GPU.**
 
-A shader is a small program that runs on the GPU for each painted surface. In UI terms, it usually decides how a rectangle, panel, or glass layer should be colored, softened, highlighted, or blended.
+## The Beverly path
 
-For a Beverly surface, the shader is often responsible for:
-
-- fill color and gradients
-- border softening or edge blending
-- corner rounding and shape masks
-- glow, highlight, and shadow-like effects
-- transparency, blur, or refraction
-- focus and interaction overlays
-
-Rather than hardcoding these decisions in a widget-specific render path, the system keeps them in a reusable material model. That preserves consistency across cards, panels, overlays, and inputs without creating many one-off visual implementations.
-
-## Why shaders fit this architecture
-
-Beverly’s architecture is layered and compositional. Shader logic fits naturally into that model because the visual treatment of a surface is separated from the semantics of the widget itself.
-
-A button is still a button. It still has semantics, focus behavior, and interaction state. The shader simply decides how that surface is painted in a given theme or policy state.
-
-This separation is useful because it allows the same widget type to express many visual variants without creating separate classes or code paths. A card can be plain, elevated, tinted, or glass-like while still being the same semantic component.
-
-## A material-driven approach
-
-The most maintainable pattern is material-driven rather than effect-driven. Instead of saying “this one widget gets a custom shader,” the system should say “this surface uses a shared material with runtime parameters.”
-
-Conceptually, that looks like this:
+The standard application setup registers Beverly's renderer through `BeverlyPlugin`:
 
 ```rust
-// Conceptual shader use
-let material = UiShapeMaterial {
-    fill_color: Color::WHITE,
-    border_color: Color::srgba(0.7, 0.7, 0.9, 1.0),
-    corner_radius: 20.0,
-    ..default()
-};
+use bevy::prelude::*;
+use beverly::prelude::BeverlyPlugin;
+use beverly::rendering::prelude::*;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_plugins(BeverlyPlugin)
+        .add_systems(Startup, setup)
+        .run();
+}
+
+fn setup(mut commands: Commands) {
+    commands.spawn(Camera2d);
+
+    let stops = vec![
+        GradientStop::new(0.0, Color::srgb(0.10, 0.38, 0.72)),
+        GradientStop::new(1.0, Color::srgb(0.20, 0.72, 0.62)),
+    ];
+
+    commands.spawn((
+        Node {
+            width: px(320.0),
+            height: px(120.0),
+            ..default()
+        },
+        Surface::new(
+            Shape::rounded_rect(18.0),
+            Paint::linear(LinearGradient::horizontal(stops)),
+        )
+        .uniform_border(1.0, Color::srgba(0.8, 0.9, 1.0, 0.65))
+        .outer_shadow(OuterShadow::small(Color::BLACK)),
+    ));
+}
 ```
 
-This approach keeps the visual API readable. The widget can vary by theme, interaction, and policy without duplicating large shader code paths for each individual element. A shared material interface is the difference between a coherent visual system and a pile of custom drawing hacks.
+`BeverlyPlugin` installs `UiRenderingPlugin`, which registers the material and embeds Beverly's WGSL asset. Add a Bevy UI `Node` to give the entity layout and size; add a `Surface` to give it shader-rendered appearance. The example uses only the public surface API: a rounded rectangle, a horizontal two-stop gradient, a border, and a small shadow.
 
-## Typical responsibilities of UI shaders
+For the paint, border, shadow, blur, and glass APIs in more depth, see [Materials](materials.md), [Gradients](gradients.md), [Effects](effects.md), and [Liquid Glass](liquid-glass.md).
 
-### 1. Surface fill and gradients
+## What a `Surface` describes
 
-A shader can generate smooth fills or gradients across a surface instead of relying on a flat solid color. This is useful for hero panels, branding surfaces, elevated cards, and focus states.
+`Surface` is the renderer-facing description of a UI surface. Its core fields are:
 
-The key is to keep the gradient logic controlled and consistent. It should feel like part of the design system, not a random visual flourish.
+- `shape` — currently a rounded rectangle with either one radius or per-corner radii
+- `fill` — solid color, shimmer, or linear, radial, or angular gradient paint
+- `border` — optional border paint and widths
+- `decorations` — semantic decoration such as a focus ring
+- `effects` — optional outer shadow, outer glow, or inner shadow
+- `noise`, `clip`, `mask`, and `backdrop` — optional surface treatments
 
-### 2. Rounded geometry and soft edges
+These are data, not independent widget render paths. For example, changing the fill does not change the entity's layout or turn a card into a different component. It changes the paint data that the renderer sends to the shader.
 
-One of the most common UI uses for shaders is rounded corners, feathered edges, and soft border transitions. Instead of creating brittle geometry per component, the shader can apply shape-aware treatment using a shared parameter set such as corner radius, border width, and edge softness.
+## From layout to fragment
 
-This makes panels, buttons, and overlays feel coherent even when they are built from many different component combinations.
+The rendering flow keeps responsibilities separate:
 
-### 3. Layered interaction states
+1. Bevy UI computes the entity's layout, size, and transform.
+2. Beverly reads the entity's `Surface` and the computed UI geometry.
+3. Beverly encodes shape, paint, border, effect, and backdrop values into the material uniform.
+4. The UI material binds that data and the embedded WGSL evaluates the surface for each fragment.
 
-Hover, focus, pressed, selected, and disabled states often need subtle but distinct surface treatments. A shader can help by changing a highlight amount, glow intensity, or alpha without creating a separate widget variant for each interaction state.
+This is why a `Surface` should be attached to an entity that participates in Bevy UI layout. The renderer needs the computed size and transform to evaluate its local shape, place the effects, and sample a backdrop correctly.
 
-This keeps the interaction model expressive while preserving a single surface language.
+The GPU material is managed by `UiRenderingPlugin`. Applications should update the `Surface` component rather than creating or editing Beverly's internal `UiShapeMaterial` directly. The renderer handles material synchronization as the surface data or computed layout changes.
 
-### 4. Glass and blur surfaces
+## Paint and geometry
 
-Glass-like surfaces rely on layering, transparency, and soft blending. In a UI system, this is often better expressed through a shared material pattern than by custom-coding each translucent panel.
+Paint is independent from shape. The same fill can be applied to different rounded-rectangle radii, and a shape can switch from a solid fill to a gradient without changing its geometry.
 
-The shader can apply soft alpha blending, subtle highlights, and edge treatment without forcing every panel to become a special-case effect.
+```rust
+let fill = Paint::linear(LinearGradient::new(
+    Vec2::new(0.0, 0.0),
+    Vec2::new(1.0, 1.0),
+    vec![
+        GradientStop::new(0.0, Color::srgb(0.12, 0.34, 0.76)),
+        GradientStop::new(0.55, Color::srgb(0.18, 0.70, 0.68)),
+        GradientStop::new(1.0, Color::srgb(0.82, 0.88, 0.43)),
+    ],
+));
 
-## Why not just make a new shader for every widget?
+let surface = Surface::new(Shape::rounded_rect(16.0), fill);
+```
 
-The temptation is to introduce one custom shader per component or per visual state. That quickly becomes unmaintainable. The costs include:
+Gradient coordinates are normalized local coordinates: `(0, 0)` is the top-left and `(1, 1)` is the bottom-right. Beverly currently encodes up to four gradient stops for the GPU. Stops are normalized and sorted before encoding. Authored colors are converted to linear RGBA for shader evaluation; choose colors using Bevy's color APIs rather than pre-linearizing them yourself.
 
-- more shader variants to debug
-- harder theme consistency
-- more asset and material churn
-- more complexity in build and validation
-- more opportunities for visual drift between components
+Rounded corners are evaluated from the surface shape in the shader rather than by changing the widget's layout. That lets the border, fill, and effects use the same shape description. The current shape API supports rounded rectangles, including distinct radii for each corner.
 
-This is why Beverly favors a shared material model. A small set of well-defined shader behaviors is easier to reason about and easier to theme.
+## Effects, focus, and backdrops
 
-## A good material model
+Effects and decorations are part of the same surface description, but they serve different purposes. Shadows and glows add depth or emphasis; a focus ring communicates an interaction state. Keep focus visible independently of decorative styling, including when a surface is translucent.
 
-A good shader system for UI surfaces tends to expose a small, stable parameter set, such as:
+```rust
+let elevated = Surface::new(
+    Shape::rounded_rect(12.0),
+    Color::srgb(0.12, 0.15, 0.20).into(),
+)
+.outer_shadow(OuterShadow::regular(Color::BLACK));
+```
 
-- fill_color
-- border_color
-- border_width
-- corner_radius
-- shadow_strength
-- glow_strength
-- alpha or tint
-- accent color or highlight color
-- enabled or disabled state
+Backdrop blur and liquid-glass treatments also use the shared material, but they depend on the renderer's backdrop capture path. They are not equivalent to making a transparent fill: the renderer must capture and sample the content behind the surface. Use them selectively, and retain a readable fill or contrast treatment so text and controls remain legible.
 
-The shader should not require every widget to know internal rendering logic. Instead, the material exposes the data needed for the visual effect, while the widget supplies semantics and layout.
+## Editing or replacing the shader
 
-This keeps the system flexible without making rendering code too broad or too magical.
+Beverly's built-in shader is `src/rendering/shaders/ui_shape.wgsl`. Its Rust-side material and uniform definitions live alongside it in `src/rendering/material.rs`; `UiRenderingPlugin` embeds the WGSL and registers `UiShapeMaterial` as a Bevy UI material.
 
-## Performance discipline
+The Rust and WGSL uniform layouts are one contract. A change to a field's type, order, alignment, or meaning must be made consistently on both sides. The shader also relies on the UI material's vertex inputs and the backdrop texture and sampler bindings. Treat those bindings as part of the interface, not as incidental implementation details.
 
-Shaders are powerful, but power should be controlled. A UI framework must respect the fact that complex effects can become expensive when used too broadly.
+Most application styling does not need a custom shader: use `Surface` and its public paint/effect types. Consider a separate Bevy `UiMaterial` when the effect requires a different data model, bindings, or rendering behavior that the `Surface` contract does not represent. Keep that material and shader in the application or extension that owns the effect instead of coupling ordinary widgets to Beverly's internal material type.
 
-The practical rule is:
+## Debugging
 
-- keep shaders simple and reusable
-- prefer runtime parameters over many specialized variants
-- limit heavy blur or refraction to surfaces that truly benefit from them
-- avoid expensive effects on large numbers of small elements
-- keep the effect stack predictable and bounded
+Beverly includes renderer debug views for inspecting the rounded-rectangle distance field, border coverage and paint, gradient coordinates, noise, and focus-ring coverage. Select one with `UI_RENDER_DEBUG` when launching the app:
 
-This is especially important in dense interfaces, dashboards, and list-heavy UIs. A beautiful shader that runs on every row can become a performance liability very quickly.
+```sh
+UI_RENDER_DEBUG=gradient_uv cargo run
+```
 
-## Accessibility and shader policy
+Accepted values include `sdf`, `border`, `gradient_uv`, `border_paint`, `noise`, `noise_coords`, `noise_strength`, `noise_modulation`, `focus`, and `focus_distance`. The default is the final rendered surface. For a built-in rendering sample, run an application with `UI_RENDERING_DEMO=1`; backdrop diagnostics are available through `UI_BACKDROP_DEBUG` (`source`, `blur`, or `mask`), and backdrop rendering can be disabled with `UI_BACKDROP_DISABLED=1`.
 
-Visual richness must not come at the cost of usability. Shader-based surfaces should respect accessibility policies such as:
+When a surface is missing or malformed, check these in order:
 
-- readable contrast under normal and high-contrast settings
-- reduced motion or reduced visual noise when requested
-- legible focus treatment even on glass or translucent surfaces
-- consistent state visibility for selected, disabled, or error conditions
+1. Confirm the entity has both a sized Bevy UI `Node` and a `Surface`.
+2. Confirm the app added `BeverlyPlugin` (or registered `UiRenderingPlugin` directly).
+3. Reduce the effect to a solid fill and rounded rectangle, then add paint and effects back one at a time.
+4. Use the matching debug view to distinguish bad geometry or uniform data from a paint or effect issue.
+5. Check the application log for shader compilation, asset, or render-pipeline diagnostics.
 
-A glossy or translucent surface is fine only if it still supports reading, focus, and clear hierarchy. The look should never hide meaning.
+## Performance and accessibility
 
-This is why shader design should be part of the same policy layer as motion, contrast, and accessibility. The rendering system should understand environment preferences and adjust effect intensity appropriately.
+The shared renderer avoids introducing a separate widget-specific shader path for each visual variant, but effects still have costs. In particular, backdrop sampling and large blur, glow, or shadow regions deserve attention on screens with many surfaces. Prefer a small number of intentional effects over applying the most expensive treatment to every row, chip, or button.
 
-## The rendering pipeline and shader interaction
+Keep the visual state understandable without relying on shader effects alone. Text contrast, selected and disabled states, and keyboard focus must remain clear if blur, noise, or transparency is reduced or unavailable. Beverly's runtime effect policy can suppress selected effects; application content should still communicate its meaning through structure, labels, and state.
 
-Shaders are not usually the whole render pipeline on their own. They are part of a larger rendering flow:
-
-1. layout determines where the surface sits
-2. theme and policy data choose the appropriate material parameters
-3. the material supplies fill, border, and effect information
-4. the shader paints the surface according to those values
-5. interaction and focus overlays are layered on top
-
-This keeps the system coherent: layout decides shape and placement, materials decide visual expression, and shaders decide how the resulting surface is drawn.
-
-## The key idea
-
-Shaders are not a replacement for good UI design. They are a tool for expressing that design with consistent surface behavior and controlled runtime parameters. In Beverly, the best use of shaders is not to create one-off custom effects, but to give surfaces a careful, reusable visual vocabulary that aligns with layout, theme, interaction, and accessibility policies.
-
-In short: shaders are how the framework expresses the look of a surface without sacrificing structure, consistency, or performance.
+> **Use shaders to express a surface, not to hide the interface's structure.**

@@ -93,7 +93,19 @@ pub fn spawn_progress_bar(commands: &mut Commands, progress_bar: ProgressBar) ->
     commands
         .spawn((
             progress_bar,
-            crate::primitives::a11y::progress_node("Progress", progress),
+            {
+                let mut semantic = crate::primitives::semantic::SemanticNode::new(
+                    crate::primitives::semantic::SemanticRole::ProgressBar,
+                )
+                .label("Progress");
+                semantic.semantic_value = crate::primitives::semantic::SemanticValue::Range {
+                    value: (progress.clamp(0.0, 1.0) * 100.0) as f64,
+                    min: 0.0,
+                    max: 100.0,
+                    step: None,
+                };
+                semantic
+            },
             Node {
                 width: Val::Px(width),
                 height: Val::Px(height),

@@ -1,8 +1,9 @@
-use bevy::{a11y::AccessibilityNode, color::Mix, prelude::*};
+use bevy::{color::Mix, prelude::*};
 
 use crate::icons::{Icon, IconCommands, IconNode};
 use crate::primitives::a11y;
 use crate::primitives::interaction::DisabledInteraction;
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::rendering::{Paint, Surface};
 use crate::theme::{ThemeColors, ThemeResource};
 
@@ -153,6 +154,9 @@ pub struct ButtonPlugin;
 
 impl Plugin for ButtonPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::primitives::semantic::SemanticAccessibilityPlugin>() {
+            app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
+        }
         app.add_systems(
             Update,
             (spawn_button_ui, button_a11y_system, button_visual_system).chain(),
@@ -171,8 +175,8 @@ fn spawn_button_ui(
     for (entity, button) in &buttons {
         let (fill, border, foreground) = resolve_button_colors(button, colors, Interaction::None);
 
-        let mut node = a11y::button_node(button.label.clone());
-        a11y::set_disabled(&mut node, button.disabled);
+        let mut semantic = SemanticNode::new(SemanticRole::Button).label(button.label.clone());
+        semantic.state.disabled = button.disabled;
 
         let mut entity_commands = commands.entity(entity);
         entity_commands.insert((
@@ -193,7 +197,7 @@ fn spawn_button_ui(
             Surface::rounded_rect_fill(8.0, Paint::solid(fill))
                 .uniform_border(1.0, Paint::solid(border)),
             a11y::TabIndex(if button.disabled { -1 } else { 0 }),
-            node,
+            semantic,
         ));
 
         if button.disabled {
@@ -219,8 +223,7 @@ fn spawn_button_ui(
     }
 }
 
-/// Keeps the AccessKit disabled/label state and `DisabledInteraction`/`TabIndex`
-/// gating in sync whenever a button's data changes at runtime.
+/// Keeps semantic state and `DisabledInteraction`/`TabIndex` gating in sync.
 fn button_a11y_system(
     mut commands: Commands,
     mut buttons: Query<
@@ -228,16 +231,13 @@ fn button_a11y_system(
             Entity,
             &BeverlyButton,
             &mut a11y::TabIndex,
-            &mut AccessibilityNode,
             Has<DisabledInteraction>,
         ),
         Changed<BeverlyButton>,
     >,
 ) {
-    for (entity, button, mut tab_index, mut node, has_disabled_marker) in &mut buttons {
+    for (entity, button, mut tab_index, has_disabled_marker) in &mut buttons {
         tab_index.0 = if button.disabled { -1 } else { 0 };
-        node.0.set_label(button.label.clone());
-        a11y::set_disabled(&mut node, button.disabled);
 
         if button.disabled && !has_disabled_marker {
             commands.entity(entity).insert(DisabledInteraction);
@@ -356,6 +356,7 @@ fn readable_foreground(fill: Color) -> Color {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::a11y::AccessibilityNode;
     use crate::theme::light_theme;
 
     fn test_app() -> App {

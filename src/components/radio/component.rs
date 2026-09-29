@@ -1,9 +1,9 @@
-use bevy::a11y::AccessibilityNode;
 use bevy::input_focus::InputFocus;
 use bevy::prelude::*;
 
 use crate::rendering::{Paint, Surface};
 use crate::primitives::a11y::{self, FocusCause};
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::components::text::{TextRole, ThemedText};
 use crate::theme::{ThemeColors, ThemeResource, dark_theme};
 
@@ -128,6 +128,7 @@ impl RadioGroupBuilder {
             .unwrap_or_default();
 
         let group_id = self.id.clone();
+        let group_semantic = SemanticNode::new(SemanticRole::RadioGroup).label(self.id.clone());
 
         let mut group_commands = parent.spawn((
             Node {
@@ -136,7 +137,7 @@ impl RadioGroupBuilder {
                 row_gap: self.spacing,
                 ..default()
             },
-            a11y::radio_group_node(self.id.clone()),
+            group_semantic,
             RadioGroup {
                 id: self.id.clone(),
                 selected: selected.clone(),
@@ -149,11 +150,13 @@ impl RadioGroupBuilder {
             for option in self.options {
                 let is_selected = option.value == selected;
                 let label_text = option.label.clone();
+                let mut semantic = SemanticNode::new(SemanticRole::Radio).label(label_text);
+                semantic.state.checked = Some(is_selected);
 
                 let mut button_commands = group_parent.spawn((
                     Button,
                     a11y::TabIndex(if is_selected { 0 } else { -1 }),
-                    a11y::radio_node(label_text, is_selected),
+                    semantic,
                     Node {
                         width: Val::Percent(100.0),
                         height: Val::Px(36.0),
@@ -426,12 +429,12 @@ fn radio_roving_nav_system(
     focus.set(next_entity, FocusCause::Navigated);
 }
 
-/// Keeps each button's tab stop and AccessKit toggled state in sync with
+/// Keeps each button's tab stop and semantic checked state in sync with
 /// which value is currently selected (only the selected radio is a tab
 /// stop, matching the native roving-tabindex pattern).
 fn radio_a11y_sync_system(
     groups: Query<(&RadioGroup, &Children), Changed<RadioGroup>>,
-    mut buttons: Query<(&RadioButton, &mut a11y::TabIndex, &mut AccessibilityNode)>,
+    mut buttons: Query<(&RadioButton, &mut a11y::TabIndex, &mut SemanticNode)>,
 ) {
     for (group, children) in &groups {
         for child in children.iter() {
@@ -440,11 +443,7 @@ fn radio_a11y_sync_system(
             };
             let selected = button.value == group.selected;
             tab_index.0 = if selected { 0 } else { -1 };
-            node.0.set_toggled(if selected {
-                accesskit::Toggled::True
-            } else {
-                accesskit::Toggled::False
-            });
+            node.state.checked = Some(selected);
         }
     }
 }
@@ -453,6 +452,9 @@ pub struct RadioPlugin;
 
 impl Plugin for RadioPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::primitives::semantic::SemanticAccessibilityPlugin>() {
+            app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
+        }
         app.add_message::<RadioChanged>().add_systems(
             Update,
             (

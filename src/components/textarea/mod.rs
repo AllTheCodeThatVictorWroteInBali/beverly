@@ -33,6 +33,9 @@ pub struct TextareaPlugin;
 
 impl Plugin for TextareaPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::primitives::semantic::SemanticAccessibilityPlugin>() {
+            app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
+        }
         app.add_message::<TextareaChanged>()
             .add_observer(textarea_focus_gained_system)
             .add_observer(textarea_focus_lost_system)

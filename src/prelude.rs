@@ -25,7 +25,10 @@ pub use crate::primitives::focus::FocusPlugin;
 pub use crate::primitives::interaction::InteractionPlugin;
 pub use crate::primitives::keyboard::KeyboardPlugin;
 pub use crate::primitives::root::{AppRootSurface, ContentRoot, UiFonts};
-pub use crate::primitives::semantic::SemanticPlugin;
+pub use crate::primitives::semantic::{
+    AnnouncementPriority, SemanticNode, SemanticPlugin, SemanticRelationships, SemanticRole,
+    SemanticSnapshotNode, SemanticState, SemanticTreeSnapshot, SemanticValue,
+};
 
 // Animation.
 pub use crate::animation::animation::UiAnimationPlugin;

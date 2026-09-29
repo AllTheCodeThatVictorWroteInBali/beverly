@@ -1,10 +1,10 @@
-use bevy::a11y::AccessibilityNode;
 use bevy::prelude::*;
 use std::fmt::Display as FmtDisplay;
 use std::marker::PhantomData;
 
 use crate::rendering::{Paint, Surface};
 use crate::primitives::a11y;
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::icons::{Icon, IconNode};
 use crate::components::text::{TextRole, ThemedText};
 use crate::theme::{ThemeResource, dark_theme};
@@ -149,6 +149,9 @@ pub struct SelectPlugin;
 
 impl Plugin for SelectPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::primitives::semantic::SemanticAccessibilityPlugin>() {
+            app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
+        }
         app.add_message::<SelectChanged<String>>()
             .add_systems(Update, select_input_system)
             .add_systems(PostUpdate, (select_visual_system, select_a11y_system));
@@ -195,7 +198,7 @@ where
                 Button,
                 SelectButton { owner: root_id },
                 a11y::TabIndex(if disabled { -1 } else { 0 }),
-                a11y::combo_box_node(placeholder, false),
+                SemanticNode::new(SemanticRole::ComboBox).label(placeholder.clone()),
                 Node {
                     width: Val::Percent(100.0),
                     min_height: Val::Px(40.0),
@@ -260,7 +263,12 @@ where
                             index,
                             value: option.clone(),
                         },
-                        a11y::list_box_option_node(option.clone(), false),
+                        {
+                            let mut semantic = SemanticNode::new(SemanticRole::ListBoxOption)
+                                .label(option.clone());
+                            semantic.state.selected = false;
+                            semantic
+                        },
                         Node {
                             width: Val::Percent(100.0),
                             min_height: Val::Px(38.0),
@@ -397,8 +405,8 @@ fn select_input_system(
 /// state in sync with the `Select` component for screen readers.
 fn select_a11y_system(
     select_query: Query<(Entity, &Select<String>)>,
-    mut button_query: Query<(&SelectButton, &mut AccessibilityNode), Without<SelectOption>>,
-    mut option_query: Query<(&SelectOption, &mut AccessibilityNode), Without<SelectButton>>,
+    mut button_query: Query<(&SelectButton, &mut SemanticNode), Without<SelectOption>>,
+    mut option_query: Query<(&SelectOption, &mut SemanticNode), Without<SelectButton>>,
 ) {
     for (entity, select) in &select_query {
         let label_text = select
@@ -411,16 +419,25 @@ fn select_a11y_system(
             if button.owner != entity {
                 continue;
             }
-            node.0.set_label(label_text.clone());
-            node.0.set_expanded(select.is_open);
-            a11y::set_disabled(&mut node, select.disabled);
+            if node.label.as_deref() != Some(label_text.as_str()) {
+                node.label = Some(label_text.clone());
+            }
+            if node.state.expanded != Some(select.is_open) {
+                node.state.expanded = Some(select.is_open);
+            }
+            if node.state.disabled != select.disabled {
+                node.state.disabled = select.disabled;
+            }
         }
 
         for (option, mut node) in &mut option_query {
             if option.parent != entity {
                 continue;
             }
-            node.0.set_selected(Some(option.index) == select.selected);
+            let selected = Some(option.index) == select.selected;
+            if node.state.selected != selected {
+                node.state.selected = selected;
+            }
         }
     }
 }

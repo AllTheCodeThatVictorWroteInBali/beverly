@@ -7,10 +7,17 @@ use crate::animation::blur::component::{BackdropBlur, spawn_backdrop_blur};
 use crate::primitives::focus::{FocusOrigin, FocusRequest, FocusScope, FocusSystems};
 use crate::icons::{Icon, IconNode};
 use crate::primitives::interaction::{InteractionAction, InteractionActionEvent};
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::components::text::{TextRole, ThemedText};
 use crate::theme::{AccessibilityVisualPolicyResource, ThemeResource};
 use crate::components::title::{ThemedTitle, TitleLevel};
 use crate::rendering::prelude::*;
+
+fn dialog_semantics(label: impl Into<String>) -> SemanticNode {
+    let mut semantic = SemanticNode::new(SemanticRole::Dialog).label(label);
+    semantic.state.modal = true;
+    semantic
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Modal
@@ -235,7 +242,7 @@ pub fn spawn_modal(
             crate::components::container::component::Container,
             a11y::TabGroup::modal(),
             (FocusScope { active: modal.open, ..FocusScope::modal() }, a11y::TabIndex(-1)),
-            a11y::dialog_node(content.title.clone()),
+            dialog_semantics(content.title.clone()),
             ModalReturnFocus::default(),
             Node {
                 position_type: PositionType::Absolute,
@@ -360,7 +367,7 @@ pub fn spawn_modal(
                             Button,
                             ModalCloseButton,
                             a11y::TabIndex(0),
-                            a11y::button_node("Close dialog"),
+                            SemanticNode::new(SemanticRole::Button).label("Close dialog"),
                             ModalActionButton {
                                 owner: modal_entity,
                             },
@@ -424,7 +431,8 @@ pub fn spawn_modal(
                         .spawn((
                             Button,
                             a11y::TabIndex(0),
-                            a11y::button_node(content.dismiss_label.clone()),
+                            SemanticNode::new(SemanticRole::Button)
+                                .label(content.dismiss_label.clone()),
                             ModalActionButton {
                                 owner: modal_entity,
                             },
@@ -478,7 +486,7 @@ where
             crate::components::container::component::Container,
             a11y::TabGroup::modal(),
             (FocusScope { active: modal.open, ..FocusScope::modal() }, a11y::TabIndex(-1)),
-            a11y::dialog_node(title.clone()),
+            dialog_semantics(title.clone()),
             ModalReturnFocus::default(),
             Node {
                 position_type: PositionType::Absolute,
@@ -596,7 +604,7 @@ where
                             Button,
                             ModalCloseButton,
                             a11y::TabIndex(0),
-                            a11y::button_node("Close dialog"),
+                            SemanticNode::new(SemanticRole::Button).label("Close dialog"),
                             ModalActionButton {
                                 owner: modal_entity,
                             },
@@ -1027,6 +1035,9 @@ pub struct ModalPlugin;
 
 impl Plugin for ModalPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::primitives::semantic::SemanticAccessibilityPlugin>() {
+            app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
+        }
         app.init_resource::<AccessibilityVisualPolicyResource>()
             .init_resource::<ModalDebounceState>()
             .add_message::<ModalOpened>()

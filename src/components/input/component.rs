@@ -5,6 +5,7 @@ use bevy::{
 };
 
 use crate::primitives::a11y::{self, FocusGained, FocusLost};
+use crate::primitives::semantic::{SemanticNode, SemanticRole, SemanticValue};
 use crate::icons::{Icon, IconNode};
 use crate::components::text::{TextRole, ThemedText};
 use crate::theme::ThemeResource;
@@ -18,6 +19,9 @@ pub struct TextInput {
     pub max_length: Option<usize>,
     pub cursor: usize,
     pub disabled: bool,
+    pub read_only: bool,
+    pub required: bool,
+    pub invalid: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -75,6 +79,9 @@ pub struct TextInputConfig {
     pub max_length: Option<usize>,
     pub initial_value: String,
     pub disabled: bool,
+    pub read_only: bool,
+    pub required: bool,
+    pub invalid: bool,
     pub border_radius: Option<f32>,
     pub width: Option<Val>,
     pub flex_grow: Option<f32>,
@@ -90,6 +97,9 @@ impl TextInputConfig {
             max_length: None,
             initial_value: String::new(),
             disabled: false,
+            read_only: false,
+            required: false,
+            invalid: false,
             border_radius: None,
             width: None,
             flex_grow: None,
@@ -119,6 +129,21 @@ impl TextInputConfig {
 
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
+        self
+    }
+
+    pub fn read_only(mut self, read_only: bool) -> Self {
+        self.read_only = read_only;
+        self
+    }
+
+    pub fn required(mut self, required: bool) -> Self {
+        self.required = required;
+        self
+    }
+
+    pub fn invalid(mut self, invalid: bool) -> Self {
+        self.invalid = invalid;
         self
     }
 
@@ -153,18 +178,31 @@ pub fn spawn_text_input(parent: &mut ChildSpawnerCommands, config: TextInputConf
     } else {
         config.border_radius.unwrap_or(0.0)
     };
+    let semantic_role = match config.kind {
+        TextInputKind::Search => SemanticRole::SearchBox,
+        _ => SemanticRole::TextInput,
+    };
+    let text_input_hint = match config.kind {
+        TextInputKind::Password => Some(crate::primitives::semantic::TextInputHint::Password),
+        TextInputKind::Number => Some(crate::primitives::semantic::TextInputHint::Number),
+        TextInputKind::Email => Some(crate::primitives::semantic::TextInputHint::Email),
+        TextInputKind::Text | TextInputKind::Search => None,
+    };
+    let mut semantic = SemanticNode::new(semantic_role).label(
+        config
+            .floating_label
+            .clone()
+            .unwrap_or_else(|| config.placeholder.clone()),
+    );
+    semantic.text_input_hint = text_input_hint;
+    semantic.state.disabled = config.disabled;
+    semantic.semantic_value = SemanticValue::Text(initial_value.clone());
 
     parent
         .spawn((
             Button,
             a11y::TabIndex(if config.disabled { -1 } else { 0 }),
-            text_input_a11y_node(
-                config.kind,
-                config
-                    .floating_label
-                    .clone()
-                    .unwrap_or_else(|| config.placeholder.clone()),
-            ),
+            semantic,
             TextInput {
                 value: initial_value,
                 placeholder: config.placeholder.clone(),
@@ -173,6 +211,9 @@ pub fn spawn_text_input(parent: &mut ChildSpawnerCommands, config: TextInputConf
                 max_length: config.max_length,
                 cursor: initial_cursor,
                 disabled: config.disabled,
+                read_only: config.read_only,
+                required: config.required,
+                invalid: config.invalid,
             },
             Node {
                 width: config.width.unwrap_or(percent(100)),
@@ -346,19 +387,6 @@ pub fn spawn_text_input(parent: &mut ChildSpawnerCommands, config: TextInputConf
         .id()
 }
 
-fn text_input_a11y_node(
-    kind: TextInputKind,
-    label: impl Into<String>,
-) -> bevy::a11y::AccessibilityNode {
-    match kind {
-        TextInputKind::Text => a11y::text_input_node(label),
-        TextInputKind::Password => a11y::password_input_node(label),
-        TextInputKind::Search => a11y::search_input_node(label),
-        TextInputKind::Number => a11y::number_input_node(label),
-        TextInputKind::Email => a11y::email_input_node(label),
-    }
-}
-
 fn text_input_focus(
     mut commands: Commands,
     interaction_query: Query<
@@ -489,6 +517,9 @@ fn text_input_keyboard(
         }
 
         if event.key_code == KeyCode::Backspace {
+            if input.read_only {
+                continue;
+            }
             let mut cursor = input.cursor;
             if remove_char_before_cursor(&mut input.value, &mut cursor) {
                 input.cursor = cursor;
@@ -501,6 +532,9 @@ fn text_input_keyboard(
         }
 
         if event.key_code == KeyCode::Delete {
+            if input.read_only {
+                continue;
+            }
             let cursor = input.cursor;
             if remove_char_at_cursor(&mut input.value, cursor) {
                 events.write(TextInputEvent::Changed {
@@ -515,7 +549,7 @@ fn text_input_keyboard(
             continue;
         };
 
-        if text.is_empty() {
+        if input.read_only || text.is_empty() {
             continue;
         }
 
@@ -812,6 +846,9 @@ pub struct TextInputPlugin;
 
 impl Plugin for TextInputPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::primitives::semantic::SemanticAccessibilityPlugin>() {
+            app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
+        }
         app.add_message::<TextInputEvent>()
             .add_observer(on_text_input_focus_gained)
             .add_observer(on_text_input_focus_lost)

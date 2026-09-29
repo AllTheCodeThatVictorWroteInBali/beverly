@@ -1,8 +1,8 @@
-use bevy::a11y::AccessibilityNode;
 use bevy::prelude::*;
 
 use crate::rendering::{Border, Paint, Surface};
 use crate::primitives::a11y;
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::theme::{ThemeResource, dark_theme};
 
 /// Marker component for the pagination root.
@@ -147,6 +147,9 @@ pub struct PaginationPlugin;
 
 impl Plugin for PaginationPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::primitives::semantic::SemanticAccessibilityPlugin>() {
+            app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
+        }
         app.add_message::<PaginationEvent>().add_systems(
             Update,
             (pagination_button_interaction, update_pagination_ui),
@@ -291,7 +294,7 @@ fn spawn_pagination_button(
     let mut button_entity = parent.spawn((
         Button,
         a11y::TabIndex(0),
-        a11y::button_node(accessible_label),
+        SemanticNode::new(SemanticRole::Button).label(accessible_label),
         PaginationButton {
             owner,
             role,
@@ -413,7 +416,7 @@ fn update_pagination_ui(
             &mut Surface,
             &Interaction,
             &mut a11y::TabIndex,
-            &mut AccessibilityNode,
+            &mut SemanticNode,
         ),
         With<Button>,
     >,
@@ -444,7 +447,7 @@ fn update_pagination_ui(
             mut surface,
             interaction,
             mut tab_index,
-            mut a11y_node,
+            mut semantic,
         ) in &mut button_query
         {
             if button.owner != pagination_entity {
@@ -497,11 +500,17 @@ fn update_pagination_ui(
             surface.border = Some(Border::new(1.0, Paint::solid(colors.border)));
 
             tab_index.0 = if hidden || disabled.0 { -1 } else { 0 };
-            a11y::set_disabled(&mut a11y_node, disabled.0);
-            if let Some(label) = accessible_label {
-                a11y_node.0.set_label(label);
+            if semantic.state.disabled != disabled.0 {
+                semantic.state.disabled = disabled.0;
             }
-            a11y_node.0.set_selected(is_active_page);
+            if let Some(label) = accessible_label {
+                if semantic.label.as_deref() != Some(label.as_str()) {
+                    semantic.label = Some(label);
+                }
+            }
+            if semantic.state.selected != is_active_page {
+                semantic.state.selected = is_active_page;
+            }
 
             if hidden {
                 continue;

@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::rendering::{Paint, Surface};
 use crate::icons::{Icon, IconNode};
 use crate::components::input::{TextInputConfig, TextInputKind, spawn_text_input};
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::theme::ThemeResource;
 
 #[derive(Component)]
@@ -40,7 +41,7 @@ pub fn spawn_searchbox(
                     Button,
                     SearchBoxFilterButton,
                     crate::primitives::a11y::TabIndex(0),
-                    crate::primitives::a11y::button_node("Filter search results"),
+                    SemanticNode::new(SemanticRole::Button).label("Filter search results"),
                     Node {
                         width: px(38.0),
                         height: px(38.0),

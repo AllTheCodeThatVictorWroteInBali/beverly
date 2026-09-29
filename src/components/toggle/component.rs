@@ -1,4 +1,3 @@
-use bevy::a11y::AccessibilityNode;
 use bevy::{
     asset::Asset, prelude::*, reflect::TypePath, render::render_resource::AsBindGroup,
     shader::ShaderRef,
@@ -6,6 +5,7 @@ use bevy::{
 
 use crate::rendering::{InnerShadow, Paint, Surface};
 use crate::primitives::a11y;
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::icons::{Icon, IconNode};
 use crate::components::text::{TextRole, ThemedText};
 use crate::theme::{AccessibilityVisualPolicyResource, ThemeResource};
@@ -206,6 +206,9 @@ pub fn spawn_toggle(
     let checked = config.checked;
     let default_colors = theme.current.colors;
     let accessible_label = config.label.clone().unwrap_or_else(|| "Toggle".to_string());
+    let mut semantic = SemanticNode::new(SemanticRole::Switch).label(accessible_label);
+    semantic.state.checked = Some(checked);
+    semantic.state.disabled = config.disabled;
 
     let mut toggle_entity = parent.spawn((
         Name::new("toggle"),
@@ -216,7 +219,7 @@ pub fn spawn_toggle(
         },
         Button,
         a11y::TabIndex(if config.disabled { -1 } else { 0 }),
-        a11y::switch_node(accessible_label, checked),
+        semantic,
         Node {
             width: percent(100),
             min_height: px(48.0),
@@ -454,18 +457,6 @@ fn toggle_interaction_system(
             spring_step(&mut animation, dt);
         }
         animation.progress = animation.progress.clamp(0.0, 1.0);
-    }
-}
-
-/// Keeps the AccessKit toggled/disabled state in sync for screen readers.
-fn toggle_a11y_system(mut query: Query<(&Toggle, &mut AccessibilityNode), Changed<Toggle>>) {
-    for (toggle, mut node) in &mut query {
-        node.0.set_toggled(if toggle.checked {
-            accesskit::Toggled::True
-        } else {
-            accesskit::Toggled::False
-        });
-        a11y::set_disabled(&mut node, toggle.disabled);
     }
 }
 
@@ -741,11 +732,14 @@ pub struct TogglePlugin;
 
 impl Plugin for TogglePlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::primitives::semantic::SemanticAccessibilityPlugin>() {
+            app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
+        }
         bevy::asset::embedded_asset!(app, "toggle_shadow.wgsl");
         app.add_plugins(UiMaterialPlugin::<ToggleShadowMaterial>::default())
             .init_resource::<AccessibilityVisualPolicyResource>()
             .add_message::<ToggleEvent>()
-            .add_systems(Update, (toggle_interaction_system, toggle_a11y_system))
+            .add_systems(Update, toggle_interaction_system)
             .add_systems(PostUpdate, toggle_visual_system);
     }
 }

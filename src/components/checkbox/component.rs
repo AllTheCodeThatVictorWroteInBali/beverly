@@ -1,8 +1,8 @@
-use bevy::a11y::AccessibilityNode;
 use bevy::prelude::*;
 
 use crate::rendering::{Paint, Surface};
 use crate::primitives::a11y;
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::icons::{Icon, IconNode};
 use crate::components::text::{TextRole, ThemedText};
 use crate::theme::{ThemeColors, ThemeResource, dark_theme};
@@ -141,6 +141,10 @@ pub fn spawn_checkbox(parent: &mut ChildSpawnerCommands, config: CheckboxConfig)
         .label
         .clone()
         .unwrap_or_else(|| "Checkbox".to_string());
+    let mut semantic = SemanticNode::new(SemanticRole::Checkbox).label(accessible_label);
+    semantic.state.checked = Some(checked);
+    semantic.state.indeterminate = indeterminate;
+    semantic.state.disabled = config.disabled;
 
     let mut checkbox_entity = parent.spawn((
         Checkbox,
@@ -151,7 +155,7 @@ pub fn spawn_checkbox(parent: &mut ChildSpawnerCommands, config: CheckboxConfig)
         },
         Button,
         a11y::TabIndex(if config.disabled { -1 } else { 0 }),
-        a11y::checkbox_node(accessible_label, checked, indeterminate),
+        semantic,
         Node {
             width: percent(100),
             min_height: px(42.0),
@@ -276,25 +280,6 @@ fn checkbox_interaction_system(
             checked: state.checked,
             indeterminate: state.indeterminate,
         });
-    }
-}
-
-/// Keeps the AccessKit checked/disabled state in sync for screen readers.
-fn checkbox_a11y_system(
-    mut query: Query<
-        (&CheckboxState, &mut AccessibilityNode),
-        (With<Checkbox>, Changed<CheckboxState>),
-    >,
-) {
-    for (state, mut node) in &mut query {
-        node.0.set_toggled(if state.indeterminate {
-            accesskit::Toggled::Mixed
-        } else if state.checked {
-            accesskit::Toggled::True
-        } else {
-            accesskit::Toggled::False
-        });
-        a11y::set_disabled(&mut node, state.disabled);
     }
 }
 
@@ -544,13 +529,15 @@ pub struct CheckboxPlugin;
 
 impl Plugin for CheckboxPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::primitives::semantic::SemanticAccessibilityPlugin>() {
+            app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
+        }
         app.add_message::<CheckboxEvent>().add_systems(
             Update,
             (
                 checkbox_interaction_system,
                 checkbox_animation_system,
                 checkbox_visual_system,
-                checkbox_a11y_system,
             )
                 .chain(),
         );

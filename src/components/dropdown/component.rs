@@ -1,10 +1,10 @@
-use bevy::a11y::AccessibilityNode;
 use bevy::input::{ButtonState, keyboard::KeyboardInput};
 use bevy::input_focus::InputFocus;
 use bevy::prelude::*;
 
 use crate::rendering::{Border, Paint, Surface};
 use crate::primitives::a11y;
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::icons::{Icon, IconNode};
 use crate::components::text::{TextRole, ThemedText};
 use crate::theme::{ThemeResource, dark_theme};
@@ -226,7 +226,7 @@ pub fn spawn_dropdown(parent: &mut ChildSpawnerCommands, config: DropdownConfig)
                 Button,
                 DropdownSurface { owner: dropdown_id },
                 a11y::TabIndex(0),
-                a11y::combo_box_node(accessible_label, false),
+                SemanticNode::new(SemanticRole::ComboBox).label(accessible_label),
                 Node {
                     width: percent(100),
                     height: px(38),
@@ -303,10 +303,12 @@ pub fn spawn_dropdown(parent: &mut ChildSpawnerCommands, config: DropdownConfig)
                             owner: dropdown_id,
                             index,
                         },
-                        a11y::list_box_option_node(
-                            option.label.clone(),
-                            clamped_selected == Some(index),
-                        ),
+                        {
+                            let mut semantic = SemanticNode::new(SemanticRole::ListBoxOption)
+                                .label(option.label.clone());
+                            semantic.state.selected = clamped_selected == Some(index);
+                            semantic
+                        },
                         Node {
                             width: percent(100),
                             height: px(34),
@@ -903,11 +905,11 @@ fn spring_step(animation: &mut DropdownMenuAnimation, dt: f32) {
 fn dropdown_a11y_system(
     dropdown_query: Query<(Entity, &Dropdown, &DropdownState), Changed<DropdownState>>,
     mut surface_query: Query<
-        (&DropdownSurface, &mut AccessibilityNode),
+        (&DropdownSurface, &mut SemanticNode),
         Without<DropdownOptionButton>,
     >,
     mut option_query: Query<
-        (&DropdownOptionButton, &mut AccessibilityNode),
+        (&DropdownOptionButton, &mut SemanticNode),
         Without<DropdownSurface>,
     >,
 ) {
@@ -922,15 +924,15 @@ fn dropdown_a11y_system(
             if surface.owner != entity {
                 continue;
             }
-            node.0.set_label(label_text.clone());
-            node.0.set_expanded(state.open);
+            node.label = Some(label_text.clone());
+            node.state.expanded = Some(state.open);
         }
 
         for (option, mut node) in &mut option_query {
             if option.owner != entity {
                 continue;
             }
-            node.0.set_selected(Some(option.index) == state.selected);
+            node.state.selected = Some(option.index) == state.selected;
         }
     }
 }
@@ -943,6 +945,9 @@ pub struct DropdownPlugin;
 
 impl Plugin for DropdownPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::primitives::semantic::SemanticAccessibilityPlugin>() {
+            app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
+        }
         app.init_resource::<DropdownFocus>();
         app.add_message::<DropdownEvent>().add_systems(
             Update,

@@ -1,4 +1,3 @@
-use bevy::a11y::AccessibilityNode;
 use bevy::input_focus::InputFocus;
 use bevy::prelude::*;
 
@@ -11,6 +10,7 @@ use crate::animation::animation::{
     themed_transition,
 };
 use crate::primitives::a11y::{self, FocusCause};
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::theme::{ThemeColors, ThemeResource, dark_theme};
 
 /// A single tab definition.
@@ -131,6 +131,9 @@ pub struct TabsPlugin;
 
 impl Plugin for TabsPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::primitives::semantic::SemanticAccessibilityPlugin>() {
+            app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
+        }
         app.add_message::<TabChanged>().add_systems(
             Update,
             (
@@ -170,7 +173,7 @@ where
     tabs.with_children(|root| {
         root.spawn((
             TabBarShell,
-            a11y::tab_list_node("Tabs"),
+            SemanticNode::new(SemanticRole::TabList).label("Tabs"),
             Node {
                 width: Val::Percent(100.0),
                 padding: UiRect::all(Val::Px(8.0)),
@@ -192,10 +195,12 @@ where
         .with_children(|bar| {
             for (index, tab) in config.tabs.iter().enumerate() {
                 let active = index == config.active;
+                let mut semantic = SemanticNode::new(SemanticRole::Tab).label(tab.label.clone());
+                semantic.state.selected = active;
                 bar.spawn((
                     Button,
                     a11y::TabIndex(if active { 0 } else { -1 }),
-                    a11y::tab_node(tab.label.clone(), active),
+                    semantic,
                     Node {
                         padding: UiRect::axes(Val::Px(18.0), Val::Px(10.0)),
                         border: UiRect::all(px(1.0)),
@@ -316,7 +321,7 @@ where
     tabs.with_children(|root| {
         root.spawn((
             TabBarShell,
-            a11y::tab_list_node("Tabs"),
+            SemanticNode::new(SemanticRole::TabList).label("Tabs"),
             Node {
                 width: Val::Percent(100.0),
                 padding: UiRect::all(Val::Px(8.0)),
@@ -338,10 +343,12 @@ where
         .with_children(|bar| {
             for (index, tab) in config.tabs.iter().enumerate() {
                 let active = index == config.active;
+                let mut semantic = SemanticNode::new(SemanticRole::Tab).label(tab.label.clone());
+                semantic.state.selected = active;
                 bar.spawn((
                     Button,
                     a11y::TabIndex(if active { 0 } else { -1 }),
-                    a11y::tab_node(tab.label.clone(), active),
+                    semantic,
                     Node {
                         padding: UiRect::axes(Val::Px(18.0), Val::Px(10.0)),
                         border: UiRect::all(px(1.0)),
@@ -468,7 +475,7 @@ where
     tabs.with_children(|root| {
         root.spawn((
             TabBarShell,
-            a11y::tab_list_node("Tabs"),
+            SemanticNode::new(SemanticRole::TabList).label("Tabs"),
             Node {
                 width: Val::Percent(100.0),
                 padding: UiRect::all(Val::Px(8.0)),
@@ -485,10 +492,12 @@ where
         .with_children(|bar| {
             for (index, tab) in config.tabs.iter().enumerate() {
                 let active = index == config.active;
+                let mut semantic = SemanticNode::new(SemanticRole::Tab).label(tab.label.clone());
+                semantic.state.selected = active;
                 bar.spawn((
                     Button,
                     a11y::TabIndex(if active { 0 } else { -1 }),
-                    a11y::tab_node(tab.label.clone(), active),
+                    semantic,
                     Node {
                         padding: UiRect::axes(Val::Px(18.0), Val::Px(10.0)),
                         border: UiRect::all(px(1.0)),
@@ -630,11 +639,11 @@ fn tabs_roving_nav_system(
     focus.set(next_entity, FocusCause::Navigated);
 }
 
-/// Keeps each tab button's tab stop and AccessKit selected state in sync
+/// Keeps each tab button's tab stop and semantic selected state in sync
 /// with the active tab (only the active tab is a tab stop).
 fn tabs_a11y_sync_system(
     tabs_query: Query<(Entity, &Tabs), Changed<Tabs>>,
-    mut buttons: Query<(&TabButton, &mut a11y::TabIndex, &mut AccessibilityNode)>,
+    mut buttons: Query<(&TabButton, &mut a11y::TabIndex, &mut SemanticNode)>,
 ) {
     for (tabs_entity, tabs) in &tabs_query {
         for (button, mut tab_index, mut node) in &mut buttons {
@@ -643,7 +652,7 @@ fn tabs_a11y_sync_system(
             }
             let active = button.index == tabs.config.active;
             tab_index.0 = if active { 0 } else { -1 };
-            node.0.set_selected(active);
+            node.state.selected = active;
         }
     }
 }

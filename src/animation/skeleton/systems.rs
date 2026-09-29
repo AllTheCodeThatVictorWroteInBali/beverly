@@ -1,8 +1,8 @@
-use accesskit::{Live, Node as AccessKitNode, Role};
-use bevy::{a11y::AccessibilityNode, prelude::*};
+use bevy::prelude::*;
 
 use crate::rendering::{Paint, Shimmer, Surface};
 use crate::theme::{AccessibilityContrastMode, AccessibilityVisualPolicyResource, Theme, ThemeResource};
+use crate::primitives::semantic::{AnnouncementPriority, SemanticNode, SemanticRole};
 use super::{Skeleton, SkeletonGroup, component::{SkeletonLayoutState, finite_nonnegative}};
 
 pub(super) fn sync_skeletons(
@@ -81,18 +81,19 @@ pub(super) fn resolved_surface(skeleton: &Skeleton, theme: &Theme, policy: &Acce
 
 pub(super) fn sync_groups(
     mut commands: Commands,
-    mut query: Query<(Entity, Ref<SkeletonGroup>, Option<&mut AccessibilityNode>)>,
+    mut query: Query<(Entity, Ref<SkeletonGroup>, Option<&mut SemanticNode>)>,
 ) {
-    for (entity, group, accessibility) in &mut query {
-        if !group.is_changed() && accessibility.is_some() { continue; }
-        let mut next = AccessKitNode::new(Role::Group);
-        next.set_label(group.label.clone());
-        next.set_live(Live::Polite);
-        if group.busy { next.set_busy(); }
-        if let Some(mut accessibility) = accessibility {
-            if accessibility.0 != next { accessibility.0 = next; }
+    for (entity, group, semantic) in &mut query {
+        if !group.is_changed() && semantic.is_some() { continue; }
+        let mut next = SemanticNode::new(SemanticRole::Generic).label(group.label.clone());
+        next.live = Some(AnnouncementPriority::Polite);
+        next.state.busy = group.busy;
+        if let Some(mut semantic) = semantic {
+            if semantic.label != next.label { semantic.label = next.label; }
+            if semantic.live != next.live { semantic.live = next.live; }
+            if semantic.state.busy != next.state.busy { semantic.state.busy = next.state.busy; }
         } else {
-            commands.entity(entity).insert(AccessibilityNode(next));
+            commands.entity(entity).insert(next);
         }
     }
 }

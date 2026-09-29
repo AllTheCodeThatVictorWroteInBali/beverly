@@ -51,6 +51,7 @@
     - [Tooltip](./components/tooltip.md)
   - [Actions](./components/actions/overview.md)
     - [Button](./components/actions/button.md)
+    - [Link](./components/actions/link.md)
     - [Card](./components/card.md)
     - [Dropdown](./components/dropdown.md)
     - [Tabs](./components/tabs.md)

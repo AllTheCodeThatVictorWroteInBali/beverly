@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 use crate::primitives::a11y;
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::components::text::{TextRole, ThemedText};
 use crate::rendering::{Paint, Surface};
 
@@ -306,6 +307,12 @@ impl TextareaConfig {
 pub fn spawn_textarea(parent: &mut ChildSpawnerCommands, config: TextareaConfig) -> Entity {
     let mut textarea = Textarea::new(config.placeholder.clone()).with_value(config.initial_value);
     let accessible_label = config.placeholder.clone();
+    let mut semantic = SemanticNode::new(SemanticRole::TextInput)
+        .text_input_hint(crate::primitives::semantic::TextInputHint::Multiline)
+        .label(accessible_label);
+    semantic.semantic_value = crate::primitives::semantic::SemanticValue::Text(
+        textarea.value.clone(),
+    );
 
     if let Some(max_length) = config.max_length {
         textarea = textarea.max_length(max_length);
@@ -315,7 +322,7 @@ pub fn spawn_textarea(parent: &mut ChildSpawnerCommands, config: TextareaConfig)
         .spawn((
             Button,
             a11y::TabIndex(0),
-            a11y::multiline_text_input_node(accessible_label),
+            semantic,
             textarea,
             Node {
                 width: percent(100),

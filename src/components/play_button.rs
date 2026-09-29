@@ -1,7 +1,7 @@
 //! Shared presentation for actual playback controls. Scene markers require this
 //! component; scene systems own playback and only publish `playing` here.
 
-use bevy::{a11y::AccessibilityNode, prelude::*, ui::UiSystems};
+use bevy::{prelude::*, ui::UiSystems};
 
 use crate::rendering::{Backdrop, InnerShadow, LiquidGlass, OuterShadow, Surface};
 use crate::animation::animation::spring::spring_step;
@@ -64,6 +64,7 @@ impl Default for PlayButtonEnvironment {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::a11y::AccessibilityNode;
     use crate::rendering::{FocusRing, Paint};
     use crate::theme::{dark_theme, light_theme};
     use std::time::Duration;
@@ -252,14 +253,50 @@ pub struct PlayButtonPlugin;
 
 impl Plugin for PlayButtonPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::primitives::semantic::SemanticAccessibilityPlugin>() {
+            app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
+        }
         app.init_resource::<AccessibilityVisualPolicyResource>()
             .init_resource::<PlayButtonEnvironment>()
+            .add_systems(Update, sync_play_button_semantics)
             .add_systems(
                 PostUpdate,
                 present_play_buttons
                     .in_set(PlayButtonSystems)
                     .before(UiSystems::Layout),
             );
+    }
+}
+
+fn sync_play_button_semantics(
+    mut commands: Commands,
+    mut buttons: Query<(
+        Entity,
+        &PlayButton,
+        &Interaction,
+        Has<DisabledInteraction>,
+        Option<&mut SemanticNode>,
+    )>,
+) {
+    for (entity, button, interaction, disabled, semantic) in &mut buttons {
+        let label = if button.playing { "Pause" } else { "Play" };
+        let pressed = !disabled && *interaction == Interaction::Pressed;
+        if let Some(mut semantic) = semantic {
+            if semantic.label.as_deref() != Some(label) {
+                semantic.label = Some(label.to_string());
+            }
+            if semantic.state.disabled != disabled {
+                semantic.state.disabled = disabled;
+            }
+            if semantic.state.pressed != pressed {
+                semantic.state.pressed = pressed;
+            }
+        } else {
+            let mut semantic = SemanticNode::new(SemanticRole::Button).label(label);
+            semantic.state.disabled = disabled;
+            semantic.state.pressed = pressed;
+            commands.entity(entity).insert(semantic);
+        }
     }
 }
 
@@ -279,8 +316,6 @@ fn present_play_buttons(
         Option<&mut PlayButtonHoverReveal>,
         Option<&mut Surface>,
         Option<&mut BackgroundColor>,
-        Option<&mut SemanticNode>,
-        Option<&mut AccessibilityNode>,
         &mut a11y::TabIndex,
     )>,
     children: Query<&Children>,
@@ -300,7 +335,7 @@ fn present_play_buttons(
         || environment.reduced_effects;
 
     for (entity, button, node, interaction, disabled, mut spring, reveal, surface,
-        background, semantic, accessible, mut tab_index) in &mut buttons
+        background, mut tab_index) in &mut buttons
     {
         let pressed = !disabled && *interaction == Interaction::Pressed;
         let target = if pressed { 1.0 } else { 0.0 };
@@ -400,35 +435,6 @@ fn present_play_buttons(
         if tab_index.0 != index {
             tab_index.0 = index;
         }
-        if let Some(mut semantic) = semantic {
-            if semantic.label.as_deref() != Some(label) {
-                semantic.label = Some(label.to_string());
-            }
-            if semantic.state.disabled != disabled {
-                semantic.state.disabled = disabled;
-            }
-            if semantic.state.pressed != pressed {
-                semantic.state.pressed = pressed;
-            }
-        } else {
-            let mut semantic = SemanticNode::new(SemanticRole::Button).label(label);
-            semantic.state.disabled = disabled;
-            semantic.state.pressed = pressed;
-            commands.entity(entity).insert(semantic);
-        }
-        if let Some(mut accessible) = accessible {
-            if accessible.0.label() != Some(label) {
-                accessible.0.set_label(label);
-            }
-            if accessible.0.is_disabled() != disabled {
-                a11y::set_disabled(&mut accessible, disabled);
-            }
-        } else {
-            let mut accessible = a11y::button_node(label);
-            a11y::set_disabled(&mut accessible, disabled);
-            commands.entity(entity).insert(accessible);
-        }
-
         let base_foreground = if disabled && !high_contrast { colors.text_disabled } else { colors.text };
         let foreground = base_foreground.with_alpha(base_foreground.alpha() * fade);
         let glyph = Icon::feather(if button.playing { "pause" } else { "play" });
