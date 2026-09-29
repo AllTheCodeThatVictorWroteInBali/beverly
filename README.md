@@ -63,6 +63,66 @@ Beverly prioritizes local execution and developer control: no mandatory cloud UI
 
 ---
 
+## The Best of the Web, Without the Web Runtime
+
+Beverly brings the best ideas from the web into a native Rust UI runtime — without bringing along the browser.
+
+You get familiar composition, semantic components, accessibility, screen reader support, ARIA, keyboard navigation, and a rich vocabulary for building interfaces.
+
+But you don't have to deal with the parts of the web that make complex applications painful:
+
+- No CSS quirks or specificity battles
+- No JavaScript jank
+- No browser latency
+- No slow DOM updates
+- No DOM reconciliation overhead
+- No browser runtime
+- No JavaScript dependency
+- No CSS engine
+- No CDN or network dependency
+
+### Familiar Composition
+
+Beverly uses a familiar chaining and composition model that makes the transition from web development feel natural.
+
+If you've built interfaces with jQuery, HTML, and component-based web frameworks, the basic idea is immediately recognizable: start with a component, compose it with other components, configure it, bind state, and attach behavior.
+
+```rust
+MyButton()
+    .disabled(model.saving())
+    .on("click", Command::Document::save)
+```
+
+The syntax is familiar. The runtime is fundamentally different.
+
+Instead of manipulating a DOM through JavaScript and asking a browser to continuously interpret HTML, CSS, and scripts, Beverly gives you **typed Rust components rendered directly through a native UI runtime**.
+
+### Accessibility Is Part of the Runtime
+
+Accessibility isn't something you bolt onto the application at the end.
+
+Beverly provides built-in support for:
+
+- Screen readers
+- Complex ARIA trees
+- Keyboard navigation
+- Focus management
+- Semantic UI primitives
+- Accessible forms
+- Dialogs, menus, tabs, trees, and other composite components
+
+The result is a native UI that retains the accessibility conventions and interaction vocabulary developers already know from the web.
+
+### A Faster Transition From the Old Web
+
+Beverly is not asking developers to forget everything they learned building for the web.
+
+**Keep the good parts. Lose the baggage.**
+
+You get the web's mature interaction model and accessibility vocabulary with the performance, determinism, type safety, and distribution characteristics of a native Rust application.
+
+**The web's best ideas. None of the browser's baggage.**
+
 ## Primitive layer
 
 Beverly focuses on a small set of composable, strongly typed primitives with a large practical surface area. These primitives can form interfaces for conversations, dashboards, inspectors, workflows, tools, and real-time systems.
