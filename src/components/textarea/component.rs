@@ -47,6 +47,7 @@ pub struct TextareaPlaceholder;
 #[derive(Clone)]
 pub struct TextareaConfig {
     pub placeholder: String,
+    pub accessible_label: Option<String>,
     pub max_length: Option<usize>,
     pub initial_value: String,
     pub height: f32,
@@ -282,10 +283,18 @@ impl TextareaConfig {
     pub fn new(placeholder: impl Into<String>) -> Self {
         Self {
             placeholder: placeholder.into(),
+            accessible_label: None,
             max_length: None,
             initial_value: String::new(),
             height: 140.0,
         }
+    }
+
+    /// Sets the field's persistent accessible name. The placeholder is a
+    /// supplementary hint only and is never used as a fallback name.
+    pub fn label(mut self, label: impl Into<String>) -> Self {
+        self.accessible_label = Some(label.into());
+        self
     }
 
     pub fn max_length(mut self, max_length: usize) -> Self {
@@ -306,10 +315,18 @@ impl TextareaConfig {
 
 pub fn spawn_textarea(parent: &mut ChildSpawnerCommands, config: TextareaConfig) -> Entity {
     let mut textarea = Textarea::new(config.placeholder.clone()).with_value(config.initial_value);
-    let accessible_label = config.placeholder.clone();
+    if config.accessible_label.is_none() {
+        bevy::log::warn!(
+            "Textarea (placeholder {:?}) has no accessible name: call `.label(...)` so screen \
+             readers announce a persistent name instead of the placeholder hint.",
+            config.placeholder,
+        );
+    }
     let mut semantic = SemanticNode::new(SemanticRole::TextInput)
-        .text_input_hint(crate::primitives::semantic::TextInputHint::Multiline)
-        .label(accessible_label);
+        .text_input_hint(crate::primitives::semantic::TextInputHint::Multiline);
+    if let Some(label) = config.accessible_label.clone() {
+        semantic = semantic.label(label);
+    }
     semantic.semantic_value = crate::primitives::semantic::SemanticValue::Text(
         textarea.value.clone(),
     );

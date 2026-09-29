@@ -87,6 +87,7 @@ pub fn spawn_search(
             let _ = spawn_text_input(
                 search_bar,
                 TextInputConfig::new("Search")
+                    .label("Search")
                     .kind(TextInputKind::Search)
                     .max_length(120)
                     .border_radius(10.0),

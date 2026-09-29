@@ -166,6 +166,54 @@ impl ThemeColors {
     }
 }
 
+// ---------------------------------------------------------------------------
+// WCAG contrast
+// ---------------------------------------------------------------------------
+
+/// Minimum contrast ratio for WCAG 2.2 SC 1.4.3 (normal text, AA).
+pub const WCAG_AA_NORMAL_TEXT: f32 = 4.5;
+/// Minimum contrast ratio for WCAG 2.2 SC 1.4.3 (large text, AA).
+pub const WCAG_AA_LARGE_TEXT: f32 = 3.0;
+/// Minimum contrast ratio for WCAG 2.2 SC 1.4.6 (normal text, AAA).
+pub const WCAG_AAA_NORMAL_TEXT: f32 = 7.0;
+/// Minimum contrast ratio for WCAG 2.2 SC 1.4.6 (large text, AAA).
+pub const WCAG_AAA_LARGE_TEXT: f32 = 4.5;
+/// Minimum contrast ratio for WCAG 2.2 SC 1.4.11 (non-text UI components,
+/// e.g. control borders, focus indicators, selected/disabled state
+/// indicators where they carry meaning).
+pub const WCAG_AA_UI_COMPONENT: f32 = 3.0;
+
+/// WCAG relative luminance of a color, per the definition used by every
+/// WCAG 2.x contrast success criterion (sRGB channels linearized, then
+/// weighted `0.2126*R + 0.7152*G + 0.0722*B`).
+///
+/// `Color::to_linear().luminance()` already computes exactly this: Bevy's
+/// sRGB -> linear conversion is the same EOTF the WCAG formula specifies.
+pub fn relative_luminance(color: Color) -> f32 {
+    color.to_linear().luminance().max(0.0)
+}
+
+/// The WCAG contrast ratio between two solid colors, in `[1.0, 21.0]`.
+///
+/// Both colors are treated as fully opaque, solid fills. For gradients,
+/// glass/blur backdrops, or any other non-solid effective background,
+/// callers are responsible for first resolving the *worst-case* composited
+/// color they want to guarantee contrast against (e.g. the darkest gradient
+/// stop, or the surface color actually behind a translucent panel) - there
+/// is no single generic answer for a non-solid background.
+pub fn contrast_ratio(foreground: Color, background: Color) -> f32 {
+    let a = relative_luminance(foreground);
+    let b = relative_luminance(background);
+    let (lighter, darker) = if a >= b { (a, b) } else { (b, a) };
+    (lighter + 0.05) / (darker + 0.05)
+}
+
+/// Returns `true` if `contrast_ratio(foreground, background)` meets or
+/// exceeds `threshold` (one of the `WCAG_*` constants above).
+pub fn meets_contrast(foreground: Color, background: Color, threshold: f32) -> bool {
+    contrast_ratio(foreground, background) >= threshold
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct ThemeTypography {
     pub font_size_body: f32,
@@ -539,6 +587,38 @@ mod tests {
         assert!(elevated_luminance > surface_luminance);
         assert!(muted_luminance > 0.35, "muted text should stay readable against the dark background");
         assert!(colors.border.to_linear().luminance() < 0.45);
+    }
+
+    #[test]
+    fn contrast_ratio_matches_known_wcag_values() {
+        assert!((contrast_ratio(Color::WHITE, Color::BLACK) - 21.0).abs() < 0.01);
+        assert!((contrast_ratio(Color::BLACK, Color::WHITE) - 21.0).abs() < 0.01);
+        assert!((contrast_ratio(Color::WHITE, Color::WHITE) - 1.0).abs() < 0.01);
+        assert!((contrast_ratio(Color::BLACK, Color::BLACK) - 1.0).abs() < 0.01);
+        assert!(meets_contrast(Color::WHITE, Color::BLACK, WCAG_AAA_NORMAL_TEXT));
+    }
+
+    #[test]
+    fn theme_text_meets_wcag_aa_normal_text_contrast() {
+        for theme in [light_theme(), dark_theme()] {
+            let colors = theme.colors;
+            for (name, background) in [("background", colors.background), ("surface", colors.surface)] {
+                let ratio = contrast_ratio(colors.text, background);
+                assert!(
+                    ratio >= WCAG_AA_NORMAL_TEXT,
+                    "{:?} text/{name} contrast {ratio} is below WCAG AA normal text ({WCAG_AA_NORMAL_TEXT})",
+                    theme.mode,
+                );
+            }
+            // Muted text is only used at larger sizes/for secondary content
+            // in this theme, so it is held to the large-text threshold.
+            let muted_ratio = contrast_ratio(colors.text_muted, colors.background);
+            assert!(
+                muted_ratio >= WCAG_AA_LARGE_TEXT,
+                "{:?} text_muted/background contrast {muted_ratio} is below WCAG AA large text ({WCAG_AA_LARGE_TEXT})",
+                theme.mode,
+            );
+        }
     }
 }
 

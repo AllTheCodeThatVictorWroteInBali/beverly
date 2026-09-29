@@ -51,7 +51,7 @@ impl Plugin for BeverlyPlugin {
             .add_plugins(crate::components::progress_bar::ProgressBarPlugin)
             .add_plugins(crate::components::radio::RadioPlugin)
             .add_plugins(crate::components::search::SearchPlugin)
-            .add_plugins(crate::components::select::SelectPlugin)
+            .add_plugins(crate::components::select::SelectPlugin::<String>::default())
             .add_plugins(crate::components::sidebar::SidebarPlugin)
             .add_plugins(crate::components::slider::SliderPlugin)
             .add_plugins(crate::components::spinner::SpinnerPlugin)

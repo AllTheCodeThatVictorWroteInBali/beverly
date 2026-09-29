@@ -142,7 +142,12 @@ mod tests {
         assert!(app.world().get::<AccessibilityNode>(button).unwrap().0.is_disabled());
         let state = &app.world().get::<SemanticNode>(button).unwrap().state;
         assert!(state.disabled);
-        assert!(!state.pressed);
+        assert_eq!(state.pressed, Some(true));
+        assert_eq!(
+            app.world().get::<AccessibilityNode>(button).unwrap().0.toggled(),
+            Some(accesskit::Toggled::True),
+            "aria-pressed must reach the AccessKit node, not just SemanticState",
+        );
         assert_eq!(app.world().get::<a11y::TabIndex>(button).unwrap().0, -1);
         assert_eq!(app.world().get::<PlayButtonSpring>(button).unwrap().amount, 0.0);
         app.world_mut().entity_mut(button).remove::<DisabledInteraction>();
@@ -278,9 +283,12 @@ fn sync_play_button_semantics(
         Option<&mut SemanticNode>,
     )>,
 ) {
-    for (entity, button, interaction, disabled, semantic) in &mut buttons {
+    for (entity, button, _interaction, disabled, semantic) in &mut buttons {
         let label = if button.playing { "Pause" } else { "Play" };
-        let pressed = !disabled && *interaction == Interaction::Pressed;
+        // Play/pause is a toggle button: `pressed` reports the persistent
+        // aria-pressed state (are we in the "paused" state?), not momentary
+        // pointer-down, which has no AccessKit representation of its own.
+        let pressed = Some(button.playing);
         if let Some(mut semantic) = semantic {
             if semantic.label.as_deref() != Some(label) {
                 semantic.label = Some(label.to_string());

@@ -15,6 +15,7 @@ pub struct TextInput {
     pub value: String,
     pub placeholder: String,
     pub floating_label: Option<String>,
+    pub accessible_label: Option<String>,
     pub kind: TextInputKind,
     pub max_length: Option<usize>,
     pub cursor: usize,
@@ -75,6 +76,7 @@ pub enum TextInputEvent {
 pub struct TextInputConfig {
     pub placeholder: String,
     pub floating_label: Option<String>,
+    pub accessible_label: Option<String>,
     pub kind: TextInputKind,
     pub max_length: Option<usize>,
     pub initial_value: String,
@@ -93,6 +95,7 @@ impl TextInputConfig {
         Self {
             placeholder: placeholder.into(),
             floating_label: None,
+            accessible_label: None,
             kind: TextInputKind::Text,
             max_length: None,
             initial_value: String::new(),
@@ -114,6 +117,17 @@ impl TextInputConfig {
 
     pub fn floating_label(mut self, floating_label: impl Into<String>) -> Self {
         self.floating_label = Some(floating_label.into());
+        self
+    }
+
+    /// Sets the field's persistent accessible name (e.g. "Email address").
+    ///
+    /// This is the accessible name assistive technology announces. It is
+    /// independent from `floating_label` (a visible label element) and from
+    /// `placeholder` (a supplementary hint that disappears once populated
+    /// and must never substitute for a real name).
+    pub fn label(mut self, label: impl Into<String>) -> Self {
+        self.accessible_label = Some(label.into());
         self
     }
 
@@ -188,12 +202,18 @@ pub fn spawn_text_input(parent: &mut ChildSpawnerCommands, config: TextInputConf
         TextInputKind::Email => Some(crate::primitives::semantic::TextInputHint::Email),
         TextInputKind::Text | TextInputKind::Search => None,
     };
-    let mut semantic = SemanticNode::new(semantic_role).label(
-        config
-            .floating_label
-            .clone()
-            .unwrap_or_else(|| config.placeholder.clone()),
-    );
+    let accessible_label = config.accessible_label.clone().or_else(|| config.floating_label.clone());
+    if accessible_label.is_none() {
+        bevy::log::warn!(
+            "TextInput (placeholder {:?}) has no accessible name: call `.label(...)` so screen \
+             readers announce a persistent name instead of the placeholder hint.",
+            config.placeholder,
+        );
+    }
+    let mut semantic = SemanticNode::new(semantic_role);
+    if let Some(label) = accessible_label.clone() {
+        semantic = semantic.label(label);
+    }
     semantic.text_input_hint = text_input_hint;
     semantic.state.disabled = config.disabled;
     semantic.semantic_value = SemanticValue::Text(initial_value.clone());
@@ -207,6 +227,7 @@ pub fn spawn_text_input(parent: &mut ChildSpawnerCommands, config: TextInputConf
                 value: initial_value,
                 placeholder: config.placeholder.clone(),
                 floating_label: config.floating_label.clone(),
+                accessible_label: config.accessible_label.clone(),
                 kind: config.kind,
                 max_length: config.max_length,
                 cursor: initial_cursor,

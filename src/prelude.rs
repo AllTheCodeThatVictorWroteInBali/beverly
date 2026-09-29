@@ -61,7 +61,7 @@ pub use crate::components::photo::{Photo, PhotoPlugin};
 pub use crate::components::progress_bar::{ProgressBar, ProgressBarPlugin};
 pub use crate::components::radio::{RadioButton, RadioGroup};
 pub use crate::components::search::{Search, SearchPlugin};
-pub use crate::components::select::{Select, SelectPlugin};
+pub use crate::components::select::{Select, SelectPlugin, SelectSemanticValue};
 pub use crate::components::sidebar::{Sidebar, SidebarPlugin};
 pub use crate::components::slider::{Slider, SliderPlugin};
 pub use crate::components::spinner::{Spinner, SpinnerPlugin};

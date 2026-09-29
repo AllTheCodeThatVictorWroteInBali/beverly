@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use bevy::a11y::AccessibilityNode;
-use accesskit::{Action as AccessKitAction, Invalid, Live, Node as AccessKitNode, Role as AccessKitRole, Toggled};
+use accesskit::{Action as AccessKitAction, Invalid, Live, Node as AccessKitNode, NodeId as AccessKitNodeId, Role as AccessKitRole, Toggled};
 use bevy::prelude::*;
 use bevy::ui::UiSystems;
 
@@ -105,7 +105,11 @@ pub struct SemanticState {
     pub checked: Option<bool>,
     pub indeterminate: bool,
     pub expanded: Option<bool>,
-    pub pressed: bool,
+    /// Tri-state `aria-pressed` for toggle buttons. `None` means this node
+    /// is not a toggle button (nothing to project); `Some(_)` reports
+    /// whether it is currently "on". Ignored when `checked` is set, since
+    /// AccessKit represents both through the same `Toggled` property.
+    pub pressed: Option<bool>,
     pub busy: bool,
     pub read_only: bool,
     pub required: bool,
@@ -460,12 +464,11 @@ fn derive_component_semantics(
             TextInputKind::Email => Some(TextInputHint::Email),
             TextInputKind::Text | TextInputKind::Search => None,
         };
-        derived.label = Some(
-            input
-                .floating_label
-                .clone()
-                .unwrap_or_else(|| input.placeholder.clone()),
-        );
+        // The accessible name comes from an explicit label (or the visible
+        // floating label). The placeholder is a supplementary hint only and
+        // must never silently become the accessible name - see
+        // `TextInputConfig::label`.
+        derived.label = input.accessible_label.clone().or_else(|| input.floating_label.clone());
         derived.state.disabled = input.disabled;
         derived.state.read_only = input.read_only;
         derived.state.required = input.required;
@@ -555,6 +558,8 @@ fn project_semantic_node(semantic: &SemanticNode) -> AccessKitNode {
         } else {
             Toggled::from(checked)
         });
+    } else if let Some(pressed) = semantic.state.pressed {
+        node.set_toggled(Toggled::from(pressed));
     }
 
     for action in &semantic.actions {
@@ -573,7 +578,45 @@ fn project_semantic_node(semantic: &SemanticNode) -> AccessKitNode {
         }
     }
 
+    project_relationships(&mut node, &semantic.relationships);
+
     node
+}
+
+/// Translates [`SemanticRelationships`] into AccessKit's own relationship
+/// properties, so the OS-facing accessibility tree - not just Beverly's
+/// internal snapshot - actually knows about labels, descriptions, errors,
+/// and other cross-entity references.
+fn project_relationships(node: &mut AccessKitNode, relationships: &SemanticRelationships) {
+    if let Some(labelled_by) = relationships.labelled_by {
+        node.set_labelled_by(vec![accesskit_node_id(labelled_by)]);
+    }
+    if !relationships.described_by.is_empty() {
+        node.set_described_by(
+            relationships.described_by.iter().copied().map(accesskit_node_id).collect::<Vec<_>>(),
+        );
+    }
+    if let Some(error_message) = relationships.error_message {
+        node.set_error_message(accesskit_node_id(error_message));
+    }
+    if !relationships.controls.is_empty() {
+        node.set_controls(
+            relationships.controls.iter().copied().map(accesskit_node_id).collect::<Vec<_>>(),
+        );
+    }
+    if !relationships.owns.is_empty() {
+        node.set_owns(relationships.owns.iter().copied().map(accesskit_node_id).collect::<Vec<_>>());
+    }
+    if let Some(active_descendant) = relationships.active_descendant {
+        node.set_active_descendant(accesskit_node_id(active_descendant));
+    }
+    // `controlled_by` has no direct AccessKit counterpart: ATs derive that
+    // reverse edge from the controller's own `controls` list, so there is
+    // nothing to project for it here.
+}
+
+fn accesskit_node_id(entity: Entity) -> AccessKitNodeId {
+    AccessKitNodeId(entity.to_bits())
 }
 
 fn accesskit_role(semantic: &SemanticNode) -> AccessKitRole {
@@ -1427,8 +1470,9 @@ mod tests {
             SemanticNode::new(SemanticRole::Text),
             TextInput {
                 value: "secret".into(),
-                placeholder: "Email address".into(),
+                placeholder: "name@company.com".into(),
                 floating_label: None,
+                accessible_label: Some("Email address".into()),
                 kind: TextInputKind::Email,
                 max_length: None,
                 cursor: 6,
@@ -1449,6 +1493,37 @@ mod tests {
         assert!(projected.is_read_only());
         assert!(projected.is_required());
         assert_eq!(projected.invalid(), Some(Invalid::True));
+    }
+
+    #[test]
+    fn text_input_placeholder_never_becomes_the_accessible_name() {
+        let mut app = App::new();
+        app.add_systems(Update, sync_accesskit_from_semantics);
+        let entity = app.world_mut().spawn((
+            SemanticNode::new(SemanticRole::Text),
+            TextInput {
+                value: String::new(),
+                placeholder: "name@company.com".into(),
+                floating_label: None,
+                accessible_label: None,
+                kind: TextInputKind::Email,
+                max_length: None,
+                cursor: 0,
+                disabled: false,
+                read_only: false,
+                required: false,
+                invalid: false,
+            },
+        )).id();
+
+        app.update();
+
+        let projected = &app.world().get::<AccessibilityNode>(entity).unwrap().0;
+        assert_eq!(
+            projected.label(),
+            None,
+            "an unnamed text input must not silently expose its placeholder as the accessible name",
+        );
     }
 
     fn action_app() -> App {
@@ -1647,5 +1722,68 @@ mod tests {
         assert_eq!(node.label.as_deref(), Some("Play"));
         assert_eq!(node.value.as_deref(), Some("Ready"));
         assert_eq!(node.semantic_id.as_deref(), Some("play_button"));
+    }
+
+    #[test]
+    fn every_semantic_state_field_has_a_one_to_one_accesskit_projection() {
+        // Beverly `SemanticState` field -> expected AccessKit projection.
+        // `focused` is intentionally excluded: AccessKit focus is tree-level
+        // (there is no per-node focus property), and is sourced directly
+        // from `InputFocus` by the windowing backend, not this projection.
+        let cases: Vec<(&str, fn(&mut SemanticNode), fn(&AccessKitNode) -> bool)> = vec![
+            ("disabled", |n| n.state.disabled = true, |a| a.is_disabled()),
+            ("selected", |n| n.state.selected = true, |a| a.is_selected() == Some(true)),
+            ("checked", |n| n.state.checked = Some(true), |a| a.toggled() == Some(Toggled::True)),
+            (
+                "indeterminate",
+                |n| {
+                    n.state.checked = Some(true);
+                    n.state.indeterminate = true;
+                },
+                |a| a.toggled() == Some(Toggled::Mixed),
+            ),
+            ("expanded", |n| n.state.expanded = Some(true), |a| a.is_expanded() == Some(true)),
+            ("pressed", |n| n.state.pressed = Some(true), |a| a.toggled() == Some(Toggled::True)),
+            ("busy", |n| n.state.busy = true, |a| a.is_busy()),
+            ("read_only", |n| n.state.read_only = true, |a| a.is_read_only()),
+            ("required", |n| n.state.required = true, |a| a.is_required()),
+            ("invalid", |n| n.state.invalid = true, |a| a.invalid() == Some(Invalid::True)),
+            ("hidden", |n| n.state.hidden = true, |a| a.is_hidden()),
+            ("modal", |n| n.state.modal = true, |a| a.is_modal()),
+        ];
+
+        for (name, setup, check) in cases {
+            let mut node = SemanticNode::new(SemanticRole::Button);
+            setup(&mut node);
+            let projected = project_semantic_node(&node);
+            assert!(check(&projected), "SemanticState::{name} did not reach the AccessKit node");
+        }
+    }
+
+    #[test]
+    fn project_semantic_node_emits_accesskit_relationships() {
+        let mut app = App::new();
+        let labelled_by = app.world_mut().spawn_empty().id();
+        let described_by = app.world_mut().spawn_empty().id();
+        let error_message = app.world_mut().spawn_empty().id();
+        let controls = app.world_mut().spawn_empty().id();
+        let owns = app.world_mut().spawn_empty().id();
+        let active_descendant = app.world_mut().spawn_empty().id();
+
+        let mut node = SemanticNode::new(SemanticRole::TextInput);
+        node.relationships.labelled_by = Some(labelled_by);
+        node.relationships.described_by = vec![described_by];
+        node.relationships.error_message = Some(error_message);
+        node.relationships.controls = vec![controls];
+        node.relationships.owns = vec![owns];
+        node.relationships.active_descendant = Some(active_descendant);
+
+        let projected = project_semantic_node(&node);
+        assert_eq!(projected.labelled_by(), &[accesskit_node_id(labelled_by)]);
+        assert_eq!(projected.described_by(), &[accesskit_node_id(described_by)]);
+        assert_eq!(projected.error_message(), Some(accesskit_node_id(error_message)));
+        assert_eq!(projected.controls(), &[accesskit_node_id(controls)]);
+        assert_eq!(projected.owns(), &[accesskit_node_id(owns)]);
+        assert_eq!(projected.active_descendant(), Some(accesskit_node_id(active_descendant)));
     }
 }

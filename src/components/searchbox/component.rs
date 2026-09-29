@@ -76,6 +76,7 @@ pub fn spawn_searchbox(
             entity = Some(spawn_text_input(
                 searchbox,
                 TextInputConfig::new(placeholder.clone())
+                    .label(placeholder.clone())
                     .kind(TextInputKind::Search)
                     .max_length(120)
                     .border_radius(10.0)
