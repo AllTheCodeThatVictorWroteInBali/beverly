@@ -245,6 +245,14 @@ pub struct SemanticSnapshotNode {
     pub accessibility_hidden: bool,
 }
 
+/// Internal debug/automation snapshot of the semantic tree (drives the debug
+/// overlay and lets tests/automation walk parent/child relationships).
+///
+/// This is **not** what the OS accessibility API receives - it is a
+/// read-only mirror kept for tooling. The actual OS-facing bridge is
+/// `sync_accesskit_from_semantics` writing bevy's `AccessibilityNode`
+/// (via [`project_semantic_node`]), which bevy_winit's own AccessKit
+/// integration reads directly to build the real platform tree.
 #[derive(Resource, Default)]
 pub struct SemanticTreeSnapshot {
     pub generation: u64,
@@ -316,9 +324,18 @@ impl Plugin for SemanticAccessibilityPlugin {
             )
             .configure_sets(
                 PostUpdate,
+                // `SemanticNode` is the canonical source of truth, so its
+                // projection must be the LAST writer to `AccessibilityNode`
+                // each frame - after bevy_ui's own built-in accessibility
+                // sync (`UiSystems::PostLayout`, which unconditionally
+                // stamps a generic `Role::Button`/child-text label onto any
+                // entity with bevy's `Button`/`ImageNode`, independent of
+                // Beverly), but still before the tree is handed to the OS
+                // (`AccessibilitySystems::Update`, e.g. bevy_winit).
                 SemanticAccessibilitySystems
                     .after(crate::animation::skeleton::SkeletonSystems)
-                    .before(UiSystems::Prepare),
+                    .after(UiSystems::PostLayout)
+                    .before(bevy::a11y::AccessibilitySystems::Update),
             );
     }
 }
@@ -373,6 +390,13 @@ impl Plugin for SemanticPlugin {
     }
 }
 
+/// The actual semantic-tree -> AccessKit bridge: derives per-entity state
+/// from component data via [`derive_component_semantics`], projects it into
+/// an `accesskit::Node` via [`project_semantic_node`], and writes it into
+/// bevy's `AccessibilityNode` component - the same component bevy_winit's
+/// own AccessKit integration reads to build the OS-facing accessibility
+/// tree. This is distinct from (and runs independently of)
+/// `SemanticTreeSnapshot`, which is debug/automation-only.
 fn sync_accesskit_from_semantics(
     mut commands: Commands,
     mut nodes: Query<
@@ -1709,6 +1733,37 @@ mod tests {
         let tree = app.world().resource::<SemanticTreeSnapshot>();
         assert!(!tree.nodes[&first].focused);
         assert!(tree.nodes[&second].focused);
+    }
+
+    #[test]
+    fn semantic_projection_wins_over_third_party_button_accessibility_sync() {
+        // Regression test: bevy_ui's own `AccessibilityPlugin` (added by
+        // `UiPlugin`, which every real app pulls in via `DefaultPlugins`) has
+        // a system in `UiSystems::PostLayout` that unconditionally stamps a
+        // generic `Role::Button` onto *any* entity carrying bevy's `Button`
+        // marker - independent of Beverly. Every interactive Beverly widget
+        // (checkboxes included) also carries that marker, so Beverly's own
+        // projection must run after that system set to win. Exercising the
+        // real bevy_ui plugin here would require a full windowing/picking
+        // stack, so this stands a minimal system in the exact same public
+        // `UiSystems::PostLayout` set to prove the ordering constraint holds.
+        fn stomp_button_roles_like_bevy_ui(mut nodes: Query<&mut AccessibilityNode, With<Button>>) {
+            for mut node in &mut nodes {
+                node.0 = AccessKitNode::new(AccessKitRole::Button);
+            }
+        }
+
+        let mut app = action_app();
+        app.add_systems(PostUpdate, stomp_button_roles_like_bevy_ui.in_set(UiSystems::PostLayout));
+        let entity = checkbox(&mut app);
+        app.update();
+
+        let projected = &app.world().get::<AccessibilityNode>(entity).unwrap().0;
+        assert_eq!(
+            projected.role(),
+            AccessKitRole::CheckBox,
+            "a third-party PostLayout accessibility sync must not win over Beverly's SemanticNode projection",
+        );
     }
 
     #[test]
