@@ -1,5 +1,8 @@
 # File Input
 
+> **Current status:** `.bind(...)` examples describe planned model-setter
+> integration and are not currently executable against the crate.
+
 The `FileInput` lets a user select a file from their device.
 
 It follows the same binding model as every other Beverly form control: the input collects a value, the binding connects it to the Model, and the Model decides what that value means.

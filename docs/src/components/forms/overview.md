@@ -1,5 +1,8 @@
 # Forms
 
+> **Current status:** The documented `.bind(...)` model-binding API is planned;
+> current components expose their local state and Bevy messages.
+
 A Beverly form is a typed interface that transforms user input into application state.
 
 The form handles the **editing experience**. The Model handles the **truth**.

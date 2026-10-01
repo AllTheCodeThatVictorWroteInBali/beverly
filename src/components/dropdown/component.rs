@@ -45,6 +45,7 @@ impl DropdownOption {
 // CONFIGURATION
 // ============================================================
 
+#[derive(Clone)]
 pub struct DropdownConfig {
     pub placeholder: String,
     pub options: Vec<DropdownOption>,

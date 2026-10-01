@@ -2,6 +2,7 @@ use crate::components::input::{TextInputConfig, TextInputKind, spawn_text_input}
 use crate::rendering::Surface;
 use crate::components::search::events::update_search_visuals;
 use crate::theme::ThemeResource;
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use bevy::prelude::*;
 use std::collections::HashMap;
 
@@ -74,6 +75,7 @@ pub fn spawn_search(
         .spawn((
             SearchBar,
             search,
+            SemanticNode::new(SemanticRole::SearchBox).label("Search"),
             Node {
                 width: Val::Px(480.0),
                 height: Val::Px(36.0),

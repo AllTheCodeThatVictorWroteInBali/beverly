@@ -2,94 +2,68 @@
 
 <img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
 
-Themes let Beverly applications define a single visual language that can be swapped across light, dark, high-contrast, and branded variants without changing widget logic. A theme is the system’s visual contract: it says which tokens should be used for surfaces, text, accents, borders, states, and motion while preserving the same component architecture underneath.
+Themes give an application one shared visual language. Beverly's built-in themes are light and dark; each provides semantic colors and shared design values while leaving component structure and behavior unchanged.
 
-A strong theme is not a style override. It is a stable layer that keeps the product coherent as it evolves.
+The active theme is a global Bevy resource, not a component attached to a root UI node. Beverly components read from that resource, so changing it updates the theme values they use throughout the interface.
 
-## Why themes matter
+## The Global Theme
 
-A UI feels cohesive when the same design vocabulary is reused everywhere. If each widget chooses its own colors, spacing, and emphasis independently, the product becomes visually inconsistent and hard to maintain.
-
-Beverly keeps these decisions at the theme layer so screens, panels, controls, and text all inherit the same design system. This keeps the product from drifting into a patchwork of ad hoc visual decisions.
-
-## Built-in modes
-
-Beverly is designed around a small set of standard theme modes:
-
-- Light
-- Dark
-- High contrast
-- Custom branded variants
-
-These are not separate implementations of every component. Instead, they are alternate token sets that preserve the same component contracts while changing the visual result.
-
-This ensures the product can move between a calm light theme, a dense dark theme, or a more contrast-focused mode without forcing the developer to rewrite the interface logic.
-
-## Theme boundaries
-
-A theme should define tokens and visual defaults, not application behavior. Components and policies decide how those values are applied in context.
-
-That separation gives you a few useful properties:
-
-- the app can switch between modes without rewriting screen logic
-- semantically meaningful tokens remain stable across brand updates
-- accessibility settings such as contrast and motion can adapt without breaking component structure
-- the system can support product variants without duplicating every screen
-
-This is a important separation between design and logic: the behavior of a button does not change because the palette changes, only its presentation.
-
-## Example
+Beverly's `BeverlyPlugin` installs `ThemePlugin`, which initializes `ThemeResource` with `light_theme()`. To start in dark mode, insert a resource containing `dark_theme()` after adding `BeverlyPlugin`:
 
 ```rust
 use bevy::prelude::*;
-use beverly::prelude::*;
+use beverly::prelude::{BeverlyPlugin, ThemeResource, dark_theme};
 
-fn build_app(mut commands: Commands) {
-    commands.spawn((
-        NodeBundle::default(),
-        BeverlyAppShell::new(),
-        BeverlyTheme::dark(),
-    )).with_children(|parent| {
-        parent.spawn(BeverlyCard::new("Deploy"));
-        parent.spawn(BeverlyButton::new("Ship"));
-        parent.spawn(BeverlyText::new("Ready to release"));
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_plugins(BeverlyPlugin)
+        .insert_resource(ThemeResource {
+            current: dark_theme(),
+        })
+        .run();
+}
+```
+
+This is application-wide configuration: cards, buttons, text, form controls, navigation, and other theme-aware Beverly components all use the same active palette. There is no need to set a separate theme on each screen or widget.
+
+## Switching Light And Dark
+
+Send a `ThemeChanged` message to switch modes at runtime. The theme plugin replaces the current theme with the corresponding built-in preset, and components that read `ThemeResource` use the new values:
+
+```rust
+use bevy::prelude::*;
+use beverly::prelude::ThemeMode;
+use beverly::theme::ThemeChanged;
+
+fn switch_to_dark(mut theme_changes: MessageWriter<ThemeChanged>) {
+    theme_changes.write(ThemeChanged {
+        mode: ThemeMode::Dark,
     });
 }
 ```
 
-The app shell owns the active theme, and child components read from it. That keeps cards, buttons, text, and form controls visually consistent even when the theme changes.
+`ThemeMode` currently has `Light` and `Dark` variants. High-contrast and reduced-effects policies are configured separately through Beverly's accessibility APIs; they are not additional built-in `ThemeMode` values.
 
-## Customization
+## Why This Feels Cohesive
 
-Applications can override individual tokens or substitute an entirely different theme while keeping the same component interfaces. This makes it practical to support a branded variant or a system-specific palette without having to rework every screen.
+The presets keep semantic roles stable while changing their values. For example, components use `background`, `surface`, `text`, `text_muted`, `primary`, `border`, and `focus` rather than each choosing unrelated colors. Light and dark themes provide different colors for those same roles, preserving hierarchy and intent as the whole application changes appearance.
 
-In practice, a designer or product team can adjust the theme once and have the change propagate across the whole interface. This is one of the strongest reasons to keep theme logic centralized rather than spread across many individual widgets.
+`Theme` also groups shared typography sizes, spacing, corner radii, border widths, shadows, visual-effect defaults, and transitions. Components can therefore share more than a palette, and a product can tune its design language centrally instead of accumulating one-off values in each screen.
 
-## Conceptual structure
+Use semantic component variants for intent (such as success or danger) and reserve direct token customization for genuine product-specific needs. Avoid hard-coding colors for ordinary component states: local literals can break contrast or make one widget feel disconnected when the global mode changes.
 
-This is the intended shape of the design system in simplified form:
+## Customizing The Presets
+
+The current theme can be customized as a resource. This example changes the primary color while retaining the rest of the light preset:
 
 ```rust
-let theme = Theme {
-    colors: {
-        base: "#0b1120",
-        surface: "#111827",
-        accent: "#7c3aed",
-        success: "#22c55e",
-        warning: "#f59e0b",
-        danger: "#ef4444",
-    },
-    spacing: ["xs", "sm", "md", "lg", "xl"],
-    radius: ["sm", "md", "lg"],
-};
+use bevy::prelude::*;
+use beverly::prelude::{ThemeResource, light_theme};
+
+fn set_brand_color(mut theme: ResMut<ThemeResource>) {
+    theme.current.colors.primary = Color::srgb(0.12, 0.38, 0.72);
+}
 ```
 
-The important idea is that the application uses semantic tokens rather than scattered hard-coded values. The theme gives a product its visual identity; the components give it behavior and structure.
-
-## Design-system value
-
-Themes matter because they let an app carry a stable product identity while remaining flexible. They support accessibility, branding, and product variants without adding complexity to the screen architecture. In other words, the system can look different without requiring the underlying interaction model to change.
-
-## Summary
-
-Beverly’s theme model should be treated as foundational infrastructure: it is part of how the app remains consistent, accessible, and maintainable. A strong theme makes the interface feel intentional before the user even reads any content.
+Apply custom values after a mode change if they should persist: sending `ThemeChanged` selects a fresh built-in light or dark preset. Also note that not every color is mode-dependent. Tokens such as `light_surface` and `dark_surface` intentionally remain fixed because they represent component variants, not the app's current appearance.

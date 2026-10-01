@@ -128,7 +128,6 @@ fn escape_xml(value: &str) -> String {
 mod tests {
     use super::*;
     use crate::publish::metadata::ProjectMetadata;
-    use crate::publish::platform::Target;
     use std::path::PathBuf;
 
     fn sample_context() -> PublishContext {
@@ -145,7 +144,6 @@ mod tests {
         };
         PublishContext::new(
             &metadata,
-            Target::MacosArm64,
             PathBuf::from("/tmp/my-app/target/release/my-app"),
             PathBuf::from("/tmp/my-app/dist"),
         )

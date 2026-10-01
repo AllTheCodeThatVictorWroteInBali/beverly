@@ -1,5 +1,8 @@
 # Submit
 
+> **Current status:** `.bind(...)` examples describe planned model-setter
+> integration and are not currently executable against the crate.
+
 `submit()` represents the action that submits a form.
 
 It is intentionally simple.

@@ -19,6 +19,7 @@ use super::{
 };
 use crate::components::title::ThemedTitle;
 use crate::theme::{ThemeColors, ThemeResource};
+use crate::primitives::composition::UiElement;
 
 #[derive(Component, Clone, Debug, Default)]
 #[require(TextSelectionOverlays)]
@@ -38,6 +39,14 @@ pub enum TextRole {
     Muted,
     Accent,
     Disabled,
+}
+
+/// Creates a plain text component using Beverly's default typography pipeline.
+pub fn text(value: impl Into<String>) -> UiElement {
+    UiElement::Text {
+        value: Text::new(value),
+        children: Vec::new(),
+    }
 }
 
 #[derive(Component, Clone, Copy, Debug)]

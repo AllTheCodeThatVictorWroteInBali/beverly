@@ -60,6 +60,7 @@ impl Plugin for BeverlyPlugin {
             .add_plugins(crate::components::text::ThemedTextPlugin)
             .add_plugins(crate::components::textarea::TextareaPlugin)
             .add_plugins(crate::components::title::TitlePlugin)
+            .add_plugins(crate::components::toast::ToastPlugin)
             .add_plugins(crate::components::toggle::TogglePlugin)
             .add_plugins(crate::components::tooltip::TooltipPlugin);
     }

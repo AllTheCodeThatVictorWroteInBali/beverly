@@ -1,5 +1,9 @@
 # Building Forms
 
+> **Current status:** `.bind(...)` is planned API documentation. Runtime model
+> setter wiring and automatic `.error(...)` propagation are not implemented in
+> the current crate.
+
 Once the Model, Events, and Controller are in place, building a form should be straightforward.
 
 The Form is a component. Configure it with chained function calls, compose its contents with `.children()`, bind fields to the Model, and declare what should happen when the user submits or resets it.
@@ -53,12 +57,13 @@ A form can contain any Beverly component. Components can themselves contain othe
 
 ## Binding Fields
 
-`.bind()` connects a form element to a Model field.
+`.bind()` attaches a model setter to a form element. The setter remains an
+implementation method on the model, so the model's fields stay encapsulated.
 
 ```rust
 input()
     .label("Email")
-    .bind(User::email)
+    .bind(UserModel::set_email)
 ```
 
 The binding handles the translation between interface input and typed application state.
@@ -72,7 +77,10 @@ Input → Binding → Setter → Model
 
 The Model remains the source of truth.
 
-When the Model changes, the bound input reflects the new value. When the user changes the input, the binding transforms the input into the appropriate type and invokes the Model's setter.
+When the user changes the input, the binding transforms the input into the
+appropriate type and invokes the model's setter. A setter returns `Ok(())` on
+success or `Err(BindingErrors::new(...))` / `Err(BindingErrors::many(...))` on
+validation failure.
 
 There is no need to manually synchronize the input with the Model.
 

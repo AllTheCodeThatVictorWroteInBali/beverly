@@ -167,6 +167,10 @@ pub struct SemanticNode {
     pub accessibility_hidden: bool,
 }
 
+/// Additional accessible description attached by fluent `.aria(...)` content.
+#[derive(Component, Clone, Debug, PartialEq, Eq)]
+pub struct AriaDescription(pub String);
+
 impl SemanticNode {
     pub fn new(role: SemanticRole) -> Self {
         Self {
@@ -409,6 +413,7 @@ fn sync_accesskit_from_semantics(
             Option<&BeverlyButton>,
             Option<&TextInput>,
             Option<&Textarea>,
+            Option<&AriaDescription>,
             Option<&mut AccessibilityNode>,
         ),
         Or<(
@@ -420,14 +425,15 @@ fn sync_accesskit_from_semantics(
             Changed<BeverlyButton>,
             Changed<TextInput>,
             Changed<Textarea>,
+            Changed<AriaDescription>,
         )>,
     >,
 ) {
-    for (entity, semantic, checkbox, toggle, slider, button, input, textarea, accessibility) in
+    for (entity, semantic, checkbox, toggle, slider, button, input, textarea, aria_description, accessibility) in
         &mut nodes
     {
         let derived = derive_component_semantics(
-            semantic, checkbox, toggle, slider, button, input, textarea,
+            semantic, checkbox, toggle, slider, button, input, textarea, aria_description,
         );
         let projected = project_semantic_node(&derived);
         if let Some(mut accessibility) = accessibility {
@@ -446,8 +452,13 @@ fn derive_component_semantics(
     button: Option<&BeverlyButton>,
     input: Option<&TextInput>,
     textarea: Option<&Textarea>,
+    aria_description: Option<&AriaDescription>,
 ) -> SemanticNode {
     let mut derived = semantic.clone();
+
+    if let Some(description) = aria_description {
+        derived.description = Some(description.0.clone());
+    }
 
     if let Some(state) = checkbox {
         derived.role = SemanticRole::Checkbox;
@@ -1019,6 +1030,7 @@ fn rebuild_semantic_tree(
         Option<&BeverlyButton>,
         Option<&TextInput>,
         Option<&Textarea>,
+        Option<&AriaDescription>,
     )>,
 ) {
     if !dirty.0 {
@@ -1028,11 +1040,11 @@ fn rebuild_semantic_tree(
     tree.generation = tree.generation.saturating_add(1);
     tree.nodes.clear();
 
-    for (entity, node, parent, checkbox, toggle, slider, button, input, textarea) in
+    for (entity, node, parent, checkbox, toggle, slider, button, input, textarea, aria_description) in
         &semantic_nodes
     {
         let node = derive_component_semantics(
-            node, checkbox, toggle, slider, button, input, textarea,
+            node, checkbox, toggle, slider, button, input, textarea, aria_description,
         );
         if node.decorative || node.accessibility_hidden {
             continue;
@@ -1296,6 +1308,71 @@ mod tests {
             app.world().get::<SemanticNode>(entity).unwrap().role,
             SemanticRole::Text,
         );
+    }
+
+    #[test]
+    fn semantic_projection_covers_name_description_and_disabled_state() {
+        let semantic = SemanticNode::new(SemanticRole::Button)
+            .label("Delete")
+            .description("Permanently removes the document");
+        let button = BeverlyButton::danger("Delete").disabled(true);
+        let description = AriaDescription("Permanently removes the document".to_string());
+
+        let derived = derive_component_semantics(
+            &semantic,
+            None,
+            None,
+            None,
+            Some(&button),
+            None,
+            None,
+            Some(&description),
+        );
+        let projected = project_semantic_node(&derived);
+
+        assert_eq!(projected.role(), AccessKitRole::Button);
+        assert_eq!(projected.label(), Some("Delete"));
+        assert_eq!(projected.description(), Some("Permanently removes the document"));
+        assert!(projected.is_disabled());
+    }
+
+    #[test]
+    fn semantic_projection_covers_range_values_and_invalid_state() {
+        let semantic = SemanticNode::new(SemanticRole::Slider);
+        let slider = Slider::new(0.0, 100.0).value(42.0).step(1.0).disabled(false);
+        let mut derived = derive_component_semantics(
+            &semantic,
+            None,
+            None,
+            Some(&slider),
+            None,
+            None,
+            None,
+            None,
+        );
+        derived.state.invalid = true;
+        let projected = project_semantic_node(&derived);
+
+        assert_eq!(projected.role(), AccessKitRole::Slider);
+        assert_eq!(projected.numeric_value(), Some(42.0));
+        assert_eq!(projected.invalid(), Some(Invalid::True));
+    }
+
+    #[test]
+    fn semantic_projection_preserves_relationships() {
+        let labelled = Entity::from_bits(10);
+        let described = Entity::from_bits(11);
+        let controls = Entity::from_bits(12);
+        let mut semantic = SemanticNode::new(SemanticRole::Button).label("Open");
+        semantic.relationships.labelled_by = Some(labelled);
+        semantic.relationships.described_by = vec![described];
+        semantic.relationships.controls = vec![controls];
+
+        let projected = project_semantic_node(&semantic);
+
+        assert_eq!(projected.labelled_by(), &[AccessKitNodeId(labelled.to_bits())]);
+        assert_eq!(projected.described_by(), &[AccessKitNodeId(described.to_bits())]);
+        assert_eq!(projected.controls(), &[AccessKitNodeId(controls.to_bits())]);
     }
 
     #[test]

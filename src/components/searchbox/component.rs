@@ -3,8 +3,8 @@ use bevy::prelude::*;
 use crate::rendering::{Paint, Surface};
 use crate::icons::{Icon, IconNode};
 use crate::components::input::{TextInputConfig, TextInputKind, spawn_text_input};
-use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::theme::ThemeResource;
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 
 #[derive(Component)]
 pub struct SearchBox;
@@ -34,6 +34,7 @@ pub fn spawn_searchbox(
                 ..default()
             },
             BackgroundColor(Color::NONE),
+            SemanticNode::new(SemanticRole::SearchBox).label(placeholder.clone()),
         ))
         .with_children(|searchbox| {
             searchbox

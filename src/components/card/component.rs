@@ -15,6 +15,16 @@ pub struct Card {
     base_background: Color,
 }
 
+/// Semantic section markers for fluent card composition.
+#[derive(Component)]
+pub struct CardHeader;
+
+#[derive(Component)]
+pub struct CardBody;
+
+#[derive(Component)]
+pub struct CardFooter;
+
 #[derive(Component, Clone, Copy)]
 struct CardResizeHandle {
     owner: Entity,
@@ -218,8 +228,6 @@ fn spawn_card_internal(
     let card_id = card.id();
 
     card.with_children(|card_node| {
-        content(card_node);
-
         card_node.spawn((
             CardDragSurface { owner: card_id },
             Button,
@@ -232,8 +240,9 @@ fn spawn_card_internal(
                 ..default()
             },
             BackgroundColor(Color::NONE),
-            ZIndex(1),
         ));
+
+        content(card_node);
 
         card_node
             .spawn((

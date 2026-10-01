@@ -58,7 +58,7 @@ fn build_form(mut commands: Commands) {
     commands.spawn(BeverlyCard::new("Project details")).with_children(|card| {
         card.spawn(BeverlyInput::new("Project name"));
         card.spawn(BeverlyInput::new("Owner"));
-        card.spawn(BeverlyButton::new("Save changes"));
+        card.spawn(button().text("Save changes"));
     });
 }
 ```

@@ -43,7 +43,7 @@ fn setup(mut commands: Commands) {
                 row.spawn(BeverlyButton::info("Info"));
                 row.spawn(BeverlyButton::light("Light"));
                 row.spawn(BeverlyButton::dark("Dark"));
-                row.spawn(BeverlyButton::text("Text only"));
+                row.spawn(BeverlyButton::text_button("Text only"));
             });
 
             // Outline variants (transparent fill until hovered/pressed).

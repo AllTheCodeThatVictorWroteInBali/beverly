@@ -38,11 +38,11 @@ use beverly::prelude::*;
 
 fn build_header(mut commands: Commands) {
 	commands.spawn((
-		Text::new("Workspace"),
+		text("Workspace"),
 		ThemedTitle::new(TitleLevel::H1),
 	));
 	commands.spawn((
-		Text::new("Last synced 2 minutes ago"),
+		text("Last synced 2 minutes ago"),
 		ThemedText::new(TextRole::Caption),
 	));
 }

@@ -2,7 +2,7 @@
 
 <img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
 
-Accessible interfaces must respect reduced-motion preferences without losing semantic clarity. Beverly treats reduced motion as a first-class policy rather than an exception. The goal is not to remove all motion, but to remove the motion that is noisy, distracting, or unnecessary while preserving the meaning of the interface.
+Accessible interfaces should respect reduced-motion preferences without losing semantic clarity. Beverly exposes a shared reduced-motion policy so applications can coordinate this behavior. The goal is not to remove all motion, but to remove the motion that is noisy, distracting, or unnecessary while preserving the meaning of the interface.
 
 ## Core principle
 
@@ -39,11 +39,22 @@ A user who requests reduced motion still needs clarity about:
 
 These cues can remain clear without requiring elaborate animation. In many cases, static or subtle changes are more readable than a more dramatic motion sequence.
 
-## Implementation guidance
+## Beverly Configuration
 
-Motion-related policies should be driven by a shared configuration layer so the same preference controls across components. A consistent reduced-motion mode makes the application feel calmer and more reliable.
+`BeverlyPlugin` initializes `AccessibilityVisualPolicyResource`. Its `current.reduced_motion` value defaults to `false` and can be initialized from `UI_REDUCED_MOTION` (`1`, `true`, `TRUE`, `yes`, or `on` enables it). The application can also update this resource at runtime, for example in response to its own settings or platform-preference integration.
 
-This also keeps the motion system more maintainable. Instead of each component deciding independently how to react to reduced-motion, a shared policy lets the app behave coherently across the whole experience.
+The policy is not yet applied uniformly to every motion feature. Beverly's `Transition` property animations collapse decorative duration and delay to zero when reduced motion is enabled; semantic transitions keep their timing. `UiMotion` enter/exit presets and component-specific motion such as loading indicators do not currently all consult this policy. Review each feature's documentation and supply a static alternative where needed. Beverly does not automatically detect an operating-system reduced-motion preference.
+
+```rust
+use bevy::prelude::*;
+use beverly::theme::AccessibilityVisualPolicyResource;
+
+fn enable_reduced_motion(mut policy: ResMut<AccessibilityVisualPolicyResource>) {
+	policy.current.reduced_motion = true;
+}
+```
+
+A centralized setting is still valuable, but applications should not infer that every animation is disabled merely because this flag is enabled.
 
 ## Rule of thumb
 

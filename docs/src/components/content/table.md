@@ -352,9 +352,7 @@ This allows a Table to remain a primitive while still supporting sophisticated i
 For example, an action cell could contain a Button:
 
 ```rust id="t5q1mz"
-button(localize("user.edit"))
-    .label(localize("user.edit.label"))
-    .aria(localize("user.edit.description"))
+button().text(localize("user.edit"))
     .on("click", Command::User::Edit)
 ```
 
@@ -378,9 +376,7 @@ Or it can contain an interactive component:
 
 ```rust id="c4m8yd"
 cell(
-    button(localize("user.edit"))
-        .label(localize("user.edit.label"))
-        .aria(localize("user.edit.description"))
+    button().text(localize("user.edit"))
         .on("click", Command::User::Edit)
 )
 ```
@@ -425,9 +421,7 @@ When a table contains interactive controls, those controls remain independently 
 For example:
 
 ```rust id="j6w4nb"
-button(localize("user.edit"))
-    .label(localize("user.edit.label"))
-    .aria(localize("user.edit.description"))
+button().text(localize("user.edit"))
 ```
 
 The Table's accessibility describes the table.

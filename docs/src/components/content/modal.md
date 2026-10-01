@@ -1,5 +1,9 @@
 # Modal
 
+> **Current status:** Modal header/body/footer examples below describe the
+> planned fluent section API. The current source uses `BasicModalContent` and
+> `spawn_modal_with_surface(...)` for specialized modal construction.
+
 A Modal is a temporary surface that appears above the application's current interface.
 
 It is a specialized container for content that requires the user's attention without navigating away from the current application context. A Modal can contain forms, confirmations, settings, information, workflows, or other composed Beverly components.
@@ -35,9 +39,7 @@ modal()
             .bind(User::name),
     ])
     .footer(
-        button(localize("user.create"))
-            .label(localize("user.create.label"))
-            .aria(localize("user.create.description"))
+        button().text(localize("user.create"))
     )
 ```
 
@@ -118,9 +120,7 @@ Opening a Modal is application behavior, not a special Modal command.
 A Button might produce a UI Event:
 
 ```rust id="q6v2ns"
-button(localize("user.create"))
-    .label(localize("user.create.label"))
-    .aria(localize("user.create.description"))
+button().text(localize("user.create"))
     .on("click", Ui::CreateButton::Clicked)
 ```
 
@@ -262,14 +262,10 @@ modal()
             .bind(User::email),
     ])
     .footer([
-        button(localize("user.cancel"))
-            .label(localize("user.cancel.label"))
-            .aria(localize("user.cancel.description"))
+        button().text(localize("user.cancel"))
             .on("click", Command::User::CancelCreate),
 
-        button(localize("user.create"))
-            .label(localize("user.create.label"))
-            .aria(localize("user.create.description"))
+        button().text(localize("user.create"))
             .on("click", Command::User::Create),
     ])
 ```
@@ -498,13 +494,9 @@ modal()
     .header(text(localize("user.discard_changes")))
     .body(text(localize("user.discard_changes.description")))
     .footer([
-        button(localize("user.keep_editing"))
-            .label(localize("user.keep_editing.label"))
-            .aria(localize("user.keep_editing.description")),
+        button().text(localize("user.keep_editing")),
 
-        button(localize("user.discard"))
-            .label(localize("user.discard.label"))
-            .aria(localize("user.discard.description")),
+        button().text(localize("user.discard")),
     ])
 ```
 
@@ -593,14 +585,10 @@ modal()
             .bind(User::email),
     ])
     .footer([
-        button(localize("user.cancel"))
-            .label(localize("user.cancel.label"))
-            .aria(localize("user.cancel.description"))
+        button().text(localize("user.cancel"))
             .on("click", Command::User::CancelCreate),
 
-        button(localize("user.create"))
-            .label(localize("user.create.label"))
-            .aria(localize("user.create.description"))
+        button().text(localize("user.create"))
             .submitting(self.opacity(0.5))
             .on("click", Command::User::Create),
     ])

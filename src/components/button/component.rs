@@ -6,6 +6,100 @@ use crate::primitives::interaction::DisabledInteraction;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::rendering::{Paint, Surface};
 use crate::theme::{ThemeColors, ThemeResource};
+use crate::primitives::interaction::{InteractionEventType, UiPointerEvent};
+use crate::primitives::composition::UiElement;
+
+/// Application callback invoked when a button is activated.
+pub type ButtonCommand = fn(&mut Commands, Entity);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ButtonEventType {
+    Click,
+    ClickDown,
+    ClickUp,
+    PointerEnter,
+    PointerLeave,
+    PointerMove,
+    DoubleClick,
+    DragStart,
+    DragMove,
+    DragEnd,
+    DragCancel,
+    LongPress,
+    Scroll,
+    Load,
+    Unload,
+}
+
+impl ButtonEventType {
+    pub fn parse(event: &str) -> Option<Self> {
+        Some(match event {
+            "click" => Self::Click,
+            "clickdown" | "pointerdown" => Self::ClickDown,
+            "clickup" | "pointerup" => Self::ClickUp,
+            "mouseenter" | "pointerenter" => Self::PointerEnter,
+            "mouseleave" | "pointerleave" => Self::PointerLeave,
+            "mousemove" | "pointermove" => Self::PointerMove,
+            "doubleclick" => Self::DoubleClick,
+            "dragstart" => Self::DragStart,
+            "dragmove" => Self::DragMove,
+            "dragend" => Self::DragEnd,
+            "dragcancel" => Self::DragCancel,
+            "longpress" => Self::LongPress,
+            "scroll" => Self::Scroll,
+            "load" => Self::Load,
+            "unload" => Self::Unload,
+            _ => return None,
+        })
+    }
+
+    fn matches(self, event: InteractionEventType) -> bool {
+        matches!((self, event),
+            (Self::Click, InteractionEventType::Click)
+                | (Self::ClickDown, InteractionEventType::PointerDown)
+                | (Self::ClickUp, InteractionEventType::PointerUp)
+                | (Self::PointerEnter, InteractionEventType::PointerEnter)
+                | (Self::PointerLeave, InteractionEventType::PointerLeave)
+                | (Self::PointerMove, InteractionEventType::PointerMove)
+                | (Self::DoubleClick, InteractionEventType::DoubleClick)
+                | (Self::DragStart, InteractionEventType::DragStart)
+                | (Self::DragMove, InteractionEventType::DragMove)
+                | (Self::DragEnd, InteractionEventType::DragEnd)
+                | (Self::DragCancel, InteractionEventType::DragCancel)
+                | (Self::LongPress, InteractionEventType::LongPress)
+                | (Self::Scroll, InteractionEventType::Scroll))
+    }
+}
+
+/// Custom child setup invoked while a button's content is spawned.
+pub type ButtonChildSetup = fn(&mut ChildSpawnerCommands, Color);
+
+/// A child definition used by [`BeverlyButton::children`].
+#[derive(Clone, Debug)]
+pub enum ButtonChild {
+    Text(String),
+    Icon(&'static str),
+    Custom(ButtonChildSetup),
+}
+
+/// Starts a primary button builder.
+pub fn button() -> UiElement {
+    UiElement::button()
+}
+
+impl ButtonChild {
+    pub fn text(value: impl Into<String>) -> Self {
+        Self::Text(value.into())
+    }
+
+    pub fn icon(value: &'static str) -> Self {
+        Self::Icon(value)
+    }
+
+    pub fn custom(setup: ButtonChildSetup) -> Self {
+        Self::Custom(setup)
+    }
+}
 
 /// Semantic color role for a [`BeverlyButton`], matching the common
 /// primary/secondary/success/danger/warning/info/light/dark palette used by
@@ -53,13 +147,19 @@ impl ButtonColor {
 /// # use bevy::prelude::*;
 /// # use beverly::components::button::BeverlyButton;
 /// fn spawn(mut commands: Commands) {
-///     commands.spawn((Node::default(), BeverlyButton::primary("Deploy")));
+///     commands.spawn((
+///         Node::default(),
+///         BeverlyButton::primary("Deploy").on("click", deploy),
+///     ));
+/// # fn deploy(_commands: &mut Commands, _button: Entity) {}
 /// }
 /// ```
-#[derive(Component, Clone, Debug, PartialEq)]
+#[derive(Component, Clone, Debug)]
 pub struct BeverlyButton {
     pub label: String,
     pub icon: Option<&'static str>,
+    pub children: Vec<ButtonChild>,
+    pub handlers: Vec<(ButtonEventType, ButtonCommand)>,
     pub color: ButtonColor,
     /// Transparent fill with a colored border/label instead of a solid fill.
     pub outline: bool,
@@ -75,6 +175,8 @@ impl BeverlyButton {
         Self {
             label: label.into(),
             icon: None,
+            children: Vec::new(),
+            handlers: Vec::new(),
             color,
             outline: false,
             disabled: false,
@@ -115,12 +217,30 @@ impl BeverlyButton {
     }
 
     /// Text-only appearance: no fill or border, just themed text (like a link).
-    pub fn text(label: impl Into<String>) -> Self {
+    pub fn text_button(label: impl Into<String>) -> Self {
         Self::new(ButtonColor::Text, label)
     }
 
     pub fn icon(mut self, icon: &'static str) -> Self {
         self.icon = Some(icon);
+        self
+    }
+
+    pub fn text(mut self, label: impl Into<String>) -> Self {
+        self.label = label.into();
+        self.children.clear();
+        self
+    }
+
+    pub fn children(mut self, children: impl IntoIterator<Item = ButtonChild>) -> Self {
+        self.children = children.into_iter().collect();
+        self
+    }
+
+    pub fn on(mut self, event: &'static str, command: ButtonCommand) -> Self {
+        let event = ButtonEventType::parse(event)
+            .unwrap_or_else(|| panic!("unsupported button event type: {event}"));
+        self.handlers.push((event, command));
         self
     }
 
@@ -150,6 +270,9 @@ struct ButtonIcon {
     owner: Entity,
 }
 
+#[derive(Component, Clone)]
+struct ButtonEventBindings(Vec<(ButtonEventType, ButtonCommand)>);
+
 pub struct ButtonPlugin;
 
 impl Plugin for ButtonPlugin {
@@ -159,8 +282,81 @@ impl Plugin for ButtonPlugin {
         }
         app.add_systems(
             Update,
-            (spawn_button_ui, button_a11y_system, button_visual_system).chain(),
+            (
+                spawn_button_ui,
+                button_a11y_system,
+                button_visual_system,
+                button_lifecycle_system,
+                button_pointer_event_system,
+            )
+                .chain(),
         );
+    }
+}
+
+fn invoke_handlers(
+    commands: &mut Commands,
+    button: &BeverlyButton,
+    entity: Entity,
+    event: ButtonEventType,
+) {
+    for (bound_event, handler) in &button.handlers {
+        if *bound_event == event {
+            handler(commands, entity);
+        }
+    }
+}
+
+fn button_lifecycle_system(
+    mut commands: Commands,
+    added: Query<(Entity, &BeverlyButton), Added<BeverlyButton>>,
+    mut removed: RemovedComponents<BeverlyButton>,
+    bindings: Query<&ButtonEventBindings>,
+) {
+    for (entity, button) in &added {
+        invoke_handlers(&mut commands, button, entity, ButtonEventType::Load);
+    }
+
+    for entity in removed.read() {
+        let Ok(bindings) = bindings.get(entity) else {
+            continue;
+        };
+        for (event, handler) in &bindings.0 {
+            if *event == ButtonEventType::Unload {
+                handler(&mut commands, entity);
+            }
+        }
+    }
+}
+
+fn button_pointer_event_system(
+    mut commands: Commands,
+    mut events: MessageReader<UiPointerEvent>,
+    buttons: Query<&BeverlyButton>,
+) {
+    for event in events.read() {
+        let Ok(button) = buttons.get(event.context.target) else {
+            continue;
+        };
+        for candidate in [
+            ButtonEventType::Click,
+            ButtonEventType::ClickDown,
+            ButtonEventType::ClickUp,
+            ButtonEventType::PointerEnter,
+            ButtonEventType::PointerLeave,
+            ButtonEventType::PointerMove,
+            ButtonEventType::DoubleClick,
+            ButtonEventType::DragStart,
+            ButtonEventType::DragMove,
+            ButtonEventType::DragEnd,
+            ButtonEventType::DragCancel,
+            ButtonEventType::LongPress,
+            ButtonEventType::Scroll,
+        ] {
+            if candidate.matches(event.event_type) {
+                invoke_handlers(&mut commands, button, event.context.target, candidate);
+            }
+        }
     }
 }
 
@@ -175,7 +371,16 @@ fn spawn_button_ui(
     for (entity, button) in &buttons {
         let (fill, border, foreground) = resolve_button_colors(button, colors, Interaction::None);
 
-        let mut semantic = SemanticNode::new(SemanticRole::Button).label(button.label.clone());
+        let accessible_label = button
+            .children
+            .iter()
+            .find_map(|child| match child {
+                ButtonChild::Text(value) => Some(value.clone()),
+                ButtonChild::Icon(_) => None,
+                ButtonChild::Custom(_) => None,
+            })
+            .unwrap_or_else(|| button.label.clone());
+        let mut semantic = SemanticNode::new(SemanticRole::Button).label(accessible_label);
         semantic.state.disabled = button.disabled;
 
         let mut entity_commands = commands.entity(entity);
@@ -198,6 +403,7 @@ fn spawn_button_ui(
                 .uniform_border(1.0, Paint::solid(border)),
             a11y::TabIndex(if button.disabled { -1 } else { 0 }),
             semantic,
+            ButtonEventBindings(button.handlers.clone()),
         ));
 
         if button.disabled {
@@ -205,20 +411,37 @@ fn spawn_button_ui(
         }
 
         entity_commands.with_children(|parent| {
-            if let Some(icon) = button.icon {
-                let icon_entity = parent.spawn_icon_colored(Icon::feather(icon), 16.0, foreground);
-                parent.commands().entity(icon_entity).insert(ButtonIcon { owner: entity });
-            }
+            let children = if button.children.is_empty() {
+                let mut defaults = Vec::new();
+                if let Some(icon) = button.icon {
+                    defaults.push(ButtonChild::Icon(icon));
+                }
+                defaults.push(ButtonChild::Text(button.label.clone()));
+                defaults
+            } else {
+                button.children.clone()
+            };
 
-            parent.spawn((
-                ButtonLabel { owner: entity },
-                Text::new(button.label.clone()),
-                TextFont {
-                    font_size: FontSize::Px(15.0),
-                    ..default()
-                },
-                TextColor(foreground),
-            ));
+            for child in children {
+                match child {
+                    ButtonChild::Icon(icon) => {
+                        let icon_entity = parent.spawn_icon_colored(Icon::feather(icon), 16.0, foreground);
+                        parent.commands().entity(icon_entity).insert(ButtonIcon { owner: entity });
+                    }
+                    ButtonChild::Text(value) => {
+                        parent.spawn((
+                            ButtonLabel { owner: entity },
+                            Text::new(value),
+                            TextFont {
+                                font_size: FontSize::Px(15.0),
+                                ..default()
+                            },
+                            TextColor(foreground),
+                        ));
+                    }
+                    ButtonChild::Custom(setup) => setup(parent, foreground),
+                }
+            }
         });
     }
 }
@@ -437,7 +660,7 @@ mod tests {
     #[test]
     fn text_variant_has_no_fill_or_border() {
         let colors = light_theme().colors;
-        let button = BeverlyButton::text("Learn more");
+        let button = BeverlyButton::text_button("Learn more");
         let (fill, border, _) = resolve_button_colors(&button, colors, Interaction::None);
         assert_eq!(fill, Color::NONE);
         assert_eq!(border, Color::NONE);
@@ -469,7 +692,7 @@ mod tests {
             ButtonColor::Light,
             ButtonColor::Dark,
         ] {
-            let button = BeverlyButton::new(color, "Label");
+            let button = BeverlyButton::new(color, "").text("Label");
             let (fill, _, foreground) = resolve_button_colors(&button, colors, Interaction::None);
             let fill_is_dark = fill.to_linear().luminance() < 0.5;
             let foreground_is_white = foreground == Color::WHITE;

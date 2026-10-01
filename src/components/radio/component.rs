@@ -53,6 +53,7 @@ pub struct RadioChanged {
 }
 
 /// Configuration for creating a radio group.
+#[derive(Clone)]
 pub struct RadioOption {
     pub value: String,
     pub label: String,
@@ -68,6 +69,7 @@ impl RadioOption {
 }
 
 /// Reusable radio group builder.
+#[derive(Clone)]
 pub struct RadioGroupBuilder {
     id: String,
     options: Vec<RadioOption>,

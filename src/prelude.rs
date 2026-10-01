@@ -5,6 +5,9 @@
 //! ```
 
 pub use crate::BeverlyPlugin;
+pub use crate::event;
+pub use crate::controller;
+pub use crate::app::{BeverlyApp, app};
 
 // Theme.
 pub use crate::theme::{ThemeMode, ThemePlugin, ThemeResource, dark_theme, light_theme};
@@ -20,13 +23,17 @@ pub use crate::rendering::{
 
 // Cross-cutting primitives.
 pub use crate::primitives::a11y::A11yPlugin;
+pub use crate::primitives::binding::{BindingErrorState, BindingErrors, SetterBinding};
 pub use crate::primitives::clipboard::ClipboardPlugin;
+pub use crate::primitives::composition::{
+    footer, UiBuildContext, UiContextSetup, UiElement, UiElementSetup,
+};
 pub use crate::primitives::focus::FocusPlugin;
 pub use crate::primitives::interaction::InteractionPlugin;
 pub use crate::primitives::keyboard::KeyboardPlugin;
 pub use crate::primitives::root::{AppRootSurface, ContentRoot, UiFonts};
 pub use crate::primitives::semantic::{
-    AnnouncementPriority, SemanticNode, SemanticPlugin, SemanticRelationships, SemanticRole,
+    AnnouncementPriority, AriaDescription, SemanticNode, SemanticPlugin, SemanticRelationships, SemanticRole,
     SemanticSnapshotNode, SemanticState, SemanticTreeSnapshot, SemanticValue,
 };
 
@@ -41,7 +48,10 @@ pub use crate::animation::skeleton::{Skeleton, SkeletonPlugin};
 pub use crate::components::alert::{Alert, AlertPlugin, AlertVariant};
 pub use crate::components::avatar::Avatar;
 pub use crate::components::badge::Badge;
-pub use crate::components::button::{BeverlyButton, ButtonColor, ButtonPlugin};
+pub use crate::components::button::{
+    button, BeverlyButton, ButtonChild, ButtonChildSetup, ButtonColor, ButtonCommand, ButtonPlugin,
+    ButtonEventType,
+};
 pub use crate::components::button_group::{ButtonGroup, ButtonGroupPlugin};
 pub use crate::components::card::{Card, CardPlugin};
 pub use crate::components::checkbox::{Checkbox, CheckboxPlugin};
@@ -67,9 +77,9 @@ pub use crate::components::slider::{Slider, SliderPlugin};
 pub use crate::components::spinner::{Spinner, SpinnerPlugin};
 pub use crate::components::table::{Table, TablePlugin};
 pub use crate::components::tabs::{Tab, Tabs, TabsPlugin};
-pub use crate::components::text::{ThemedText, ThemedTextPlugin};
+pub use crate::components::text::{ThemedText, ThemedTextPlugin, text};
 pub use crate::components::textarea::{Textarea, TextareaPlugin};
 pub use crate::components::title::{ThemedTitle, TitleLevel, TitlePlugin};
-pub use crate::components::toast::{Toast, ToastKind};
+pub use crate::components::toast::{Toast, ToastKind, ToastPlugin, ToastPosition};
 pub use crate::components::toggle::{Toggle, TogglePlugin};
 pub use crate::components::tooltip::{Tooltip, TooltipPlugin};

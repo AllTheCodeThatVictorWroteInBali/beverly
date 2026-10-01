@@ -1,5 +1,11 @@
 # Components Overview
 
+> **API status:** The executable component API is the fluent `app().children`
+> / `UiElement` surface and the concrete component reference pages. Some older
+> composition examples in this book are design sketches; conceptual helpers
+> are labeled as planned and should not be copied as compiling code.
+# Components Overview
+
 Beverly components are the reusable building blocks that sit on top of Bevy's ECS and layout system. They are designed to feel native in Rust applications while still being themeable, accessible, and easy to compose into larger screens.
 
 <img src="../assets/component-overview.svg" alt="Component overview illustration" width="860" />
@@ -50,7 +56,7 @@ fn build_dashboard(mut commands: Commands) {
         BeverlyStack::vertical(),
     )).with_children(|parent| {
         parent.spawn(BeverlyCard::new("Summary")).with_children(|card| {
-            card.spawn(BeverlyText::new("Realtime metrics and AI actions"));
+            card.spawn(text("Realtime metrics and AI actions"));
         });
         parent.spawn(BeverlyButton::primary("Open report"));
     });

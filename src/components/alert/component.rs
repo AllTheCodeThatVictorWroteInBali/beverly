@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use crate::rendering::{Paint, Surface};
 use crate::theme::{ThemeColors, ThemeResource};
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlertVariant {
@@ -174,6 +175,13 @@ fn spawn_alert_ui(
 
         root.insert((
             AlertRoot,
+            SemanticNode::new(if matches!(alert.variant, AlertVariant::Error | AlertVariant::Warning) {
+                SemanticRole::Alert
+            } else {
+                SemanticRole::Status
+            })
+            .label(alert.title.clone().unwrap_or_else(|| alert.variant.label().to_string()))
+            .description(alert.message.clone()),
             Node {
                 display: Display::Flex,
                 flex_direction: FlexDirection::Row,

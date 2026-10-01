@@ -36,7 +36,7 @@ where
 // SELECT COMPONENT
 // ============================================================
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct Select<T>
 where
     T: Clone + Send + Sync + 'static,

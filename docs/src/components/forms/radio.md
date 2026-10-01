@@ -1,5 +1,8 @@
 # Radio
 
+> **Current status:** `.bind(...)` examples describe planned model-setter
+> integration and are not currently executable against the crate.
+
 A radio control represents a choice from a set of mutually exclusive options.
 
 A radio can be used **as a group of options** or, when the application only needs a single explicit choice, as a **singular radio control**.

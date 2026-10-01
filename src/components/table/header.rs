@@ -4,11 +4,13 @@ use crate::rendering::{Paint, Surface};
 use crate::components::text::{TextRole, ThemedText};
 
 use super::component::{TableConfig, TableHeader, TableHeaderLabel, TableHeaderNode};
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 
 pub(crate) fn spawn_header(parent: &mut ChildSpawnerCommands, config: &TableConfig) {
     parent
         .spawn((
             TableHeader,
+            SemanticNode::new(SemanticRole::Row).label("Column headers"),
             Node {
                 width: Val::Percent(100.0),
                 min_height: Val::Px(config.header_min_height),
@@ -28,6 +30,7 @@ pub(crate) fn spawn_header(parent: &mut ChildSpawnerCommands, config: &TableConf
                             table_id: config.id.clone(),
                             column_id: column.id.clone(),
                         },
+                        SemanticNode::new(SemanticRole::ColumnHeader).label(column.label.clone()),
                         Button,
                         Node {
                             width: Val::Percent(column.width),

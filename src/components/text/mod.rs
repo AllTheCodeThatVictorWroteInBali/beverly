@@ -9,7 +9,7 @@ pub mod shaping;
 pub mod typography;
 
 #[allow(unused_imports)]
-pub use component::{HighlightableText, TextRole, ThemedText, ThemedTextPlugin};
+pub use component::{HighlightableText, TextRole, ThemedText, ThemedTextPlugin, text};
 pub use debug::{
 	TypographyDebugPlugin,
 	TypographyDebugSettings,

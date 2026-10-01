@@ -13,10 +13,7 @@ A Tooltip does not own the meaning of the thing it describes. It simply provides
 A Tooltip can be attached to a component:
 
 ```rust id="x3k7pd"
-button(localize("user.save"))
-    .label(localize("user.save.label"))
-    .aria(localize("user.save.description"))
-    .tooltip(localize("user.save.tooltip"))
+button().text(localize("user.save"))
     .on("click", Command::User::Save)
 ```
 
@@ -47,23 +44,18 @@ Like Badge, Tooltip is fundamentally a form of text.
 Its job is to present a small amount of additional information.
 
 ```rust id="q4a8hx"
-button(localize("user.delete"))
-    .label(localize("user.delete.label"))
-    .aria(localize("user.delete.description"))
-    .tooltip(localize("user.delete.tooltip"))
+button().text(localize("user.delete"))
 ```
 
 The Tooltip can contain localized application text:
 
 ```rust id="p8c2zw"
-.tooltip(localize("user.delete.tooltip"))
 ```
 
 Or application data when additional context is data-driven:
 
 ```rust id="c3y6vn"
 text(User::name)
-    .tooltip(User::email)
 ```
 
 The Tooltip does not need to understand where the text came from.
@@ -81,10 +73,7 @@ A Tooltip should not be confused with an interactive component.
 Consider:
 
 ```rust id="t4kq91"
-button(localize("user.delete"))
-    .label(localize("user.delete.label"))
-    .aria(localize("user.delete.description"))
-    .tooltip(localize("user.delete.tooltip"))
+button().text(localize("user.delete"))
     .on("click", Command::User::Delete)
 ```
 
@@ -121,10 +110,7 @@ Tooltip visibility is normally controlled by the UI lifecycle rather than applic
 For example, Beverly can show a Tooltip when its target is hovered or focused.
 
 ```rust id="1p5j5k"
-button(localize("user.save"))
-    .label(localize("user.save.label"))
-    .aria(localize("user.save.description"))
-    .tooltip(localize("user.save.tooltip"))
+button().text(localize("user.save"))
 ```
 
 Conceptually:
@@ -160,10 +146,7 @@ A user navigating with a keyboard should be able to receive the same contextual 
 For an interactive component:
 
 ```rust id="5x0d9k"
-button(localize("user.archive"))
-    .label(localize("user.archive.label"))
-    .aria(localize("user.archive.description"))
-    .tooltip(localize("user.archive.tooltip"))
+button().text(localize("user.archive"))
     .on("click", Command::User::Archive)
 ```
 
@@ -182,10 +165,7 @@ A Tooltip is supplementary information. It should not be the only place where es
 For example, this is appropriate:
 
 ```rust id="j5k7wq"
-button(localize("user.save"))
-    .label(localize("user.save.label"))
-    .aria(localize("user.save.description"))
-    .tooltip(localize("user.save.tooltip"))
+button().text(localize("user.save"))
 ```
 
 The Button already has a meaningful label and accessible description.
@@ -207,10 +187,7 @@ A Tooltip enhances an accessible component. It should not be responsible for mak
 Tooltip content should normally use the same localization system as other user-facing text.
 
 ```rust id="x0d8kw"
-button(localize("user.delete"))
-    .label(localize("user.delete.label"))
-    .aria(localize("user.delete.description"))
-    .tooltip(localize("user.delete.tooltip"))
+button().text(localize("user.delete"))
 ```
 
 This keeps the UI's visible text, accessible semantics, and contextual help within the same localization vocabulary.
@@ -229,14 +206,12 @@ For example, a table may display a shortened identifier while the Tooltip provid
 
 ```rust id="7bq0t4"
 text(document.short_id())
-    .tooltip(document.id())
 ```
 
 Or a Badge may display a compact status while the Tooltip provides additional context:
 
 ```rust id="m5q9ya"
 badge(document.status())
-    .tooltip(document.status_description())
 ```
 
 The presentation remains compact while additional information remains available on demand.
@@ -251,7 +226,6 @@ Badge and Tooltip complement each other but serve different purposes.
 
 ```rust id="p7x1vn"
 badge(DeploymentStatus::Running)
-    .tooltip(DeploymentStatus::description())
 ```
 
 The Badge provides persistent, compact context.
@@ -314,8 +288,7 @@ Tooltips should compose naturally with ordinary Beverly components.
 card()
     .children([
         text(Document::title),
-        badge(Document::status)
-            .tooltip(Document::status_description()),
+        badge(Document::status),
     ])
 ```
 
@@ -326,10 +299,7 @@ row()
     .children([
         text(User::name),
 
-        button(localize("user.edit"))
-            .label(localize("user.edit.label"))
-            .aria(localize("user.edit.description"))
-            .tooltip(localize("user.edit.tooltip"))
+        button().text(localize("user.edit"))
             .on("click", Command::User::Edit),
     ])
 ```
@@ -365,7 +335,6 @@ This is exactly the kind of complexity Beverly should hide internally while keep
 The developer should be able to say:
 
 ```rust id="e3m9qw"
-.tooltip(localize("user.save.tooltip"))
 ```
 
 without needing to understand how Beverly determines where, when, or how the Tooltip is rendered.
@@ -426,7 +395,6 @@ Those are implementation details of presenting contextual information.
 The application only needs to provide the context:
 
 ```rust id="f0c7pa"
-.tooltip(localize("user.save.tooltip"))
 ```
 
 Beverly handles the UI mechanics.
@@ -474,10 +442,7 @@ The Tooltip follows Beverly's broader architecture:
 The common case should remain extremely small:
 
 ```rust id="z4v8cy"
-button(localize("user.save"))
-    .label(localize("user.save.label"))
-    .aria(localize("user.save.description"))
-    .tooltip(localize("user.save.tooltip"))
+button().text(localize("user.save"))
     .on("click", Command::User::Save)
 ```
 

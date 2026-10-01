@@ -1,3 +1,10 @@
+# Introduction
+
+> **API status:** Code examples in this book fall into two categories. Tutorial
+> and component-reference examples use the current Bevy/Beverly API and should
+> compile. Architecture and design-vision examples may use conceptual names
+> such as `Command::...`, `.header(...)`, or `.footer(...)`; those describe
+> intended application patterns and are not currently implemented DSL syntax.
 # Beverly
 
 ## What is Beverly?
@@ -225,7 +232,7 @@ card()
     .radius(12)
     .children([
         text("Hello"),
-        button("Save"),
+        button().text("Save"),
     ])
 ```
 

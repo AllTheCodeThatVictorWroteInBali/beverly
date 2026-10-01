@@ -32,6 +32,46 @@ A well-designed app keeps the same rules across surfaces:
 4. Confirm contrast and motion preferences.
 5. Check that critical state changes are understandable without visual flourish.
 
+## Component checklist
+
+Use the [component accessibility checklist](./component-checklist.md) during
+implementation and review. It is the source of truth for the expected role,
+name, state, keyboard, focus, disabled, validation, relationship, and
+announcement behavior of each interactive component.
+
+Every new component should add at least one headless semantic regression test,
+one keyboard/focus test when it is composite, and a manual screen-reader check
+for platform behavior that cannot be proven without a real accessibility
+adapter.
+
+## Semantic Relationships
+
+`SemanticNode` carries a component's role, accessible name, value, state, and
+actions. Its `SemanticRelationships` connects that node to other UI entities.
+Beverly projects supported relationships into the AccessKit tree consumed by
+the platform accessibility adapter:
+
+| Relationship | Meaning |
+| --- | --- |
+| `labelled_by` | Another entity provides this node's name. |
+| `described_by` | Other entities provide additional description. |
+| `error_message` | An entity contains this control's error message. |
+| `controls` | This node controls the referenced entities. |
+| `owns` | This node owns the referenced entities in the semantic tree. |
+| `active_descendant` | The referenced entity is the active item within this control. |
+
+Relationship values are Bevy `Entity` IDs, not text or DOM IDs. The reverse
+`controlled_by` field is retained in Beverly's semantic model, but AccessKit
+has no corresponding property; set `controls` on the controlling node instead
+so the relationship reaches assistive technology. Platform adapters and
+screen readers can vary, so verify important flows with real assistive
+technology as well as semantic projection tests.
+
+For toggle buttons, set `SemanticState.pressed` only when reporting the
+button's persistent on/off state. It is not the momentary pointer-pressed
+interaction state. `checked`, when present, takes precedence because both map
+to the same toggle state in AccessKit.
+
 ## Example: accessible app shell
 
 ```rust
@@ -51,7 +91,7 @@ fn build_shell(mut commands: Commands) {
 
         parent.spawn(BeverlyMainPane::new()).with_children(|main| {
             main.spawn(BeverlyTitle::new("Workspace"));
-            main.spawn(BeverlyText::new("A keyboard-friendly dashboard surface."));
+            main.spawn(text("A keyboard-friendly dashboard surface."));
             main.spawn(BeverlyButton::primary("Create report"));
         });
     });

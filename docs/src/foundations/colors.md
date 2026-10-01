@@ -44,7 +44,7 @@ fn build_shell(mut commands: Commands) {
         BeverlyTheme::dark(), // one theme controls all colors in the app
     )).with_children(|parent| {
         parent.spawn(BeverlySidebar::new());
-        parent.spawn(BeverlyButton::new("Deploy").accent());
+        parent.spawn(button().text("Deploy"));
         parent.spawn(BeverlyAlert::success("Sync complete"));
     });
 }
@@ -77,3 +77,30 @@ In other words, the whole application has a single palette source, and all visua
 Use semantic color roles for states instead of direct color literals in app code.
 
 That keeps components consistent across light, dark, and custom branded themes while preserving a clear accessibility story.
+
+## Checking WCAG Contrast
+
+For solid colors, `beverly::theme` exposes `relative_luminance`,
+`contrast_ratio`, and `meets_contrast`, along with WCAG 2.2 threshold
+constants. Use these helpers to check text and meaningful UI indicators:
+
+```rust
+use bevy::prelude::Color;
+use beverly::theme::{
+    contrast_ratio, meets_contrast, WCAG_AA_NORMAL_TEXT, WCAG_AA_UI_COMPONENT,
+};
+
+let foreground = Color::WHITE;
+let background = Color::srgb(0.12, 0.18, 0.24);
+
+let ratio = contrast_ratio(foreground, background);
+let readable_text = meets_contrast(foreground, background, WCAG_AA_NORMAL_TEXT);
+let clear_control = meets_contrast(foreground, background, WCAG_AA_UI_COMPONENT);
+```
+
+The thresholds are `4.5:1` for normal text at AA, `3:1` for large text at AA,
+`7:1` and `4.5:1` for normal and large text at AAA, and `3:1` for meaningful
+non-text UI components at AA. The helpers treat both inputs as opaque solid
+colors. For gradients, translucent surfaces, or blur, first determine the
+effective background that needs to meet the threshold; checking only one
+nominal token cannot guarantee contrast over changing content.

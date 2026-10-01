@@ -1,5 +1,8 @@
 # Text Input
 
+> **Current status:** `.bind(...)` examples describe planned model-setter
+> integration and are not currently executable against the crate.
+
 The text input is the most common form element in Beverly.
 
 It looks simple:
@@ -42,6 +45,20 @@ The ARIA declaration provides additional accessible semantics or descriptive inf
 Beverly can therefore treat missing required accessibility metadata as a compile-time error.
 
 > **Accessible by construction, not accessible by cleanup.**
+
+In the concrete Rust API, `TextInputConfig::label(...)` sets the persistent
+accessible name, while `floating_label(...)` supplies the visible floating
+label. A placeholder is only a hint and is never used as the accessible name.
+If neither an explicit accessible label nor a floating label is provided,
+Beverly warns at spawn time rather than presenting the placeholder as a name:
+
+```rust
+use beverly::components::input::TextInputConfig;
+
+let config = TextInputConfig::new("name@example.com")
+    .label("Email address")
+    .floating_label("Email");
+```
 
 This is particularly important for AI-generated interfaces. An agent should not have to remember accessibility requirements as a separate cleanup step. The component API makes the required structure explicit.
 

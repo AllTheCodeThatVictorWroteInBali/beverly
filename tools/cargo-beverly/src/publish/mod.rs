@@ -11,7 +11,7 @@ pub mod platform;
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::Args;
 
 use context::PublishContext;
@@ -34,23 +34,28 @@ pub struct PublishArgs {
 
 pub fn run(args: &PublishArgs) -> Result<()> {
     let project = metadata::discover(args.manifest_path.as_deref())?;
-    println!("   Publishing {} v{}", project.package_name, project.version);
+    let target = match args.target {
+        Some(target) => target,
+        None => Target::host()?,
+    };
+    ensure_target_matches_host(target, Target::host()?)?;
+
+    println!(
+        "   Publishing {} v{}",
+        project.package_name, project.version
+    );
 
     println!("   Building release binary...");
     let binary_path = build::build_release(&project)?;
     println!("    Finished release build");
 
-    let target = match args.target {
-        Some(target) => target,
-        None => Target::host()?,
-    };
     let output_dir = args
         .out_dir
         .clone()
         .unwrap_or_else(|| project.manifest_dir.join("dist"));
     fs::create_dir_all(&output_dir)?;
 
-    let ctx = PublishContext::new(&project, target, binary_path, output_dir);
+    let ctx = PublishContext::new(&project, binary_path, output_dir);
 
     println!("\n   Packaging {} application...", target.label());
     let packager = platform::packager_for(target)?;
@@ -70,6 +75,17 @@ pub fn run(args: &PublishArgs) -> Result<()> {
     Ok(())
 }
 
+fn ensure_target_matches_host(target: Target, host: Target) -> Result<()> {
+    if target != host {
+        bail!(
+            "cross-compilation is not supported yet: requested {}, but the host target is {}",
+            target.rust_triple(),
+            host.rust_triple()
+        );
+    }
+    Ok(())
+}
+
 /// Formats a byte count as a human-readable size (e.g. `12.3 MB`).
 fn human_size(bytes: u64) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB"];
@@ -83,5 +99,16 @@ fn human_size(bytes: u64) -> String {
         format!("{bytes} {}", UNITS[unit])
     } else {
         format!("{size:.1} {}", UNITS[unit])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn requested_target_must_match_host_target() {
+        assert!(ensure_target_matches_host(Target::MacosArm64, Target::MacosArm64).is_ok());
+        assert!(ensure_target_matches_host(Target::MacosArm64, Target::MacosX64).is_err());
     }
 }

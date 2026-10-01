@@ -451,9 +451,8 @@ image()
 Or the Image can be placed inside an explicitly interactive component:
 
 ```rust
-button()
-    .label(localize("product.open.label"))
-    .aria(localize("product.open.description"))
+button().text("Open image")
+    .text(localize("product.open.label"))
     .children([
         image()
             .src("product.jpg")

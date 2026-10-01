@@ -190,6 +190,9 @@ pub fn spawn_pagination(parent: &mut ChildSpawnerCommands, config: PaginationCon
     let mut root_entity = parent.spawn((
         Pagination,
         PaginationState::new(config.page_size, config.total_pages),
+        SemanticNode::new(SemanticRole::List)
+            .label("Pagination")
+            .value(format!("Page 1 of {}", config.total_pages.max(1))),
         PaginationStyleConfig {
             show_first_last: config.show_first_last,
             show_page_numbers: config.show_page_numbers,
@@ -273,6 +276,28 @@ pub fn spawn_pagination(parent: &mut ChildSpawnerCommands, config: PaginationCon
     });
 
     root
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pagination_state_clamps_navigation_and_reports_boundaries() {
+        let mut state = PaginationState::new(25, 3);
+        assert!(!state.has_previous());
+        assert!(state.has_next());
+
+        state.previous_page();
+        assert_eq!(state.current_page, 1);
+        state.last_page();
+        assert_eq!(state.current_page, 3);
+        assert!(!state.has_next());
+        state.next_page();
+        assert_eq!(state.current_page, 3);
+        state.set_page(99);
+        assert_eq!(state.current_page, 3);
+    }
 }
 
 fn spawn_pagination_button(
@@ -407,6 +432,7 @@ fn pagination_button_interaction(
 fn update_pagination_ui(
     theme: Option<Res<ThemeResource>>,
     pagination_query: Query<(Entity, &PaginationState, &PaginationStyleConfig), With<Pagination>>,
+    mut pagination_semantics: Query<&mut SemanticNode, With<Pagination>>,
     mut button_query: Query<
         (
             Entity,
@@ -435,6 +461,9 @@ fn update_pagination_ui(
         .unwrap_or_else(|| dark_theme().colors);
 
     for (pagination_entity, state, style) in &pagination_query {
+        if let Ok(mut semantic) = pagination_semantics.get_mut(pagination_entity) {
+            semantic.value = Some(format!("Page {} of {}", state.current_page, state.total_pages));
+        }
         let visible_buttons = state.total_pages.min(style.max_page_buttons.max(1));
         let page_window_start =
             page_window_start(state.current_page, state.total_pages, visible_buttons);

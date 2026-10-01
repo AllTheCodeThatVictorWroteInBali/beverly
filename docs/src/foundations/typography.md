@@ -43,12 +43,12 @@ That means you can place text inside headers, cards, sidebars, or any other surf
 use bevy::prelude::*;
 use beverly::prelude::*;
 
-fn build_screen(mut commands: Commands) {
-	commands.spawn(NodeBundle::default()).with_children(|parent| {
-		parent.spawn(BeverlyText::title("Workspace"));
-		parent.spawn(BeverlyText::subtitle("Last synced 2 minutes ago"));
-		parent.spawn(BeverlyText::body("Everything below this point uses the same global font."));
-	});
+fn build_screen() {
+	app().children([
+		text("Workspace"),
+		text("Last synced 2 minutes ago"),
+		text("Everything below this point uses the same global font."),
+	]).run();
 }
 ```
 

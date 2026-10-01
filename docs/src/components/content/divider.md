@@ -125,15 +125,11 @@ A vertical Divider can be placed between controls:
 ```rust id="f8m3p6"
 row()
     .children([
-        button(localize("editor.undo"))
-            .label(localize("editor.undo.label"))
-            .aria(localize("editor.undo.description")),
+        button().text(localize("editor.undo")),
 
         divider().vertical(),
 
-        button(localize("editor.redo"))
-            .label(localize("editor.redo.label"))
-            .aria(localize("editor.redo.description")),
+        button().text(localize("editor.redo")),
     ])
 ```
 

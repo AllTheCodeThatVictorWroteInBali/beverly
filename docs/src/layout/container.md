@@ -25,7 +25,7 @@ fn build_container(mut commands: Commands) {
         BeverlyContainer::new(),
     )).with_children(|container| {
         container.spawn(BeverlyTitle::new("Workspace"));
-        container.spawn(BeverlyText::new("A central dashboard with deterministic spacing."));
+        container.spawn(text("A central dashboard with deterministic spacing."));
     });
 }
 ```

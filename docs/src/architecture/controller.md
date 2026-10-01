@@ -1,6 +1,6 @@
 # 3.5 Controller
 
-The **Controller connects Events to application behavior**.
+The **Controller connects Messages to application behavior**.
 
 It answers a simple question:
 
@@ -10,10 +10,36 @@ A Controller maps an Event to one or more Model methods or other application act
 
 ```rust
 controller! {
-    User::Create => Model::User::create,
-    User::Delete => Model::User::delete,
+  UserController {
+    User::Create => create_user,
+    User::Delete => delete_user,
+  }
 }
 ```
+
+The macro generates a Bevy `Plugin`. Each handler receives a reference to the
+message type it handles:
+
+```rust
+fn create_user(message: &User::Create) {
+  info!(name = %message.name, "creating user");
+}
+
+fn delete_user(message: &User::Delete) {
+  info!(id = message.id, "deleting user");
+}
+```
+
+Register the messages and install the generated plugin explicitly:
+
+```rust
+app.add_message::<User::Create>()
+  .add_message::<User::Delete>()
+  .add_plugins(UserController);
+```
+
+`controller!` routes messages only. It does not make a view emit messages or
+invent application state transitions.
 
 The Event defines the contract.
 
@@ -35,19 +61,21 @@ Controllers are intentionally declarative.
 
 You should be able to glance at one and understand the application's behavior without tracing through a large amount of framework code.
 
+The current `controller!` macro generates one message-to-handler route per
+entry. Pipeline composition and parallel fan-out are design directions, not
+syntax supported by the current macro.
+
 ## Sequential Pipelines
 
 Multiple actions can be composed into a **series** using an array:
 
 ```rust
-controller! {
-    Document::Process => [
-        Document::load,
-        Document::parse,
-        Document::summarize,
-        Document::save,
-    ],
-}
+// Planned composition model; use separate handlers with the current macro.
+// controller! {
+//     DocumentController {
+//         Document::Process => process_document,
+//     }
+// }
 ```
 
 The actions execute in order.
@@ -197,13 +225,12 @@ Not every action needs to happen in sequence.
 A Controller can fan an input out to multiple actions in **parallel** using braces:
 
 ```rust
-controller! {
-    User::Created => {
-        Notification::User::created,
-        Analytics::User::created,
-        Agent::User::created,
-    },
-}
+// Planned fan-out model; register separate handlers with the current macro.
+// controller! {
+//     UserController {
+//         User::Created => notify_user_created,
+//     }
+// }
 ```
 
 Conceptually:
@@ -236,17 +263,7 @@ The other means **fan this work out**.
 Series and parallel operations can be composed.
 
 ```rust
-controller! {
-    Document::Process => [
-        Document::load,
-        {
-            Document::index,
-            Document::analyze,
-            Document::extract_metadata,
-        },
-        Document::save,
-    ],
-}
+// Planned series/fan-out composition; not part of the current macro syntax.
 ```
 
 The conceptual flow is:
@@ -357,7 +374,9 @@ Another Controller can listen for that Fact:
 
 ```rust
 controller! {
-    Document::Processed => Document::save,
+  DocumentController {
+    Document::Processed => save_document,
+  }
 }
 ```
 

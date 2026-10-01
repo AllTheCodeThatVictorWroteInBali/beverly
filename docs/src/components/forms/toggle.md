@@ -1,5 +1,8 @@
 # Toggle Button
 
+> **Current status:** `.bind(...)` examples describe planned model-setter
+> integration and are not currently executable against the crate.
+
 The `ToggleButton` is a form control that represents an on/off state while presenting itself as a button.
 
 It is useful when the user is choosing between two states rather than simply activating an action.
@@ -374,9 +377,7 @@ The difference between a normal Button and a Toggle Button is semantic.
 A Button requests an action:
 
 ```rust id="f2m8qw"
-button(localize("user.save"))
-    .label(localize("user.save.label"))
-    .aria(localize("user.save.description"))
+button().text(localize("user.save"))
     .on("click", Command::User::Save)
 ```
 

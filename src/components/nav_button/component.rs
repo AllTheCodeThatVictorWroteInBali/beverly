@@ -3,6 +3,8 @@ use bevy::prelude::*;
 use crate::icons::{Icon, IconCommands};
 use crate::primitives::root::UiFonts;
 use crate::rendering::{Paint, Surface};
+use crate::primitives::a11y;
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PageId {
@@ -118,6 +120,8 @@ pub fn drawer_toggle(parent: &mut ChildSpawnerCommands, ui_fonts: &UiFonts) {
             Button,
             DrawerButton,
             DrawerToggle,
+            a11y::TabIndex(0),
+            SemanticNode::new(SemanticRole::Button).label("Menu"),
             Node {
                 width: percent(100),
                 height: px(58.0),
@@ -180,6 +184,8 @@ pub fn nav_button(parent: &mut ChildSpawnerCommands, page: PageId, ui_fonts: &Ui
             Surface::rounded_rect_fill(8.0, Paint::solid(Color::NONE))
                 .uniform_border(1.0, Paint::solid(Color::NONE)),
             NavButton { page },
+            a11y::TabIndex(0),
+            SemanticNode::new(SemanticRole::Link).label(page.label()),
         ))
         .with_children(|button| {
             button

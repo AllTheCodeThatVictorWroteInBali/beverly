@@ -4,10 +4,7 @@ This example extends 15.1 by adding a button, firing an app message when it is p
 
 ```rust
 use bevy::prelude::*;
-use beverly::prelude::{light_theme, BeverlyPlugin, ThemeResource};
-
-#[derive(Component)]
-struct ClickMeButton;
+use beverly::prelude::*;
 
 #[derive(Message)]
 struct HelloButtonClicked;
@@ -21,7 +18,7 @@ fn main() {
 		})
 		.add_message::<HelloButtonClicked>()
 		.add_systems(Startup, setup)
-		.add_systems(Update, (emit_click_event, log_click_event))
+		.add_systems(Update, log_click_event)
 		.run();
 }
 
@@ -37,42 +34,12 @@ fn setup(mut commands: Commands) {
 			..default()
 		})
 		.with_children(|parent| {
-			parent
-				.spawn((
-					bevy::ui::widget::Button,
-					Node {
-						width: px(220),
-						height: px(56),
-						justify_content: JustifyContent::Center,
-						align_items: AlignItems::Center,
-						..default()
-					},
-					BackgroundColor(Color::srgb(0.18, 0.18, 0.22)),
-					BorderRadius::all(px(12)),
-					ClickMeButton,
-				))
-				.with_children(|button| {
-					button.spawn((
-						Text::new("Click me"),
-						TextFont {
-							font_size: FontSize::Px(20.0),
-							..default()
-						},
-						TextColor(Color::srgb(0.95, 0.96, 0.99)),
-					));
-				});
+			parent.spawn(button().text("Click me").on("click", emit_click));
 		});
 }
 
-fn emit_click_event(
-	interactions: Query<&Interaction, (Changed<Interaction>, With<ClickMeButton>)>,
-	mut writer: MessageWriter<HelloButtonClicked>,
-) {
-	for interaction in &interactions {
-		if *interaction == Interaction::Pressed {
-			writer.write(HelloButtonClicked);
-		}
-	}
+fn emit_click(commands: &mut Commands, _button: Entity) {
+	commands.write_message(HelloButtonClicked);
 }
 
 fn log_click_event(mut reader: MessageReader<HelloButtonClicked>) {

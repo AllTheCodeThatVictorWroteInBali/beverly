@@ -1,5 +1,8 @@
 # Select
 
+> **Current status:** `.bind(...)` examples describe planned model-setter
+> integration and are not currently executable against the crate.
+
 `select()` lets a user choose a value from a list of available choices.
 
 It follows the same Beverly form-element contract as `input()`, `textarea()`, `checkbox()`, and `radio_group()`:
@@ -7,6 +10,37 @@ It follows the same Beverly form-element contract as `input()`, `textarea()`, `c
 > **The Select presents choices. The binding connects them. The setter validates and transforms the value. The Model owns the state.**
 
 The individual choices are represented by `option()`, which is covered separately.
+
+## Concrete Rust API
+
+The component API is generic: `Select<T>` stores the actual option values, and
+`SelectChanged<T>` reports the selected value as `T` together with the select
+entity and option index. `T` must be `Clone + Display + Send + Sync + 'static`;
+its `Display` output is also used as the default accessible option label.
+
+`BeverlyPlugin` registers `SelectPlugin<String>`. For each additional concrete
+option type, register its plugin once:
+
+```rust
+use beverly::components::select::spawn_select;
+use beverly::prelude::{Select, SelectPlugin};
+
+app.add_plugins(SelectPlugin::<Region>::default());
+```
+
+Then create the UI under a parent with `spawn_select`, supplying the options
+and a font handle:
+
+```rust
+use beverly::components::select::{spawn_select, Select};
+
+spawn_select(parent, Select::new(regions), font_handle);
+```
+
+Read `SelectChanged<Region>` (from `beverly::components::select`) as a Bevy
+message to receive the selected typed value. The fluent `.bind(...)` examples
+below describe planned model-setter integration; they are not the mechanism
+used by this component API today.
 
 ## Basic Select
 

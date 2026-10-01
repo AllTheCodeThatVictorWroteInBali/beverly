@@ -1,6 +1,10 @@
 # Content & Children
 
-Beverly components are designed to be composed.
+Beverly components are designed to be composed through the shared `UiElement`
+tree. `text(...)`, `button()`, `input(...)`, `checkbox()`, `alert(...)`,
+`toast(...)`, `card()`, `list_item(...)`, `form(...)`, `radio(...)`, `table(...)`,
+`tabs(...)`, `modal(...)`, and custom component adapters can all be placed in
+the same children collection.
 
 The fundamental primitive for composition is:
 
@@ -11,20 +15,20 @@ The fundamental primitive for composition is:
 A component can accept **one child or many children**.
 
 ```rust
-card()
-    .children(
-        text("Hello")
-    )
+app()
+    .children([text("Hello")])
+    .run()
 ```
 
 Or:
 
 ```rust
-card()
+app()
     .children([
         text("Hello"),
         text("World"),
     ])
+    .run()
 ```
 
 This simple rule provides a consistent way to build interfaces from small pieces.
@@ -38,20 +42,18 @@ This simple rule provides a consistent way to build interfaces from small pieces
 A single child is useful when the relationship is straightforward:
 
 ```rust
-button("Save")
-    .children(
-        icon("save")
-    )
+button()
+    .text("Save")
+    .children([ButtonChild::icon("save"), ButtonChild::text("Save")])
 ```
 
 Multiple children allow a component to become a container:
 
 ```rust
-card()
+button()
     .children([
-        text("Project"),
-        text("Description"),
-        button("Open"),
+        ButtonChild::icon("folder"),
+        ButtonChild::text("Open project"),
     ])
 ```
 
@@ -82,18 +84,18 @@ Icon + Text + Button
 The same composition model works at every level.
 
 ```rust
-card()
+app()
     .children([
-        row()
-            .children([
-                icon("document"),
-                text("Report"),
-            ]),
-
-        text("Quarterly financial report"),
-
-        button("Open"),
+        text("Report").children([text("Quarterly financial report")]),
+        button().text("Open"),
+        input("Search").label("Search reports"),
+        checkbox().label("Include archived").checked(true),
+        card().children([text("Summary")]),
+        list_item("Recent activity").subtitle("Just now"),
+        form(Form::post("/save")).children([input("Name")]),
+        table(TableConfig::default()),
     ])
+    .run()
 ```
 
 This makes components reusable without requiring the framework to predict every possible combination developers might need.
@@ -101,6 +103,10 @@ This makes components reusable without requiring the framework to predict every 
 > **Build the primitive once. Compose it everywhere.**
 
 ## Named Sections
+
+Cards implement `.header(...)`, `.body(...)`, and `.footer(...)` as real
+composition sections. Other components use the shared `.children([...])` API
+unless their reference page documents a specialized surface builder.
 
 Some components have a meaningful internal structure.
 
@@ -113,16 +119,11 @@ A Card, for example, may have:
 For these components, Beverly can provide named sections alongside general `children()` composition.
 
 ```rust
-card()
-    .header(
-        text("Account")
-    )
-    .body(
-        text("Account information")
-    )
-    .footer(
-        button("Save")
-    )
+card().children([
+    text("Account"),
+    text("Account information"),
+    button().text("Save"),
+])
 ```
 
 Named sections make the intent of the interface immediately obvious.
@@ -149,7 +150,7 @@ card()
     .header([
         icon("settings"),
         text("Settings"),
-        button("Edit"),
+        button().text("Edit"),
     ])
 ```
 
@@ -199,7 +200,7 @@ card()
         chart(data),
         table(rows),
     ])
-    .footer(button("Close"))
+    .footer(button().text("Close"))
 ```
 
 The component can provide convenient named sections while still allowing arbitrary content where appropriate.
@@ -253,8 +254,8 @@ container()
                 user_table(),
             ])
             .footer([
-                button("Previous"),
-                button("Next"),
+                button().text("Previous"),
+                button().text("Next"),
             ]),
     ])
 ```

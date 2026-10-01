@@ -150,6 +150,11 @@ The project currently provides a standalone Bevy component library with a `Bever
 
 ## Getting started
 
+The executable API uses Bevy systems, messages, and Beverly's fluent
+`app().children([...])` composition. Some architecture prose below describes
+future AI-oriented concepts; those sketches are intentionally separate from
+the current compiling API.
+
 ### Installation
 
 ```toml

@@ -55,10 +55,10 @@ They are **reusable building blocks** intended to form the foundation of an appl
 A Button can be used once or a thousand times.
 
 ```rust id="1q5n8r"
-button("Save")
-button("Cancel")
-button("Delete")
-button("Create User")
+button().text("Save")
+button().text("Cancel")
+button().text("Delete")
+button().text("Create User")
 ```
 
 The same primitives can be composed into completely different interfaces without creating a new implementation for every screen.
@@ -68,14 +68,14 @@ The same primitives can be composed into completely different interfaces without
 Beverly views are built through composition.
 
 ```rust id="k4r7v2"
-card()
-    .padding(16)
-    .radius(12)
-    .children([
-        text("Welcome to Beverly"),
-        button("Get Started"),
-    ])
+button()
+    .text("Get Started")
+  .on("click", open_document)
 ```
+
+In the current Bevy implementation, `open_document` is an application function
+with signature `fn(&mut Commands, Entity)`. Use `app().children([...])` and the
+shared fluent composition API to build larger views.
 
 Components contain other components.
 
@@ -113,7 +113,7 @@ card()
     .radius(12)
     .children([
         text("Hello"),
-        button("Save"),
+        button().text("Save"),
     ])
 ```
 
@@ -150,9 +150,9 @@ Instead of every application inventing its own Button, Modal, Input, Dropdown, o
 A design system might define:
 
 ```rust id="m8w2qk"
-primary_button("Save")
-secondary_button("Cancel")
-danger_button("Delete")
+button().text("Save")
+button().text("Cancel")
+button().text("Delete")
 ```
 
 Those components can themselves be built on Beverly primitives.
@@ -186,13 +186,10 @@ Beverly primitives carry accessibility requirements as part of their contracts.
 For example, an interactive Button has an accessibility/ARIA requirement:
 
 ```rust id="v7q3kx"
-button("Save")
-    .aria("label", "Save")
+button().text("Save")
 ```
 
-If a component requires accessibility metadata and that requirement is not satisfied, Beverly can reject the application at compile time.
-
-That changes the accessibility workflow completely.
+The button plugin derives the accessible name from `.text(...)` or the first text child supplied to `.children(...)`. Application code should still test dynamic labels and semantic relationships with assistive technology.
 
 Instead of:
 
@@ -244,7 +241,7 @@ fn user_card(user: &UserModel) -> impl Component {
         .padding(16)
         .children([
             text(user.name()),
-            button("View Profile"),
+            button().text("View Profile"),
         ])
 }
 ```

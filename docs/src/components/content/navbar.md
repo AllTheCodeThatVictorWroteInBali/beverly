@@ -55,9 +55,7 @@ The three named sections are semantic conveniences for the most common Navbar la
 ```rust id="p4h8x2"
 navbar()
     .left([
-        button(localize("navigation.menu"))
-            .label(localize("navigation.menu.label"))
-            .aria(localize("navigation.menu.description")),
+        button().text(localize("navigation.menu")),
 
         text("My App"),
     ])
@@ -89,9 +87,7 @@ This distinction is important when building predictable application layouts.
 ```rust id="v5n1r6"
 navbar()
     .right([
-        button(localize("user.profile"))
-            .label(localize("user.profile.label"))
-            .aria(localize("user.profile.description")),
+        button().text(localize("user.profile")),
     ])
 ```
 
@@ -104,9 +100,7 @@ A common application Navbar might look like this:
 ```rust id="a2m8q4"
 navbar()
     .left([
-        button(localize("navigation.menu"))
-            .label(localize("navigation.menu.label"))
-            .aria(localize("navigation.menu.description")),
+        button().text(localize("navigation.menu")),
 
         text("Beverly"),
     ])
@@ -114,9 +108,7 @@ navbar()
         text("Dashboard"),
     ])
     .right([
-        button(localize("user.profile"))
-            .label(localize("user.profile.label"))
-            .aria(localize("user.profile.description")),
+        button().text(localize("user.profile")),
     ])
 ```
 
@@ -236,14 +228,10 @@ A navigation control can emit a UI Event or connect directly to an application C
 ```rust id="t6y2m4"
 navbar()
     .left([
-        button(localize("navigation.home"))
-            .label(localize("navigation.home.label"))
-            .aria(localize("navigation.home.description"))
+        button().text(localize("navigation.home"))
             .on("click", Command::Navigation::Home),
 
-        button(localize("navigation.settings"))
-            .label(localize("navigation.settings.label"))
-            .aria(localize("navigation.settings.description"))
+        button().text(localize("navigation.settings"))
             .on("click", Command::Navigation::Settings),
     ])
 ```
@@ -271,9 +259,7 @@ Higher-level pieces are ordinary Rust functions:
 fn user_actions() -> impl Component {
     row()
         .children([
-            button(localize("user.notifications"))
-                .label(localize("user.notifications.label"))
-                .aria(localize("user.notifications.description")),
+            button().text(localize("user.notifications")),
 
             avatar()
                 .src(user.avatar_url())
@@ -295,9 +281,7 @@ Interactive elements inside the Navbar should have their own accessible labels a
 ```rust id="e7m3k6"
 navbar()
     .left([
-        button(localize("navigation.menu"))
-            .label(localize("navigation.menu.label"))
-            .aria(localize("navigation.menu.description")),
+        button().text(localize("navigation.menu")),
     ])
     .center([
         text("Dashboard"),

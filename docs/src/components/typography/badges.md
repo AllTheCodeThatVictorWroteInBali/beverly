@@ -399,9 +399,7 @@ is informational.
 If the user needs to perform an action, use an interactive primitive:
 
 ```rust
-button(localize("user.manage"))
-    .label(localize("user.manage.label"))
-    .aria(localize("user.manage.description"))
+button().text(localize("user.manage"))
     .on("click", Command::User::Manage)
 ```
 
@@ -412,9 +410,7 @@ row()
     .children([
         text(User::name),
         badge(User::status),
-        button(localize("user.manage"))
-            .label(localize("user.manage.label"))
-            .aria(localize("user.manage.description"))
+        button().text(localize("user.manage"))
             .on("click", Command::User::Manage),
     ])
 ```

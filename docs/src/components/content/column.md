@@ -40,7 +40,7 @@ fn build_settings_column(mut commands: Commands) {
 		BeverlyStack::vertical(),
 	)).with_children(|column| {
 		column.spawn(BeverlyTitle::new("Workspace settings"));
-		column.spawn(BeverlyText::new("Manage the defaults for this workspace."));
+		column.spawn(text("Manage the defaults for this workspace."));
 		column.spawn(BeverlyInput::new("Workspace name"));
 		column.spawn(BeverlyButton::primary("Save changes"));
 	});

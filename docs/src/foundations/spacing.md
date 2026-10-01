@@ -49,13 +49,10 @@ That gives you several benefits:
 use bevy::prelude::*;
 use beverly::prelude::*;
 
-fn build_page(mut commands: Commands) {
-    commands.spawn(BeverlyStack::vertical())
-        .with_children(|parent| {
-            parent.spawn(BeverlyHeading::new("Overview"));
-            parent.spawn(BeverlyText::body("Key metrics and activity appear below."));
-            parent.spawn(BeverlyGrid::new().gap(Spacing::lg));
-        });
+fn build_page() {
+    app()
+        .children([text("Overview"), text("Key metrics and activity appear below.")])
+        .run();
 }
 ```
 
@@ -66,8 +63,8 @@ Here, the larger spacing separates the title block from the content area, while 
 ```rust
 fn build_card(mut commands: Commands) {
     commands.spawn(BeverlyCard::new("Deployment status")).with_children(|card| {
-        card.spawn(BeverlyText::new("All services are healthy."));
-        card.spawn(BeverlyText::new("Last updated 2 minutes ago"));
+        card.spawn(text("All services are healthy."));
+        card.spawn(text("Last updated 2 minutes ago"));
     });
 }
 ```
@@ -81,9 +78,9 @@ fn build_toolbar(mut commands: Commands) {
     commands.spawn(BeverlyStack::horizontal())
         .with_gap(Spacing::sm)
         .with_children(|toolbar| {
-            toolbar.spawn(BeverlyButton::new("Refresh"));
-            toolbar.spawn(BeverlyButton::new("Export"));
-            toolbar.spawn(BeverlyButton::new("Share"));
+            toolbar.spawn(button().text("Refresh"));
+            toolbar.spawn(button().text("Export"));
+            toolbar.spawn(button().text("Share"));
         });
 }
 ```

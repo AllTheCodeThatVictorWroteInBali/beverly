@@ -24,9 +24,7 @@ card()
     .children([
         text(localize("user.name")),
         text(localize("user.email")),
-        button(localize("user.edit"))
-            .label(localize("user.edit.label"))
-            .aria(localize("user.edit.description")),
+        button().text(localize("user.edit")),
     ])
 ```
 
@@ -52,9 +50,7 @@ card()
     .children([
         text(localize("user.profile")),
         text(localize("user.description")),
-        button(localize("user.edit"))
-            .label(localize("user.edit.label"))
-            .aria(localize("user.edit.description")),
+        button().text(localize("user.edit")),
     ])
 ```
 
@@ -86,14 +82,12 @@ card()
         text(localize("user.name")),
         text(localize("user.email")),
     ])
-    .footer(
-        button(localize("user.edit"))
-            .label(localize("user.edit.label"))
-            .aria(localize("user.edit.description"))
-    )
+    .footer(button().text(localize("user.edit")))
 ```
 
-Named sections are conveniences for common Card layouts. They do not replace `children()`.
+These sections are implemented by Beverly as child entities carrying
+`CardHeader`, `CardBody`, and `CardFooter` markers. They do not replace
+`children()`; content without a named section remains a normal card child.
 
 The same sections can accept one value or multiple values:
 

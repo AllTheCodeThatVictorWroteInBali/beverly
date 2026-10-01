@@ -57,7 +57,7 @@ fn build_summary_card(mut commands: Commands) {
         NodeBundle::default(),
         BeverlyCard::new("Team overview"),
     )).with_children(|card| {
-        card.spawn(BeverlyText::new("12 active tasks and 3 alerts pending"));
+        card.spawn(text("12 active tasks and 3 alerts pending"));
         card.spawn(BeverlyButton::secondary("View details"));
     });
 }
@@ -196,7 +196,7 @@ fn spawn_loading_state(mut commands: Commands) {
         NodeBundle::default(),
         BeverlyStatus::new("Uploading"),
     )).with_children(|status| {
-        status.spawn(BeverlyText::new("72% complete"));
+        status.spawn(text("72% complete"));
         if prefers_reduced_motion {
             status.insert(TransitionPolicy::Instant);
         } else {

@@ -1,5 +1,7 @@
 pub mod a11y;
+pub mod binding;
 pub mod clipboard;
+pub mod composition;
 pub mod focus;
 pub mod interaction;
 pub mod keyboard;

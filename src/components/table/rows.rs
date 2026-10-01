@@ -4,6 +4,7 @@ use crate::rendering::{Paint, Surface};
 use crate::components::text::{TextRole, ThemedText};
 
 use super::component::{TableCellLabel, TableCellNode, TableConfig, TableRow, TableRowNode};
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 
 pub(crate) fn spawn_row(
     parent: &mut ChildSpawnerCommands,
@@ -27,6 +28,7 @@ pub(crate) fn spawn_row(
                 row_index: index,
                 striped: config.striped,
             },
+            SemanticNode::new(SemanticRole::Row).label(row.id.clone()),
             Button,
             Node {
                 width: Val::Percent(100.0),
@@ -54,6 +56,7 @@ pub(crate) fn spawn_row(
                             row_id: row.id.clone(),
                             column_id: column.id.clone(),
                         },
+                        SemanticNode::new(SemanticRole::Cell).label(cell.text.clone()),
                         Button,
                         Node {
                             width: Val::Percent(column.width),

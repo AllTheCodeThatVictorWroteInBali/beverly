@@ -190,14 +190,10 @@ It commonly contains interactive components such as Buttons or other navigation 
 sidebar()
     .side(Side::Left)
     .children([
-        button(localize("navigation.home"))
-            .label(localize("navigation.home.label"))
-            .aria(localize("navigation.home.description"))
+        button().text(localize("navigation.home"))
             .on("click", Command::Navigation::Home),
 
-        button(localize("navigation.settings"))
-            .label(localize("navigation.settings.label"))
-            .aria(localize("navigation.settings.description"))
+        button().text(localize("navigation.settings"))
             .on("click", Command::Navigation::Settings),
     ])
 ```
@@ -255,9 +251,7 @@ Interactive elements inside the Sidebar remain responsible for their own accessi
 sidebar()
     .side(Side::Left)
     .children([
-        button(localize("navigation.home"))
-            .label(localize("navigation.home.label"))
-            .aria(localize("navigation.home.description"))
+        button().text(localize("navigation.home"))
             .on("click", Command::Navigation::Home),
     ])
 ```

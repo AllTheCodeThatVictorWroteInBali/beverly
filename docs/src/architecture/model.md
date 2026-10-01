@@ -2,16 +2,23 @@
 
 The **Model owns the application's data**.
 
-In Beverly, a Model is just Rust.
+In Beverly, a Model is a plain Rust data struct.
 
-There is no special Model language to learn and no separate state-management framework required. A Model is a normal Rust struct with familiar methods for reading and changing its data.
+There is no separate state-management framework or hidden ECS resource. The
+application owns how and where the value is stored and how domain methods are
+added.
 
 ```rust id="7x5j2k"
 struct UserModel {
     name: String,
     email: String,
 }
+```
 
+The struct is ordinary Rust. Add domain methods and validation in a normal
+`impl UserModel` block:
+
+```rust
 impl UserModel {
     fn name(&self) -> &str {
         &self.name
@@ -32,6 +39,15 @@ impl UserModel {
 ```
 
 That's a Beverly Model.
+
+```rust
+struct OtherModel {
+    value: u32,
+}
+```
+
+Models do not require a Beverly derive, macro, resource registration, or hidden
+runtime behavior.
 
 ## Familiar by Design
 

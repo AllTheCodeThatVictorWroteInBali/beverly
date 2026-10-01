@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
 use crate::rendering::{Paint, Surface};
+use crate::primitives::a11y;
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 
 // ============================================================
 // Button Group
@@ -184,6 +186,9 @@ pub fn spawn_button_group(
                     selected: button.selected,
                     disabled: button.disabled,
                 },
+                a11y::TabIndex(if button.disabled { -1 } else { 0 }),
+                SemanticNode::new(SemanticRole::Button)
+                    .label(button.label.clone()),
             ))
             .with_children(|parent| {
                 parent.spawn((
@@ -213,6 +218,8 @@ fn button_group_interaction(
             Entity,
             &mut ButtonGroupItem,
             &mut Surface,
+            &mut SemanticNode,
+            &mut a11y::TabIndex,
         ),
         With<Button>,
     >,
@@ -224,7 +231,7 @@ fn button_group_interaction(
             continue;
         }
 
-        let Ok((_, item, _)) = buttons.get(button_entity) else {
+        let Ok((_, item, _, _, _)) = buttons.get(button_entity) else {
             continue;
         };
         if item.disabled {
@@ -248,12 +255,14 @@ fn button_group_interaction(
             }
 
             ButtonGroupSelection::Single => {
-                for (other_entity, mut other, mut surface) in &mut buttons {
+                for (other_entity, mut other, mut surface, mut semantic, mut tab_index) in &mut buttons {
                     if other.group != item_group {
                         continue;
                     }
 
                     other.selected = other_entity == button_entity;
+                    semantic.state.selected = other.selected;
+                    tab_index.0 = if other.disabled { -1 } else { 0 };
 
                     surface.fill = Paint::solid(if other.selected {
                         Color::srgb(0.25, 0.25, 0.25)
@@ -262,8 +271,9 @@ fn button_group_interaction(
                     });
                 }
 
-                if let Ok((_, mut item, _)) = buttons.get_mut(button_entity) {
+                if let Ok((_, mut item, _, mut semantic, _)) = buttons.get_mut(button_entity) {
                     item.selected = true;
+                    semantic.state.selected = true;
                 }
 
                 events.write(ButtonGroupEvent {
@@ -275,11 +285,12 @@ fn button_group_interaction(
             }
 
             ButtonGroupSelection::Multiple => {
-                let Ok((_, mut item, _)) = buttons.get_mut(button_entity) else {
+                let Ok((_, mut item, _, mut semantic, _)) = buttons.get_mut(button_entity) else {
                     continue;
                 };
                 item.selected = !item.selected;
                 let selected = item.selected;
+                semantic.state.selected = selected;
 
                 events.write(ButtonGroupEvent {
                     group: item_group,

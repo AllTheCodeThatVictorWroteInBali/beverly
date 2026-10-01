@@ -1,5 +1,8 @@
 # Textarea
 
+> **Current status:** `.bind(...)` examples describe planned model-setter
+> integration and are not currently executable against the crate.
+
 `textarea()` is the multiline counterpart to `input()`.
 
 It follows the same patterns:
@@ -17,6 +20,18 @@ It follows the same patterns:
 - The Model remains the source of truth.
 
 The only fundamental difference is that `textarea()` is designed for multiline content.
+
+In the concrete Rust API, set the accessible name with
+`TextareaConfig::label(...)`. The placeholder is supplementary guidance, not
+a substitute for a label. When no accessible label is supplied, Beverly warns
+at spawn time instead of treating placeholder text as the name.
+
+```rust
+use beverly::components::textarea::TextareaConfig;
+
+let config = TextareaConfig::new("A short biography")
+    .label("Biography");
+```
 
 ## The Basic Textarea
 

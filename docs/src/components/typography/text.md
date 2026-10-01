@@ -1,5 +1,21 @@
 # Text
 
+Use `text("...")` as the canonical way to create ordinary text in a Beverly
+application:
+
+```rust
+app()
+	.children([text("Hello, Beverly!")])
+	.run();
+```
+
+The helper returns Bevy's `Text` component. Beverly's typography systems then
+apply the embedded default font and synchronize its size, color, shaping, and
+layout. Use `ThemedText` when the text needs a semantic role such as a heading,
+caption, or muted label. Add ordinary text to an application with
+`app().children([...])`; the app builder owns the root composition. Every
+composable Beverly element follows the same `.children([...])` convention.
+
 Text carries the supporting content around a title: explanations, labels, metadata, helper copy, and status details. It is the flexible, lower-emphasis counterpart to the title primitive and should inherit the active theme's typography rules.
 
 ## When to use
@@ -34,11 +50,10 @@ The active theme resolves the exact size and color for each role. Prefer a role 
 use bevy::prelude::*;
 use beverly::prelude::*;
 
-fn build_metadata(mut commands: Commands) {
-	commands.spawn((
-		Text::new("Last synced 2 minutes ago"),
-		ThemedText::new(TextRole::Caption),
-	));
+fn build_metadata() {
+	app()
+		.children([text("Last synced 2 minutes ago")])
+		.run();
 }
 ```
 
@@ -47,11 +62,9 @@ fn build_metadata(mut commands: Commands) {
 When a single piece of text genuinely needs a different treatment, use `.size(...)` or `.color(...)` on `ThemedText`. These overrides are local decisions and should not replace the shared role system:
 
 ```rust
-commands.spawn((
-	Text::new("Sync failed"),
-	ThemedText::new(TextRole::Body)
-		.color(Color::srgb(0.86, 0.2, 0.2)),
-));
+app()
+	.children([text("Sync failed")])
+	.run();
 ```
 
 Manual colors bypass the theme's default contrast choices, so verify them in every theme where the text appears. Font family is controlled through the `Typography` component or the application's global typography setup.

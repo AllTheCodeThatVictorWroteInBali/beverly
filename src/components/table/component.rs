@@ -7,6 +7,7 @@ use super::header::spawn_header;
 use super::rows::spawn_row;
 use crate::animation::loading::LoadingAssets;
 use crate::theme::ThemeResource;
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 
 const HEADER_FONT_SIZE: f32 = 14.0;
 const CELL_FONT_SIZE: f32 = 14.0;
@@ -183,14 +184,29 @@ impl Table {
 
     /// Spawns a table from already-normalized UI data.
     pub fn spawn(commands: &mut Commands, config: TableConfig) -> Entity {
+        let mut root = commands.spawn_empty();
+        let mut entity = None;
+        root.with_children(|parent| {
+            entity = Some(spawn_table_into(parent, config));
+        });
+        entity.expect("table spawn did not create an entity")
+    }
+
+    pub fn spawn_into(parent: &mut ChildSpawnerCommands, config: TableConfig) -> Entity {
+        spawn_table_into(parent, config)
+    }
+}
+
+fn spawn_table_into(parent: &mut ChildSpawnerCommands, config: TableConfig) -> Entity {
         let table_id = config.id.clone();
         let root_background = Color::srgba(1.0, 1.0, 1.0, 0.05);
 
-        let entity = commands
+        let entity = parent
             .spawn((
                 Table {
                     id: config.id.clone(),
                 },
+                SemanticNode::new(SemanticRole::Table).label(config.id.clone()),
                 Node {
                     width: Val::Percent(100.0),
                     flex_direction: FlexDirection::Column,
@@ -217,7 +233,6 @@ impl Table {
 
         entity
     }
-}
 
 fn table_visual_system(
     theme: Res<ThemeResource>,

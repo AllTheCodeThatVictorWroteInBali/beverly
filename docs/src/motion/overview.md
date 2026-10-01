@@ -4,81 +4,32 @@
 
 Motion in Beverly should do one job well: communicate change without stealing focus from the task at hand. Used sparingly, motion clarifies hierarchy, reinforces state, and preserves continuity across transitions. Used carelessly, it becomes decoration and increases cognitive load.
 
-## Core ideas
+## Beverly's Motion APIs
 
-- Motion should support understanding, not replace it
-- Transitions should be short, predictable, and reversible
-- Meaningful movement should follow user intent and system state
-- Motion must degrade gracefully when reduced-motion preferences are enabled
-- The motion system should feel consistent across components, screens, and themes
+`BeverlyPlugin` installs both `UiAnimationPlugin` and `UiMotionPlugin`. For a smaller custom setup, add the plugin that owns the behavior you need.
 
-## Principles
+Beverly provides two complementary mechanisms:
 
-- Use motion to reinforce state changes, not to announce them after the fact
-- Favor brief, direct animations over long or looping spectacle
-- Preserve context when UI changes, especially during navigation or filtering
-- Keep the motion system consistent across components so the interface feels coherent
-- Provide static alternatives for critical information when motion is reduced or disabled
-- Allow the user to feel control, not interruption
+- **Property transitions** animate a value toward a target using a duration, easing curve, and optional delay. Public target components currently cover `Surface`, `TextColor`, `Transform`, and a node's left position as a percentage. See [Transitions](./transitions.md).
+- **Enter and exit motion** uses the `UiMotion` component with built-in fade, fade-up, fade-down, and pop presets. See [Animation](./animation.md).
 
-## Motion categories
+The broader motion chapter also covers [scrolling](./scrolling.md), [loading](./loading.md), and [reduced motion](./reduced-motion.md). These patterns should work together: animation may clarify a change, but state, labels, focus, and layout must remain understandable without it.
 
-Beverly treats motion as a small set of related patterns:
+## Motion Principles
 
-1. Transitions for opening, closing, switching, and layout changes
-2. Animation for meaningful feedback such as press, focus, and status updates
-3. Scrolling for content flow, navigation, and viewport stability
-4. Loading states for long-running actions and deferred content
-5. Reduced-motion behavior for accessibility and calm interfaces
+- Tie movement to a user action or meaningful state change.
+- Keep similar interactions consistent in duration and easing.
+- Prefer short, direct transitions over looping or decorative movement.
+- Preserve reading position, focus, and orientation as content changes.
+- Ensure the resulting state is clear when motion is absent.
 
-These categories are not isolated features; they are part of a single motion language. A UI should feel coherent when a panel expands, a list updates, a button responds to input, and a loading layer appears.
+## Choosing A Duration
 
-## Recommended rhythm
+Use the shortest duration that makes a change legible. Beverly's default `Transition` is 140 ms with ease-out; built-in theme transition values are shorter for interaction feedback and modestly longer for modal changes. Treat these as a consistent baseline, not a requirement to animate every property.
 
-The system should feel responsive without feeling busy. Typical durations should stay within a narrow range so the interface feels intentional instead of inconsistent.
+Large layout changes should not rely on long travel distances or delayed starts. If movement competes with the content, reduce its distance or remove it.
 
-- micro-interactions: 120-180 ms
-- short transitions: 180-260 ms
-- larger layout changes: 260-400 ms
-- loading or background motion: avoid unless it adds meaning
+## Design Check
 
-This rhythm keeps motion subtle enough to feel polished while still being noticeable when the user needs to understand what changed.
-
-## When motion is appropriate
-
-Motion is most useful when it answers a real user question:
-
-- “What changed?”
-- “Where did focus go?”
-- “Is this action still in progress?”
-- “Am I moving through a known structure?”
-
-If the answer is unclear, the animation should be removed or simplified. A decorative move that does not communicate state is usually a liability.
-
-## Example behavior
-
-A panel expanding from collapsed to expanded state should:
-
-- animate height or opacity smoothly
-- maintain the user's reading position when possible
-- keep focus on the triggering control or the newly active content
-- avoid decorative loops that distract from the task
-
-On reduced-motion devices, the same state change should still be clear through structure, contrast, and timing alone, without requiring a visual flourish.
-
-## Design check
-
-Before shipping a motion pattern, ask:
-
-- Does it communicate state or hierarchy?
-- Is it fast enough to feel responsive?
-- Does it still make sense when motion is removed?
-- Does it preserve accessibility and readability?
-- Does it preserve user focus and orientation?
-
-If motion cannot pass those checks, it is usually better as a static transition or a small opacity change.
-
-## The product-level goal
-
-Motion should make the UI feel alive without making it feel noisy. In a well-designed product, motion helps the user understand continuity and intent. The best motion is evidence of thoughtfulness: it gives feedback, preserves context, and fades into the background when it is no longer needed.
+Before shipping a motion pattern, ask whether it communicates a real change, preserves focus and context, and remains clear when motion is reduced. If it fails any of those checks, simplify it or make the state change immediate.
 

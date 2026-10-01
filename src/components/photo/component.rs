@@ -61,7 +61,7 @@ impl Plugin for PhotoPlugin {
 }
 
 /// Spawn a photo component.
-pub fn spawn_photo(parent: &mut ChildSpawnerCommands, photo: Photo) {
+pub fn spawn_photo(parent: &mut ChildSpawnerCommands, photo: Photo) -> Entity {
     parent
         .spawn((
             Node {
@@ -97,7 +97,8 @@ pub fn spawn_photo(parent: &mut ChildSpawnerCommands, photo: Photo) {
                 },
                 PhotoImage,
             ));
-        });
+        })
+        .id()
 }
 
 fn update_photos(photos: Query<&Photo>, mut images: Query<&mut ImageNode, With<PhotoImage>>) {

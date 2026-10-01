@@ -34,7 +34,7 @@ use beverly::prelude::*;
 
 fn build_status_row(mut commands: Commands) {
 	commands.spawn(NodeBundle::default()).with_children(|row| {
-		row.spawn(BeverlyText::new("Sync status"));
+		row.spawn(text("Sync status"));
 		row.spawn(Badge::new("Up to date"));
 		row.spawn(BeverlyButton::secondary("Details"));
 	});

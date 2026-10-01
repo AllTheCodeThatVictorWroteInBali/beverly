@@ -117,9 +117,9 @@ fn fill_top_bar(
     new_navbars: Query<&NavbarSections, Added<NavbarSections>>,
 ) {
     for sections in &new_navbars {
-        add_to_left(&mut commands, sections, Text::new("Workspace"));
-        add_to_center(&mut commands, sections, Text::new("Library"));
-        add_to_right(&mut commands, sections, Text::new("Account"));
+        add_to_left(&mut commands, sections, text("Workspace"));
+        add_to_center(&mut commands, sections, text("Library"));
+        add_to_right(&mut commands, sections, text("Account"));
     }
 }
 ```

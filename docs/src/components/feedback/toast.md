@@ -1,5 +1,9 @@
 # Toast
 
+Toast supports the same fluent `.header(...)`, `.body(...)`, and
+`.footer(...)` section helpers as Card. The standalone `footer(...)` function
+creates the separate Footer component.
+
 A Toast is a transient notification presented as a floating Card.
 
 It is a composite component built from familiar Beverly primitives: a Card, content, a close Button, positioning, animation, and a timed lifecycle.
@@ -214,9 +218,7 @@ The Footer is useful for secondary actions or supporting information.
 ```rust id="y6p1r7"
 toast(ToastType::Info)
     .footer([
-        button(localize("user.undo"))
-            .label(localize("user.undo.label"))
-            .aria(localize("user.undo.description"))
+        button().text(localize("user.undo"))
             .on("click", Command::User::UndoDelete),
     ])
 ```
@@ -227,9 +229,7 @@ The Footer can contain multiple components:
 toast(ToastType::Info)
     .footer([
         text(localize("user.deleted")),
-        button(localize("user.undo"))
-            .label(localize("user.undo.label"))
-            .aria(localize("user.undo.description"))
+        button().text(localize("user.undo"))
             .on("click", Command::User::UndoDelete),
     ])
 ```

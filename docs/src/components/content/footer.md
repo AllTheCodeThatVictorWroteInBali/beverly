@@ -1,5 +1,15 @@
 # Footer
 
+The standalone Footer component is created with `footer(...)`. This is
+different from the `.footer(...)` content-section helper available on Card and
+Toast fluent elements.
+
+```rust
+app()
+    .children([footer(false, FooterConfig::default())])
+    .run();
+```
+
 A Footer is a layout primitive for organizing content along the bottom of an interface.
 
 It follows the same composition model as the Navbar, providing three named sections:
@@ -82,9 +92,7 @@ It does not simply follow the left section.
 ```rust id="p9w3k7"
 footer()
     .right([
-        button(localize("footer.settings"))
-            .label(localize("footer.settings.label"))
-            .aria(localize("footer.settings.description")),
+        button().text(localize("footer.settings")),
     ])
 ```
 
@@ -220,9 +228,7 @@ footer()
         text("© 2026 Beverly"),
     ])
     .right([
-        button(localize("footer.settings"))
-            .label(localize("footer.settings.label"))
-            .aria(localize("footer.settings.description"))
+        button().text(localize("footer.settings"))
             .on("click", Command::Settings::Open),
     ])
 ```
@@ -250,14 +256,10 @@ Higher-level pieces remain ordinary Rust functions:
 fn footer_links() -> impl Component {
     row()
         .children([
-            button(localize("footer.privacy"))
-                .label(localize("footer.privacy.label"))
-                .aria(localize("footer.privacy.description"))
+            button().text(localize("footer.privacy"))
                 .on("click", Command::Navigation::Privacy),
 
-            button(localize("footer.terms"))
-                .label(localize("footer.terms.label"))
-                .aria(localize("footer.terms.description"))
+            button().text(localize("footer.terms"))
                 .on("click", Command::Navigation::Terms),
         ])
 }
@@ -277,9 +279,7 @@ footer()
         text("© 2026 Beverly"),
     ])
     .right([
-        button(localize("footer.settings"))
-            .label(localize("footer.settings.label"))
-            .aria(localize("footer.settings.description")),
+        button().text(localize("footer.settings")),
     ])
 ```
 

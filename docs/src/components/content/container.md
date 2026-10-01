@@ -40,7 +40,7 @@ fn build_workspace_panel(mut commands: Commands) {
 		BeverlyContainer::new(),
 	)).with_children(|container| {
 		container.spawn(BeverlyTitle::new("Workspace"));
-		container.spawn(BeverlyText::new("Review the latest activity."));
+		container.spawn(text("Review the latest activity."));
 		container.spawn(BeverlyButton::primary("Open workspace"));
 	});
 }

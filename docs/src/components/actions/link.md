@@ -27,7 +27,7 @@ fn spawn_link(mut commands: Commands) {
             Surface::rounded_rect_fill(4.0, Paint::solid(Color::NONE)),
         ))
         .with_children(|parent| {
-            parent.spawn((LinkText, Text::new("Open report")));
+            parent.spawn((LinkText, text("Open report")));
         });
 }
 ```

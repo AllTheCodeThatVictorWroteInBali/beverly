@@ -6,8 +6,8 @@ This tutorial builds a tiny application with:
 
 - A reusable Button component
 - A Rust Model that owns application data
-- A typed Event
-- A Controller connecting the Event to the Model
+- A typed Bevy Message
+- A Controller plugin connecting the Message to application behavior
 - A View that reflects the Model
 - Built-in accessibility
 - A structure that is straightforward to test
@@ -17,7 +17,7 @@ The complete flow is:
 ```text
 View
   ↓
-Event
+Message
   ↓
 Controller
   ↓
@@ -57,16 +57,12 @@ use bevy::prelude::*;
 use beverly::prelude::*;
 
 fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .add_systems(Startup, setup)
+    app()
+        .window_size(960, 540)
+        .title("Hello, Beverly")
+        .theme(light_theme())
+        .children([text("Hello, Beverly!")])
         .run();
-}
-
-fn setup(mut commands: Commands) {
-    commands.spawn(
-        text("Hello, Beverly!")
-    );
 }
 ```
 
@@ -75,6 +71,19 @@ That's a Beverly application.
 There is no browser, JavaScript runtime, HTML document, or separate frontend server.
 
 Beverly runs as part of your native Rust application.
+
+`app()` owns the global application configuration. Configure the window, theme,
+font asset, and root children before calling `.run()`:
+
+```rust
+app()
+    .window_size(1280, 720)
+    .title("Workspace")
+    .font("fonts/Inter-Regular.ttf")
+    .theme(dark_theme())
+    .children([text("Workspace")])
+    .run();
+```
 
 ---
 
@@ -85,31 +94,28 @@ Beverly provides reusable UI primitives.
 Create a button:
 
 ```rust
-button("Click Me")
+button().text("Click Me")
 ```
 
 The same Button component can be reused throughout your application:
 
 ```rust
-button("Save")
-button("Cancel")
-button("Delete")
-button("Create User")
+button().text("Save")
+button().text("Cancel")
+button().text("Delete")
+button().text("Create User")
 ```
 
 Build a larger interface by composing components:
 
 ```rust
-card()
-    .padding(16)
-    .radius(12)
-    .children([
-        text("Welcome to Beverly"),
-        button("Get Started"),
-    ])
+app()
+  .children([button().text("Get Started")])
+  .run();
 ```
 
-`.children()` is one of Beverly's fundamental composition primitives.
+For button content, use `.children([ButtonChild::icon(...), ButtonChild::text(...)])`.
+Other Beverly components use the shared `app().children([...])` composition API.
 
 Build a primitive once. Compose and reuse it everywhere.
 
@@ -121,18 +127,13 @@ Accessibility is not an afterthought in Beverly.
 
 It is part of the component contract.
 
-For example, a button carries an accessibility/ARIA description as part of its definition:
+For example, a button gets its accessible name from its text content:
 
 ```rust
-button("Click Me")
-    .aria("label", "Click Me")
+button().text("Click Me")
 ```
 
-Beverly treats accessibility as a first-class requirement of the UI rather than something added during a final QA pass.
-
-For components that require accessibility metadata, omitting that metadata is a **compile-time error**.
-
-That means an inaccessible component cannot silently make its way into a production build.
+Beverly treats accessibility as a first-class runtime concern rather than something added during a final QA pass. The button plugin projects the text content into its semantic node; custom content should include a text child so assistive technology has a meaningful name.
 
 The goal is simple:
 
@@ -192,9 +193,9 @@ Now the invariant lives with the data rather than being scattered throughout the
 
 ---
 
-# 2.6 Your First Event
+# 2.6 Your First Message
 
-Events define the vocabulary of your application.
+Messages define the vocabulary of your application.
 
 Declare one:
 
@@ -204,64 +205,64 @@ event! {
 }
 ```
 
-The Event declaration is the authoritative definition of that interaction.
+The macro generates a Bevy `Message` type. Register it explicitly:
 
-Beverly can use it to generate the typed event infrastructure and machine-readable metadata needed by the rest of the system.
+```rust
+app.add_message::<App::Clicked>();
+```
 
 ---
 
 # 2.7 Connect the Button
 
-Bind the Button to the Event:
+Attach an explicit callback to the Button:
 
 ```rust
-button("Click Me")
-    .aria("label", "Click Me")
-    .on("click", Event::App::Clicked)
+fn click_button(commands: &mut Commands, _button: Entity) {
+  commands.write_message(App::Clicked);
+}
+
+button()
+  .text("Click Me")
+  .on("click", click_button)
 ```
 
-Now the Button doesn't need to know what clicking actually does.
-
-It simply emits the application's Event.
-
-That distinction becomes increasingly important as applications grow.
-
-A human can click the button.
-
-A keyboard shortcut can emit the same Event.
-
-Another application can emit the same Event.
-
-An AI agent can emit the same Event.
-
-They all enter the same application contract.
+The Button does not emit application messages automatically. The callback is
+the explicit attachment point; other inputs may write the same message through
+their own application systems.
 
 ---
 
 # 2.8 Your First Controller
 
-The Controller connects Events to behavior:
+The Controller connects Messages to behavior:
 
 ```rust
 controller! {
-    App::Clicked => Model::App::increment_clicks,
+  AppController {
+    App::Clicked => handle_click,
+  }
+}
+
+fn handle_click(_message: &App::Clicked) {
+  // Call the model's domain method here.
 }
 ```
 
-The Controller does not define the Event.
+The Controller does not define the Message.
 
-The Event was already defined by `event!`.
+The Message was already defined by `event!`.
 
 The Controller simply says:
 
-> When this Event occurs, run this action.
+> When this Message occurs, run this handler.
 
 This keeps the application's vocabulary separate from its wiring.
 
 The basic relationship is:
 
 ```text
-Event = Contract
+Message = Contract
 Controller = Connection
 Model = Owner
 View = Projection

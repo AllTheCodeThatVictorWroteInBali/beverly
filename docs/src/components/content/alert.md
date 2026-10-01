@@ -189,9 +189,7 @@ alert(AlertType::Warning)
     .children([
         text(localize("user.unsaved_changes")),
 
-        button(localize("user.save"))
-            .label(localize("user.save.label"))
-            .aria(localize("user.save.description"))
+        button().text(localize("user.save"))
             .on("click", Command::User::Save),
     ])
 ```
@@ -251,9 +249,7 @@ alert(AlertType::Warning)
     .children([
         text(localize("user.unsaved_changes")),
 
-        button(localize("user.save"))
-            .label(localize("user.save.label"))
-            .aria(localize("user.save.description"))
+        button().text(localize("user.save"))
             .on("click", Command::User::Save),
     ])
 ```
@@ -353,9 +349,7 @@ alert(AlertType::Warning)
     .children([
         text(localize("user.unsaved_changes")),
 
-        button(localize("user.save"))
-            .label(localize("user.save.label"))
-            .aria(localize("user.save.description"))
+        button().text(localize("user.save"))
             .on("click", Command::User::Save),
     ])
 ```
@@ -375,9 +369,7 @@ alert(AlertType::Info)
     .children([
         text(localize("user.profile_updated")),
 
-        button(localize("user.dismiss"))
-            .label(localize("user.dismiss.label"))
-            .aria(localize("user.dismiss.description"))
+        button().text(localize("user.dismiss"))
             .on("click", Command::Alert::Dismiss),
     ])
 ```

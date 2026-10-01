@@ -1,5 +1,8 @@
 # Checkbox
 
+> **Current status:** `.bind(...)` examples describe planned model-setter
+> integration and are not currently executable against the crate.
+
 `checkbox()` is the standard Beverly form element for boolean values.
 
 Like every Beverly form element, a checkbox requires:

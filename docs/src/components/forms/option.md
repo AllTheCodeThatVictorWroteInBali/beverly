@@ -1,5 +1,8 @@
 # Option
 
+> **Current status:** `.bind(...)` examples describe planned model-setter
+> integration and are not currently executable against the crate.
+
 `option()` represents a single available choice.
 
 It is primarily used inside `select()`, but the component is intentionally designed as a simple, composable representation of a value and its presentation.

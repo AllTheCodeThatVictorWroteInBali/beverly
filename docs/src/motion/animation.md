@@ -4,6 +4,30 @@
 
 Animation is useful when a small, purposeful movement makes a system response feel immediate and understandable. Beverly favors restrained motion over expressive, loop-heavy effects. The best animations in a design system feel like feedback, not performance.
 
+## Enter And Exit Motion
+
+Use `UiMotion` when an entity should animate as it appears or before it is removed. `UiMotion::fade()`, `UiMotion::fade_up()`, and `UiMotion::pop()` provide paired enter and exit settings; `UiMotion::new` and `UiMotionSpec` let you choose each side separately.
+
+```rust
+use bevy::prelude::*;
+use beverly::animation::motion::{UiMotion, UiMotionExitRequested};
+
+fn spawn_panel(mut commands: Commands) {
+	commands.spawn((
+		Node::default(),
+		UiMotion::fade_up(),
+	));
+}
+
+fn close_panel(mut commands: Commands, panel: Entity) {
+	commands.entity(panel).insert(UiMotionExitRequested);
+}
+```
+
+The enter animation begins when `UiMotion` is added. To play it again, call `restart_enter()` on the component. To animate removal, add `UiMotionExitRequested`; the exit phase then completes and despawns the entity and its children. An entity without an exit spec is removed immediately when an exit is requested.
+
+Presets affect opacity for solid `Surface` fills and `TextColor`, and use the node's top margin for vertical movement. The `Pop` preset uses a small vertical offset; it is not a scale animation. Configure enter and exit independently with `UiMotionSpec::fade`, `fade_up`, `fade_down`, or `pop`, and optionally add a delay with `.delay(seconds)`.
+
 ## Appropriate uses
 
 Animation is valuable for:
@@ -56,9 +80,9 @@ Avoid:
 
 The best motion is brief, clear, and aligned with the action it supports.
 
-## Reduced-motion fallback
+## Reduced-Motion Behavior
 
-When `prefers-reduced-motion` is active, suppress non-essential animation and rely on color, label, structure, and contrast to communicate state. A state change should remain understandable without the visual flourish.
+`UiMotion` enter/exit presets currently run independently of `AccessibilityVisualPolicyResource`; they are not automatically suppressed when reduced motion is enabled. If your application uses these presets, check the policy before attaching `UiMotion` or provide an immediate/static alternative. Property transitions have separate policy behavior described in [Transitions](./transitions.md).
 
-This is a critical design rule because animation should support the product’s meaning, not become a requirement for comprehension.
+Do not assume Beverly automatically detects the platform's `prefers-reduced-motion` setting. The shared policy can be initialized using `UI_REDUCED_MOTION` or set directly by the application. A state change must remain understandable without the visual flourish.
 

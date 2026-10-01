@@ -35,7 +35,7 @@ use beverly::prelude::*;
 
 fn build_panel_header(mut commands: Commands) {
 	commands.spawn((
-		Text::new("Project settings"),
+		text("Project settings"),
 		ThemedTitle::new(TitleLevel::H2),
 	));
 }
@@ -47,7 +47,7 @@ Prefer changing `TitleLevel` when the title's place in the hierarchy changes. Wh
 
 ```rust
 commands.spawn((
-	Text::new("Ready to publish"),
+	text("Ready to publish"),
 	ThemedTitle::new(TitleLevel::H3)
 		.size(24.0)
 		.color(Color::srgb(0.12, 0.45, 0.32)),

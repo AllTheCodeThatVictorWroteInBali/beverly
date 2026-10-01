@@ -1,12 +1,16 @@
 use bevy::prelude::*;
+use crate::primitives::a11y;
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
+#[cfg(feature = "file_dialog")]
 use rfd::FileDialog;
+#[cfg(feature = "file_dialog")]
+use std::thread;
 use std::{
     path::PathBuf,
     sync::{
         Mutex,
         mpsc::{self, Receiver, Sender},
     },
-    thread,
 };
 
 // ============================================================================
@@ -221,6 +225,7 @@ impl SelectedFile {
 
 struct PickerRequest {
     entity: Entity,
+    #[cfg(feature = "file_dialog")]
     input: FileInput,
 }
 
@@ -267,8 +272,24 @@ impl Plugin for FileInputPlugin {
                 process_file_picker_requests,
                 process_file_picker_results,
                 process_os_drag_and_drop,
+                activate_file_input,
             ),
         );
+    }
+}
+
+fn activate_file_input(
+    inputs: Query<(Entity, &Interaction, &FileInput), Changed<Interaction>>,
+    channels: Res<FilePickerChannels>,
+    mut opened: MessageWriter<FileInputOpened>,
+) {
+    for (entity, interaction, input) in &inputs {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+
+        open_file_input(entity, input, &channels);
+        opened.write(FileInputOpened { entity });
     }
 }
 
@@ -277,17 +298,40 @@ impl Plugin for FileInputPlugin {
 // ============================================================================
 
 pub fn spawn_file_input(commands: &mut Commands, input: FileInput) -> Entity {
-    commands.spawn((input, FileInputDragState::default())).id()
+    let label = input.label.clone();
+    commands
+        .spawn((
+            input,
+            FileInputDragState::default(),
+            Button,
+            a11y::TabIndex(0),
+            SemanticNode::new(SemanticRole::Button).label(label.clone()),
+            Node {
+                min_width: px(180),
+                min_height: px(42),
+                padding: UiRect::axes(px(14), px(10)),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BackgroundColor(Color::NONE),
+            crate::rendering::Surface::rounded_rect_fill(8.0, crate::rendering::Paint::solid(Color::NONE)),
+        ))
+        .with_children(|parent| {
+            parent.spawn(Text::new(label));
+        })
+        .id()
 }
 
 // ============================================================================
 // Open Native File Picker
 // ============================================================================
 
-pub fn open_file_input(entity: Entity, input: &FileInput, channels: &FilePickerChannels) {
+pub fn open_file_input(entity: Entity, _input: &FileInput, channels: &FilePickerChannels) {
     let _ = channels.request_sender.send(PickerRequest {
         entity,
-        input: input.clone(),
+        #[cfg(feature = "file_dialog")]
+        input: _input.clone(),
     });
 }
 
@@ -301,47 +345,58 @@ fn process_file_picker_requests(channels: Res<FilePickerChannels>) {
     };
 
     while let Ok(request) = requests.try_recv() {
-        let sender = channels.result_sender.clone();
+        #[cfg(feature = "file_dialog")]
+        {
+            let sender = channels.result_sender.clone();
 
-        thread::spawn(move || {
-            let mut dialog = FileDialog::new();
+            thread::spawn(move || {
+                let mut dialog = FileDialog::new();
 
-            let mut extensions = request.input.extensions.clone();
+                let mut extensions = request.input.extensions.clone();
 
-            if extensions.is_empty() {
-                for file_type in &request.input.accepted_types {
-                    extensions.extend(file_type.extensions().iter().map(|ext| ext.to_string()));
+                if extensions.is_empty() {
+                    for file_type in &request.input.accepted_types {
+                        extensions.extend(file_type.extensions().iter().map(|ext| ext.to_string()));
+                    }
                 }
-            }
 
-            extensions.sort();
-            extensions.dedup();
+                extensions.sort();
+                extensions.dedup();
 
-            if !extensions.is_empty() {
-                let labels = request
-                    .input
-                    .accepted_types
-                    .iter()
-                    .map(|t| t.label())
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                if !extensions.is_empty() {
+                    let labels = request
+                        .input
+                        .accepted_types
+                        .iter()
+                        .map(|t| t.label())
+                        .collect::<Vec<_>>()
+                        .join(", ");
 
-                let extension_refs: Vec<&str> = extensions.iter().map(String::as_str).collect();
+                    let extension_refs: Vec<&str> = extensions.iter().map(String::as_str).collect();
 
-                dialog = dialog.add_filter(&labels, &extension_refs);
-            }
+                    dialog = dialog.add_filter(&labels, &extension_refs);
+                }
 
-            let files = if request.input.multiple {
-                dialog.pick_files()
-            } else {
-                dialog.pick_file().map(|file| vec![file])
-            };
+                let files = if request.input.multiple {
+                    dialog.pick_files()
+                } else {
+                    dialog.pick_file().map(|file| vec![file])
+                };
 
-            let _ = sender.send(PickerResult {
-                entity: request.entity,
-                files,
+                let _ = sender.send(PickerResult {
+                    entity: request.entity,
+                    files,
+                });
             });
-        });
+        }
+
+        #[cfg(not(feature = "file_dialog"))]
+        {
+            let _ = channels.result_sender.send(PickerResult {
+                entity: request.entity,
+                files: None,
+            });
+        }
     }
 }
 
@@ -535,4 +590,23 @@ fn detect_file_type(path: &PathBuf) -> Option<FileType> {
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn explicit_extensions_override_media_defaults() {
+        let input = FileInput::new("Upload").images().extensions([".txt"]);
+        assert!(input.accepts(&PathBuf::from("notes.TXT")));
+        assert!(!input.accepts(&PathBuf::from("photo.png")));
+    }
+
+    #[test]
+    fn media_defaults_accept_case_insensitive_extensions() {
+        let input = FileInput::new("Upload").images();
+        assert!(input.accepts(&PathBuf::from("photo.JpEg")));
+        assert!(!input.accepts(&PathBuf::from("song.mp3")));
+    }
 }
