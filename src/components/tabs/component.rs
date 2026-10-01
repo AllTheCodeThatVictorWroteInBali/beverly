@@ -877,4 +877,11 @@ mod tests {
         let config = TabsConfig::new(vec![Tab::new("one", "One")]).with_active(1);
         assert_eq!(config.active, 1);
     }
+
+    #[test]
+    fn empty_tabs_have_a_safe_default_active_index() {
+        let config = TabsConfig::new(Vec::new());
+        assert_eq!(config.active, 0);
+        assert!(config.tabs.is_empty());
+    }
 }

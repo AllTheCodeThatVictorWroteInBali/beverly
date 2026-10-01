@@ -1,6 +1,6 @@
 # Navigation
 
-Beverly's navigation components provide layout and interactive controls. They do not impose a router or own the application's current page. Your app handles a navigation button's `Interaction::Pressed`, changes its own page state, and builds or updates the corresponding view.
+Beverly supports two complementary navigation styles. `Page`, `Layout`, and routed `Link` provide a small route registry for applications that want named pages and reusable shells. `NavButton` remains an app-owned interaction primitive for applications that manage page state themselves.
 
 The navigation pieces are:
 
@@ -8,7 +8,13 @@ The navigation pieces are:
 - `Sidebar` and `SidebarState` for a collapsible side navigation surface.
 - `NavButton` and `PageId` for page buttons used by the sidebar.
 
-> **The component reports the user's intent through interaction state. The application owns routing and page state.**
+> **Use `Page` and `Layout` for explicit routes. Use `NavButton` when the application owns page state.**
+
+## Routed Pages
+
+For the built-in route registry and page outlet API, see [Pages, Links, and Layouts](./navigation/pages.md). Pages are registered explicitly with `ui().pages([...])`; dynamic path segments use `:name`, and links can navigate to a matching route.
+
+`RouteState` exposes the active path, captured path parameters, and parsed query map as a resource. Each entity in the active page subtree also has a `RouteContext` component, queryable by child systems; context-aware builders can read it through `UiBuildContext::route_context()`. Query values are form-decoded. Routing is internal and does not synchronize with a browser address bar.
 
 ## Navigation Flow
 

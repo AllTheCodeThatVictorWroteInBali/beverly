@@ -489,4 +489,45 @@ mod tests {
         assert_eq!(offset_ltr, 0.0);
         assert!(offset_rtl > 0.0);
     }
+
+    #[test]
+    fn character_wrap_keeps_long_unbroken_text_within_each_line() {
+        let typography = base_typography();
+        let shaped = shaped_word("supercalifragilistic", 10.0);
+        let mut runs = to_runs(&shaped, typography.family.0.clone());
+        let metrics = derive_metrics(&typography);
+
+        let lines = break_lines(
+            &mut runs,
+            metrics,
+            30.0,
+            TextWrapping::CharacterWrap,
+            TextAlignment::Start,
+            TextDirection::Ltr,
+        );
+
+        assert!(lines.len() > 1);
+        assert!(lines.iter().all(|line| line.line_width <= 30.0));
+    }
+
+    #[test]
+    fn rtl_start_alignment_offsets_each_line_to_the_right() {
+        let typography = base_typography();
+        let shaped = ShapedText {
+            direction: TextDirection::Rtl,
+            ..shaped_word("אבג", 10.0)
+        };
+        let mut runs = to_runs(&shaped, typography.family.0.clone());
+        let metrics = derive_metrics(&typography);
+        break_lines(
+            &mut runs,
+            metrics,
+            60.0,
+            TextWrapping::NoWrap,
+            TextAlignment::Start,
+            TextDirection::Rtl,
+        );
+
+        assert_eq!(runs[0].glyphs[0].position.x, 30.0);
+    }
 }

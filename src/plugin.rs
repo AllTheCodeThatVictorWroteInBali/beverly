@@ -11,6 +11,7 @@ pub struct BeverlyPlugin;
 impl Plugin for BeverlyPlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_systems(PostStartup, ensure_default_ui_camera)
             // Rendering / theme foundation.
             .add_plugins(crate::rendering::UiRenderingPlugin)
             .add_plugins(crate::rendering::UiFrameworkAuditPlugin)
@@ -42,6 +43,7 @@ impl Plugin for BeverlyPlugin {
             .add_plugins(crate::components::footer::FooterPlugin)
             .add_plugins(crate::components::input::TextInputPlugin)
             .add_plugins(crate::components::link::LinkPlugin)
+            .add_plugins(crate::primitives::routing::RouterPlugin)
             .add_plugins(crate::components::list_item::ListItemPlugin)
             .add_plugins(crate::components::modal::ModalPlugin)
             .add_plugins(crate::components::navbar::NavbarPlugin)
@@ -63,5 +65,48 @@ impl Plugin for BeverlyPlugin {
             .add_plugins(crate::components::toast::ToastPlugin)
             .add_plugins(crate::components::toggle::TogglePlugin)
             .add_plugins(crate::components::tooltip::TooltipPlugin);
+    }
+}
+
+fn ensure_default_ui_camera(
+    mut commands: Commands,
+    cameras: Query<(), With<Camera2d>>,
+) {
+    if cameras.is_empty() {
+        commands.spawn((Camera2d, bevy::ui::IsDefaultUiCamera));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn creates_default_ui_camera_when_missing() {
+        let mut app = App::new();
+        app.add_systems(PostStartup, ensure_default_ui_camera);
+        app.update();
+
+        let camera_count = app
+            .world_mut()
+            .query_filtered::<Entity, With<bevy::ui::IsDefaultUiCamera>>()
+            .iter(app.world())
+            .count();
+        assert_eq!(camera_count, 1);
+    }
+
+    #[test]
+    fn preserves_an_existing_2d_camera() {
+        let mut app = App::new();
+        app.world_mut().spawn(Camera2d);
+        app.add_systems(PostStartup, ensure_default_ui_camera);
+        app.update();
+
+        let camera_count = app
+            .world_mut()
+            .query_filtered::<Entity, With<Camera2d>>()
+            .iter(app.world())
+            .count();
+        assert_eq!(camera_count, 1);
     }
 }

@@ -23,8 +23,8 @@ fn build_split_panel(mut commands: Commands) {
         NodeBundle::default(),
         BeverlySplit::horizontal(),
     )).with_children(|split| {
-        split.spawn(BeverlySidebar::new());
-        split.spawn(BeverlyMainPane::new());
+        split.spawn(NodeBundle::default());
+        split.spawn(NodeBundle::default());
     });
 }
 ```

@@ -130,10 +130,11 @@ pub fn update_gesture_arena(
                 }
             }
             InteractionEventType::PointerUp => {
-                let Some(state) = arena.by_pointer.remove(&event.pointer.pointer_id) else {
+                let Some(mut state) = arena.by_pointer.remove(&event.pointer.pointer_id) else {
                     continue;
                 };
 
+                state.latest_position = event.pointer.window_position;
                 let duration = (event.pointer.timestamp_secs - state.down_time_secs) as f32;
                 let moved = state.latest_position.distance(state.down_position);
 
@@ -215,5 +216,98 @@ pub fn update_gesture_arena(
             event.event_type,
             event.context.target
         ));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::primitives::interaction::{
+        InteractionEventContext, InteractionEventPhase, PointerEvent, PointerType,
+    };
+
+    fn app() -> App {
+        let mut app = App::new();
+        app.init_resource::<InteractionConfig>()
+            .init_resource::<GestureArenaState>()
+            .init_resource::<GestureArenaDebugFrame>()
+            .init_resource::<PressTracker>()
+            .init_resource::<PointerVelocityTracker>()
+            .add_message::<UiPointerEvent>()
+            .add_message::<PointerCaptureRequest>()
+            .add_message::<PointerReleaseRequest>()
+            .add_message::<GestureTapEvent>()
+            .add_message::<GestureDragEvent>()
+            .add_systems(Update, update_gesture_arena);
+        app
+    }
+
+    fn event(event_type: InteractionEventType, position: Vec2, timestamp: f64) -> UiPointerEvent {
+        UiPointerEvent {
+            event_type,
+            pointer: PointerEvent {
+                pointer_id: PointerId(1),
+                pointer_type: PointerType::Mouse,
+                window_position: position,
+                screen_position: position,
+                timestamp_secs: timestamp,
+                ..default()
+            },
+            context: InteractionEventContext {
+                target: Entity::from_bits(1),
+                current_target: Entity::from_bits(1),
+                phase: InteractionEventPhase::Target,
+                local_position: position,
+            },
+            propagation_stopped: false,
+            default_prevented: false,
+        }
+    }
+
+    #[test]
+    fn movement_below_slop_emits_a_tap_on_release() {
+        let mut app = app();
+        app.world_mut().write_message(event(InteractionEventType::PointerDown, Vec2::ZERO, 0.0));
+        app.world_mut().write_message(event(InteractionEventType::PointerMove, Vec2::new(4.0, 0.0), 0.1));
+        app.world_mut().write_message(event(InteractionEventType::PointerUp, Vec2::new(4.0, 0.0), 0.2));
+        app.update();
+
+        let taps: Vec<_> = app.world_mut().resource_mut::<Messages<GestureTapEvent>>().drain().collect();
+        let drags: Vec<_> = app.world_mut().resource_mut::<Messages<GestureDragEvent>>().drain().collect();
+        assert_eq!(taps.len(), 1);
+        assert_eq!(taps[0].count, 1);
+        assert!(drags.is_empty());
+    }
+
+    #[test]
+    fn movement_at_slop_starts_and_completes_a_drag_without_tap() {
+        let mut app = app();
+        app.world_mut().write_message(event(InteractionEventType::PointerDown, Vec2::ZERO, 0.0));
+        app.world_mut().write_message(event(InteractionEventType::PointerMove, Vec2::new(8.0, 0.0), 0.1));
+        app.world_mut().write_message(event(InteractionEventType::PointerUp, Vec2::new(12.0, 0.0), 0.2));
+        app.update();
+
+        let taps: Vec<_> = app.world_mut().resource_mut::<Messages<GestureTapEvent>>().drain().collect();
+        let drags: Vec<_> = app.world_mut().resource_mut::<Messages<GestureDragEvent>>().drain().collect();
+        assert!(taps.is_empty());
+        assert_eq!(drags.len(), 2);
+        assert!(!drags[0].ended && !drags[0].cancelled);
+        assert!(drags[1].ended && !drags[1].cancelled);
+        assert_eq!(drags[1].total_delta, Vec2::new(12.0, 0.0));
+    }
+
+    #[test]
+    fn cancelling_an_active_drag_emits_cancel_without_tap() {
+        let mut app = app();
+        app.world_mut().write_message(event(InteractionEventType::PointerDown, Vec2::ZERO, 0.0));
+        app.world_mut().write_message(event(InteractionEventType::PointerMove, Vec2::new(10.0, 0.0), 0.1));
+        app.world_mut().write_message(event(InteractionEventType::PointerCancel, Vec2::new(10.0, 0.0), 0.2));
+        app.update();
+
+        let taps: Vec<_> = app.world_mut().resource_mut::<Messages<GestureTapEvent>>().drain().collect();
+        let drags: Vec<_> = app.world_mut().resource_mut::<Messages<GestureDragEvent>>().drain().collect();
+        assert!(taps.is_empty());
+        assert_eq!(drags.len(), 2);
+        assert!(drags[1].cancelled && !drags[1].ended);
     }
 }

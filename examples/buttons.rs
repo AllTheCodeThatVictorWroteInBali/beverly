@@ -15,8 +15,6 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2d);
-
     commands
         .spawn(Node {
             display: Display::Flex,

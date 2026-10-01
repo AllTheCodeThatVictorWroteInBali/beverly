@@ -10,10 +10,5 @@ fn main() {
         .insert_resource(ThemeResource {
             current: light_theme(),
         })
-        .add_systems(Startup, setup)
         .run();
-}
-
-fn setup(mut commands: Commands) {
-    commands.spawn(Camera2d);
 }

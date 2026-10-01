@@ -13,24 +13,22 @@ use beverly::prelude::*;
 fn setup_ai_app(mut commands: Commands) {
     commands.spawn((
         NodeBundle::default(),
-        BeverlyChatShell::new(),
-        BeverlyTheme::dark(),
     )).with_children(|parent| {
-        parent.spawn(BeverlySidebar::new()).with_children(|sidebar| {
-            sidebar.spawn(BeverlyNavItem::new("Agents").active(true));
-            sidebar.spawn(BeverlyNavItem::new("Memory"));
-            sidebar.spawn(BeverlyNavItem::new("Permissions"));
+        parent.spawn(NodeBundle::default()).with_children(|sidebar| {
+            sidebar.spawn(BeverlyButton::primary("Agents"));
+            sidebar.spawn(BeverlyButton::secondary("Memory"));
+            sidebar.spawn(BeverlyButton::secondary("Permissions"));
         });
 
-        parent.spawn(BeverlyChatPane::new()).with_children(|chat| {
+        parent.spawn(NodeBundle::default()).with_children(|chat| {
             chat.spawn(BeverlyCard::new("Agent status")
                 .with_body("Ready to run analysis"));
             chat.spawn(BeverlyAlert::new("Permissions reviewed").variant(AlertVariant::Info));
-            chat.spawn(BeverlyMessage::from_user("Summarize the monthly report"));
-            chat.spawn(BeverlyMessage::from_agent("I highlighted the anomalies and the revenue delta."));
+            chat.spawn(Text::new("Summarize the monthly report"));
+            chat.spawn(Text::new("I highlighted the anomalies and the revenue delta."));
 
-            chat.spawn(BeverlyComposer::new()).with_children(|composer| {
-                composer.spawn(BeverlyInput::new("Prompt"));
+            chat.spawn(NodeBundle::default()).with_children(|composer| {
+                composer.spawn(TextInput::default());
                 composer.spawn(BeverlyButton::primary("Run task"));
                 composer.spawn(BeverlyButton::secondary("Attach"));
             });

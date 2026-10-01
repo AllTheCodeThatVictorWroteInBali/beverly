@@ -331,9 +331,12 @@ fn button_lifecycle_system(
 
 fn button_pointer_event_system(
     mut commands: Commands,
-    mut events: MessageReader<UiPointerEvent>,
+    events: Option<MessageReader<UiPointerEvent>>,
     buttons: Query<&BeverlyButton>,
 ) {
+    let Some(mut events) = events else {
+        return;
+    };
     for event in events.read() {
         let Ok(button) = buttons.get(event.context.target) else {
             continue;
@@ -477,7 +480,6 @@ fn button_visual_system(
     mut buttons: Query<(&BeverlyButton, &Interaction, &mut Surface, &mut Node)>,
     mut labels: Query<(&ButtonLabel, &mut TextColor)>,
     mut icons: Query<(&ButtonIcon, &mut IconNode)>,
-    owners: Query<(&BeverlyButton, &Interaction)>,
 ) {
     let colors = theme.current.colors;
 
@@ -491,14 +493,14 @@ fn button_visual_system(
     }
 
     for (label, mut text_color) in &mut labels {
-        if let Ok((button, interaction)) = owners.get(label.owner) {
+        if let Ok((button, interaction, _, _)) = buttons.get(label.owner) {
             let (_, _, foreground) = resolve_button_colors(button, colors, *interaction);
             text_color.0 = foreground;
         }
     }
 
     for (icon, mut icon_node) in &mut icons {
-        if let Ok((button, interaction)) = owners.get(icon.owner) {
+        if let Ok((button, interaction, _, _)) = buttons.get(icon.owner) {
             let (_, _, foreground) = resolve_button_colors(button, colors, *interaction);
             icon_node.color = foreground;
         }

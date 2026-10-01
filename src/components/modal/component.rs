@@ -1065,7 +1065,11 @@ impl Plugin for ModalPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::input::ButtonState;
+    use bevy::input::keyboard::{Key, KeyboardInput};
     use crate::primitives::focus::{FocusPlugin, FocusRejectReason, FocusRejected};
+    use crate::primitives::focus::FocusNavigationPolicy;
+    use crate::primitives::keyboard::KeyboardPlugin;
 
     fn modal_app() -> App {
         let mut app = App::new();
@@ -1075,6 +1079,12 @@ mod tests {
             .init_resource::<ButtonInput<MouseButton>>()
             .add_message::<InteractionActionEvent>()
             .add_plugins((FocusPlugin, ModalPlugin));
+        app
+    }
+
+    fn keyboard_modal_app() -> App {
+        let mut app = modal_app();
+        app.add_plugins((bevy::input::InputPlugin, KeyboardPlugin));
         app
     }
 
@@ -1328,6 +1338,72 @@ mod tests {
         app.update();
         assert!(!app.world().get::<FocusScope>(modal).unwrap().active);
         assert_eq!(app.world().resource::<InputFocus>().get(), Some(outside));
+    }
+
+    #[test]
+    fn directional_keyboard_navigation_stays_inside_open_modal() {
+        let mut app = keyboard_modal_app();
+        let outside = app.world_mut().spawn(a11y::TabIndex(0)).id();
+        let (modal, close) = mount(&mut app, false);
+        app.world_mut().entity_mut(modal).get_mut::<FocusScope>().unwrap().navigation_policy = FocusNavigationPolicy::Directional;
+        app.world_mut().entity_mut(close).insert((
+            ComputedNode::default(),
+            UiGlobalTransform::from_xy(0.0, 0.0),
+        ));
+        let next = app.world_mut().spawn((
+            Button,
+            a11y::TabIndex(0),
+            ComputedNode::default(),
+            UiGlobalTransform::from_xy(100.0, 0.0),
+            InheritedVisibility::VISIBLE,
+            ChildOf(modal),
+        )).id();
+
+        request(&mut app, outside);
+        app.update();
+        app.world_mut().write_message(ModalCommand::Open(modal));
+        app.update();
+        assert_eq!(app.world().resource::<InputFocus>().get(), Some(close));
+
+        app.world_mut().write_message(KeyboardInput {
+            key_code: KeyCode::ArrowRight,
+            logical_key: Key::ArrowRight,
+            state: ButtonState::Pressed,
+            text: None,
+            repeat: false,
+            window: close,
+        });
+        app.update();
+        assert_eq!(app.world().resource::<InputFocus>().get(), Some(next));
+
+        app.world_mut().write_message(KeyboardInput {
+            key_code: KeyCode::ArrowLeft,
+            logical_key: Key::ArrowLeft,
+            state: ButtonState::Pressed,
+            text: None,
+            repeat: false,
+            window: next,
+        });
+        app.update();
+        assert_eq!(app.world().resource::<InputFocus>().get(), Some(close));
+    }
+
+    #[test]
+    fn escape_does_not_close_modal_when_disabled() {
+        let mut app = keyboard_modal_app();
+        let outside = app.world_mut().spawn(a11y::TabIndex(0)).id();
+        let (modal, close) = mount(&mut app, false);
+        app.world_mut().get_mut::<Modal>(modal).unwrap().close_on_escape = false;
+        request(&mut app, outside);
+        app.update();
+        app.world_mut().write_message(ModalCommand::Open(modal));
+        app.update();
+        assert_eq!(app.world().resource::<InputFocus>().get(), Some(close));
+
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::Escape);
+        app.update();
+        assert!(app.world().get::<Modal>(modal).unwrap().open);
+        assert_eq!(app.world().resource::<InputFocus>().get(), Some(close));
     }
 
     #[test]

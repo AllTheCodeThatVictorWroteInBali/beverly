@@ -1,27 +1,23 @@
 # 15.1 Hello World
 
-This is the smallest useful Beverly app: start Bevy, add `BeverlyPlugin`, and render centered text.
+This is the smallest useful Beverly app: a root `Ui` composition with a centered,
+themed text node.
 
 ```rust
 use bevy::prelude::*;
-use beverly::components::text::TextRole;
-use beverly::prelude::{light_theme, BeverlyPlugin, ThemeResource, ThemedText};
+use beverly::prelude::*;
 
 fn main() {
-	App::new()
-		.add_plugins(DefaultPlugins)
-		.add_plugins(BeverlyPlugin)
-		.insert_resource(ThemeResource {
-			current: light_theme(),
-		})
-		.add_systems(Startup, setup)
-		.run();
+	App::new().ui(my_ui()).run();
 }
 
-fn main() {
-	app()
+fn my_ui() -> Ui {
+	ui()
+		.width(percent(100))
+		.height(percent(100))
+		.center()
+		.theme(light_theme())
 		.children([text("Hello, World!")])
-		.run();
 }
 ```
 

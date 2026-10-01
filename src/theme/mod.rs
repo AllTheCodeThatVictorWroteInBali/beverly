@@ -620,6 +620,20 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn theme_plugin_applies_requested_mode_at_runtime() {
+        let mut app = App::new();
+        app.add_plugins(ThemePlugin);
+
+        app.world_mut().write_message(ThemeChanged { mode: ThemeMode::Dark });
+        app.update();
+        assert_eq!(app.world().resource::<ThemeResource>().current.mode, ThemeMode::Dark);
+
+        app.world_mut().write_message(ThemeChanged { mode: ThemeMode::Light });
+        app.update();
+        assert_eq!(app.world().resource::<ThemeResource>().current.mode, ThemeMode::Light);
+    }
 }
 
 fn apply_theme_change(mut events: MessageReader<ThemeChanged>, mut theme: ResMut<ThemeResource>) {

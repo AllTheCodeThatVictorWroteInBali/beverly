@@ -858,9 +858,9 @@ fn apply_semantic_actions(
     mut checkboxes: Query<&mut CheckboxState>,
     mut toggles: Query<&mut Toggle>,
     mut sliders: Query<&mut Slider>,
-    mut checkbox_events: MessageWriter<CheckboxEvent>,
-    mut toggle_events: MessageWriter<ToggleEvent>,
-    mut slider_events: MessageWriter<SliderChanged>,
+    mut checkbox_events: Option<MessageWriter<CheckboxEvent>>,
+    mut toggle_events: Option<MessageWriter<ToggleEvent>>,
+    mut slider_events: Option<MessageWriter<SliderChanged>>,
 ) {
     for action_event in actions.read() {
         let target = action_event.target;
@@ -900,11 +900,13 @@ fn apply_semantic_actions(
                         state.checked = !state.checked;
                     }
 
-                    checkbox_events.write(CheckboxEvent::Changed {
-                        entity: target,
-                        checked: state.checked,
-                        indeterminate: state.indeterminate,
-                    });
+                    if let Some(events) = &mut checkbox_events {
+                        events.write(CheckboxEvent::Changed {
+                            entity: target,
+                            checked: state.checked,
+                            indeterminate: state.indeterminate,
+                        });
+                    }
                     continue;
                 }
 
@@ -914,10 +916,12 @@ fn apply_semantic_actions(
                     }
 
                     toggle.checked = !toggle.checked;
-                    toggle_events.write(ToggleEvent::Changed {
-                        entity: target,
-                        checked: toggle.checked,
-                    });
+                    if let Some(events) = &mut toggle_events {
+                        events.write(ToggleEvent::Changed {
+                            entity: target,
+                            checked: toggle.checked,
+                        });
+                    }
                 }
             }
             InteractionAction::Increment
@@ -947,11 +951,13 @@ fn apply_semantic_actions(
 
                 if (slider.value - next).abs() > f32::EPSILON {
                     slider.value = next;
-                    slider_events.write(SliderChanged {
-                        entity: target,
-                        value: next,
-                        dragging: false,
-                    });
+                    if let Some(events) = &mut slider_events {
+                        events.write(SliderChanged {
+                            entity: target,
+                            value: next,
+                            dragging: false,
+                        });
+                    }
                 }
             }
             _ => {}

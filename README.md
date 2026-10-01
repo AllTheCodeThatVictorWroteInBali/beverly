@@ -151,7 +151,7 @@ The project currently provides a standalone Bevy component library with a `Bever
 ## Getting started
 
 The executable API uses Bevy systems, messages, and Beverly's fluent
-`app().children([...])` composition. Some architecture prose below describes
+`App::new().ui(...)` composition. Some architecture prose below describes
 future AI-oriented concepts; those sketches are intentionally separate from
 the current compiling API.
 
@@ -172,22 +172,17 @@ use bevy::prelude::*;
 use beverly::prelude::*;
 
 fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugins(BeverlyPlugin)
-        .insert_resource(ThemeResource {
-            current: light_theme(),
-        })
-        .add_systems(Startup, setup)
-        .run();
+    App::new().ui(my_ui()).run();
 }
 
-fn setup(mut commands: Commands) {
-    commands.spawn(Camera2d);
+fn my_ui() -> Ui {
+    ui()
+        .theme(light_theme())
+        .children([text("Hello, World!")])
 }
 ```
 
-`BeverlyPlugin` wires up Beverly's component systems, rendering/material pipeline, theming, animation, and accessibility primitives.
+`App::ui(...)` wires up Beverly's component systems, rendering/material pipeline, theming, animation, and accessibility primitives, and spawns the `Ui` tree as the application's root. It also creates a default 2D UI camera when the app has not created one.
 
 ### Prelude
 

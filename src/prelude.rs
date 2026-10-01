@@ -7,7 +7,7 @@
 pub use crate::BeverlyPlugin;
 pub use crate::event;
 pub use crate::controller;
-pub use crate::app::{BeverlyApp, app};
+pub use crate::app::{app, ui, BeverlyApp, BeverlyAppExt, Ui};
 
 // Theme.
 pub use crate::theme::{ThemeMode, ThemePlugin, ThemeResource, dark_theme, light_theme};
@@ -26,12 +26,15 @@ pub use crate::primitives::a11y::A11yPlugin;
 pub use crate::primitives::binding::{BindingErrorState, BindingErrors, SetterBinding};
 pub use crate::primitives::clipboard::ClipboardPlugin;
 pub use crate::primitives::composition::{
-    footer, UiBuildContext, UiContextSetup, UiElement, UiElementSetup,
+    column, footer, row, UiBuildContext, UiContextSetup, UiElement, UiElementSetup,
 };
 pub use crate::primitives::focus::FocusPlugin;
 pub use crate::primitives::interaction::InteractionPlugin;
 pub use crate::primitives::keyboard::KeyboardPlugin;
 pub use crate::primitives::root::{AppRootSurface, ContentRoot, UiFonts};
+pub use crate::primitives::routing::{
+    layout, page, page_outlet, Layout, Page, RouteContext, RouteState, RouterPlugin,
+};
 pub use crate::primitives::semantic::{
     AnnouncementPriority, AriaDescription, SemanticNode, SemanticPlugin, SemanticRelationships, SemanticRole,
     SemanticSnapshotNode, SemanticState, SemanticTreeSnapshot, SemanticValue,
@@ -61,7 +64,7 @@ pub use crate::components::dropdown::{Dropdown, DropdownPlugin};
 pub use crate::components::file_input::{FileInput, FileInputPlugin};
 pub use crate::components::footer::{Footer, FooterPlugin};
 pub use crate::components::input::{TextInput, TextInputPlugin};
-pub use crate::components::link::{Link, LinkPlugin};
+pub use crate::components::link::{link, Link, LinkPlugin};
 pub use crate::components::list_item::{ListItem, ListItemPlugin};
 pub use crate::components::modal::{Modal, ModalPlugin};
 pub use crate::components::nav_button::NavButton;

@@ -5,10 +5,16 @@
 //! use bevy::prelude::*;
 //! use beverly::prelude::*;
 //!
-//! App::new()
-//!     .add_plugins(DefaultPlugins)
-//!     .add_plugins(BeverlyPlugin)
-//!     .run();
+//! fn main() {
+//!     App::new().ui(my_ui()).run();
+//! }
+//!
+//! fn my_ui() -> Ui {
+//!     ui()
+//!         .theme(light_theme())
+//!         .center()
+//!         .children([text("Hello, World!")])
+//! }
 //! ```
 
 pub mod animation;
@@ -20,6 +26,8 @@ pub mod prelude;
 pub mod primitives;
 pub mod rendering;
 pub mod theme;
+#[cfg(any(test, feature = "test-support"))]
+pub mod test_support;
 
 pub use plugin::BeverlyPlugin;
 

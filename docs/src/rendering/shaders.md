@@ -24,8 +24,6 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2d);
-
     let stops = vec![
         GradientStop::new(0.0, Color::srgb(0.10, 0.38, 0.72)),
         GradientStop::new(1.0, Color::srgb(0.20, 0.72, 0.62)),
@@ -47,7 +45,7 @@ fn setup(mut commands: Commands) {
 }
 ```
 
-`BeverlyPlugin` installs `UiRenderingPlugin`, which registers the material and embeds Beverly's WGSL asset. Add a Bevy UI `Node` to give the entity layout and size; add a `Surface` to give it shader-rendered appearance. The example uses only the public surface API: a rounded rectangle, a horizontal two-stop gradient, a border, and a small shadow.
+`BeverlyPlugin` installs `UiRenderingPlugin`, registers the material, embeds Beverly's WGSL asset, and creates a default 2D UI camera when the app has not supplied one. Add a Bevy UI `Node` to give the entity layout and size; add a `Surface` to give it shader-rendered appearance. The example uses only the public surface API: a rounded rectangle, a horizontal two-stop gradient, a border, and a small shadow.
 
 For the paint, border, shadow, blur, and glass APIs in more depth, see [Materials](materials.md), [Gradients](gradients.md), [Effects](effects.md), and [Liquid Glass](liquid-glass.md).
 

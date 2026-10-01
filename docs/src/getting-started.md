@@ -57,12 +57,14 @@ use bevy::prelude::*;
 use beverly::prelude::*;
 
 fn main() {
-    app()
-        .window_size(960, 540)
-        .title("Hello, Beverly")
+    App::new().ui(my_ui()).run();
+}
+
+fn my_ui() -> Ui {
+    ui()
         .theme(light_theme())
+        .center()
         .children([text("Hello, Beverly!")])
-        .run();
 }
 ```
 
@@ -72,17 +74,20 @@ There is no browser, JavaScript runtime, HTML document, or separate frontend ser
 
 Beverly runs as part of your native Rust application.
 
-`app()` owns the global application configuration. Configure the window, theme,
-font asset, and root children before calling `.run()`:
+`App::ui(...)` is the primary entry point: it installs `BeverlyPlugin`, applies
+the theme, and spawns your `Ui` tree as the application's root, so you never
+need to think in terms of entities, components, or startup systems. `ui()`
+returns a `Ui`, the root composition itself - configure layout, theme, and
+children before returning it:
 
 ```rust
-app()
-    .window_size(1280, 720)
-    .title("Workspace")
-    .font("fonts/Inter-Regular.ttf")
-    .theme(dark_theme())
-    .children([text("Workspace")])
-    .run();
+fn my_ui() -> Ui {
+    ui()
+        .width(percent(100))
+        .height(percent(100))
+        .theme(dark_theme())
+        .children([text("Workspace")])
+}
 ```
 
 ---
@@ -109,13 +114,13 @@ button().text("Create User")
 Build a larger interface by composing components:
 
 ```rust
-app()
-  .children([button().text("Get Started")])
-  .run();
+App::new()
+    .ui(ui().children([button().text("Get Started")]))
+    .run();
 ```
 
 For button content, use `.children([ButtonChild::icon(...), ButtonChild::text(...)])`.
-Other Beverly components use the shared `app().children([...])` composition API.
+Other Beverly components use the shared `ui().children([...])` composition API.
 
 Build a primitive once. Compose and reuse it everywhere.
 

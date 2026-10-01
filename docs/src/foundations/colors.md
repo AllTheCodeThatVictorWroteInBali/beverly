@@ -43,7 +43,7 @@ fn build_shell(mut commands: Commands) {
         BeverlyAppShell::new(),
         BeverlyTheme::dark(), // one theme controls all colors in the app
     )).with_children(|parent| {
-        parent.spawn(BeverlySidebar::new());
+        parent.spawn(NodeBundle::default());
         parent.spawn(button().text("Deploy"));
         parent.spawn(BeverlyAlert::success("Sync complete"));
     });

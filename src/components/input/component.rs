@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use unicode_segmentation::UnicodeSegmentation;
 use bevy::{
     input::{ButtonState, keyboard::KeyboardInput},
     ui::BorderColor,
@@ -523,7 +524,7 @@ fn text_input_keyboard(
         }
 
         if event.key_code == KeyCode::ArrowRight {
-            input.cursor = (input.cursor + 1).min(input.value.chars().count());
+            input.cursor = (input.cursor + 1).min(grapheme_count(&input.value));
             continue;
         }
 
@@ -533,7 +534,7 @@ fn text_input_keyboard(
         }
 
         if event.key_code == KeyCode::End {
-            input.cursor = input.value.chars().count();
+            input.cursor = grapheme_count(&input.value);
             continue;
         }
 
@@ -585,7 +586,7 @@ fn text_input_keyboard(
             }
 
             if let Some(max) = input.max_length {
-                let next_len = input.value.chars().count() + accepted.chars().count();
+                let next_len = grapheme_count(&input.value) + grapheme_count(&accepted);
                 if next_len >= max {
                     break;
                 }
@@ -598,9 +599,9 @@ fn text_input_keyboard(
             continue;
         }
 
-        let insert_at = byte_index_from_char_index(&input.value, input.cursor);
+        let insert_at = byte_index_from_grapheme_index(&input.value, input.cursor);
         input.value.insert_str(insert_at, &accepted);
-        input.cursor += accepted.chars().count();
+        input.cursor += grapheme_count(&accepted);
 
         events.write(TextInputEvent::Changed {
             entity,
@@ -811,12 +812,16 @@ fn allows_char(kind: TextInputKind, ch: char) -> bool {
     }
 }
 
-fn byte_index_from_char_index(value: &str, char_index: usize) -> usize {
+fn byte_index_from_grapheme_index(value: &str, grapheme_index: usize) -> usize {
     value
-        .char_indices()
-        .nth(char_index)
+        .grapheme_indices(true)
+        .nth(grapheme_index)
         .map(|(idx, _)| idx)
         .unwrap_or(value.len())
+}
+
+fn grapheme_count(value: &str) -> usize {
+    value.graphemes(true).count()
 }
 
 fn remove_char_before_cursor(value: &mut String, cursor: &mut usize) -> bool {
@@ -824,28 +829,31 @@ fn remove_char_before_cursor(value: &mut String, cursor: &mut usize) -> bool {
         return false;
     }
 
-    let end = byte_index_from_char_index(value, *cursor);
-    let start = byte_index_from_char_index(value, *cursor - 1);
+    let end = byte_index_from_grapheme_index(value, *cursor);
+    let start = byte_index_from_grapheme_index(value, *cursor - 1);
     value.replace_range(start..end, "");
     *cursor -= 1;
     true
 }
 
 fn remove_char_at_cursor(value: &mut String, cursor: usize) -> bool {
-    let len = value.chars().count();
+    let len = grapheme_count(value);
     if cursor >= len {
         return false;
     }
 
-    let start = byte_index_from_char_index(value, cursor);
-    let end = byte_index_from_char_index(value, cursor + 1);
+    let start = byte_index_from_grapheme_index(value, cursor);
+    let end = byte_index_from_grapheme_index(value, cursor + 1);
     value.replace_range(start..end, "");
     true
 }
 
 #[cfg(test)]
 mod tests {
-    use super::should_show_placeholder;
+    use super::{
+        byte_index_from_grapheme_index, grapheme_count, remove_char_at_cursor,
+        remove_char_before_cursor, should_show_placeholder,
+    };
 
     #[test]
     fn shows_placeholder_when_empty_and_unfocused() {
@@ -860,6 +868,27 @@ mod tests {
     #[test]
     fn hides_placeholder_when_value_is_present() {
         assert!(!should_show_placeholder("hello", false));
+    }
+
+    #[test]
+    fn grapheme_cursor_treats_emoji_sequence_as_one_character() {
+        let value = "A👨‍👩‍👧‍👦B";
+
+        assert_eq!(grapheme_count(value), 3);
+        assert_eq!(byte_index_from_grapheme_index(value, 1), 1);
+        assert_eq!(byte_index_from_grapheme_index(value, 2), value.len() - 1);
+    }
+
+    #[test]
+    fn deleting_combining_sequence_removes_the_whole_grapheme() {
+        let mut value = "e\u{301}x".to_string();
+        let mut cursor = 1;
+
+        assert!(remove_char_before_cursor(&mut value, &mut cursor));
+        assert_eq!(value, "x");
+        assert_eq!(cursor, 0);
+        assert!(remove_char_at_cursor(&mut value, cursor));
+        assert_eq!(value, "");
     }
 }
 

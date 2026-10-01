@@ -1,12 +1,17 @@
 //! Minimal "Hello, World!" example: a themed heading centered on screen.
 
+use bevy::prelude::*;
 use beverly::prelude::*;
 
 fn main() {
-    app()
-        .window_size(960, 540)
-        .title("Hello, Beverly")
+    App::new().ui(my_ui()).run();
+}
+
+fn my_ui() -> Ui {
+    ui()
+        .width(percent(100))
+        .height(percent(100))
+        .center()
         .theme(light_theme())
         .children([text("Hello, World!")])
-        .run();
 }

@@ -46,6 +46,10 @@ use crate::rendering::{Paint, Surface};
 /// A composable UI node used by fluent application builders.
 #[derive(Clone)]
 pub enum UiElement {
+    Container {
+        node: Node,
+        children: Vec<UiElement>,
+    },
     Text {
         value: Text,
         children: Vec<UiElement>,
@@ -139,10 +143,27 @@ pub fn footer(fixed: bool, config: FooterConfig) -> UiElement {
     UiElement::Footer { fixed, config }
 }
 
+pub fn row() -> UiElement {
+    UiElement::row()
+}
+
+pub fn column() -> UiElement {
+    UiElement::column()
+}
+
 /// World-backed context used while a fluent UI tree is being materialized.
 pub struct UiBuildContext<'w> {
     pub world: &'w mut World,
     pub parent: Entity,
+}
+
+impl UiBuildContext<'_> {
+    /// Returns the active page's route data while building routed content.
+    pub fn route_context(&self) -> Option<crate::primitives::routing::RouteContext> {
+        self.world
+            .get_resource::<crate::primitives::routing::RouteState>()
+            .map(crate::primitives::routing::RouteState::context)
+    }
 }
 
 fn spawn_with_children<F>(world: &mut World, parent: Entity, spawn: F) -> Entity
@@ -211,6 +232,36 @@ fn spawn_modal_section<M: Component>(
 }
 
 impl UiElement {
+    pub fn row() -> Self {
+        Self::Container {
+            node: Node {
+                width: percent(100),
+                flex_direction: FlexDirection::Row,
+                ..default()
+            },
+            children: Vec::new(),
+        }
+    }
+
+    pub fn column() -> Self {
+        Self::Container {
+            node: Node {
+                width: percent(100),
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+            children: Vec::new(),
+        }
+    }
+
+    pub fn gap(mut self, gap: Val) -> Self {
+        if let Self::Container { node, .. } = &mut self {
+            node.row_gap = gap;
+            node.column_gap = gap;
+        }
+        self
+    }
+
     pub fn custom(setup: UiElementSetup) -> Self {
         Self::Custom(setup)
     }
@@ -220,10 +271,36 @@ impl UiElement {
     }
 
     pub fn aria(self, description: impl Into<String>) -> Self {
-        Self::Aria {
-            element: Box::new(self),
-            description: description.into(),
+        let description = description.into();
+        match self {
+            Self::Link(link) => Self::Link(link.aria(description)),
+            element => Self::Aria {
+                element: Box::new(element),
+                description,
+            },
         }
+    }
+
+    pub fn to(mut self, path: impl Into<String>) -> Self {
+        if let Self::Link(link) = &mut self {
+            link.target_path = Some(path.into());
+        }
+        self
+    }
+
+    pub fn params<I, K, V>(mut self, params: I) -> Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: ToString,
+    {
+        if let Self::Link(link) = &mut self {
+            link.params = params
+                .into_iter()
+                .map(|(key, value)| (key.into(), value.to_string()))
+                .collect();
+        }
+        self
     }
 
     pub fn button() -> Self {
@@ -438,6 +515,7 @@ impl UiElement {
             | Self::Slider { .. }
             | Self::Avatar(_)
             | Self::Photo(_)
+            | Self::Container { .. }
             | Self::Card { .. }
             | Self::ListItem { .. }
             | Self::Form { .. }
@@ -465,8 +543,10 @@ impl UiElement {
     }
 
     pub fn icon(mut self, icon: &'static str) -> Self {
-        if let Self::Button { value, .. } = &mut self {
-            value.icon = Some(icon);
+        match &mut self {
+            Self::Button { value, .. } => value.icon = Some(icon),
+            Self::Link(value) => value.icon = Some(icon.to_string()),
+            _ => {}
         }
         self
     }
@@ -485,6 +565,7 @@ impl UiElement {
     pub fn disabled(mut self, disabled: bool) -> Self {
         match &mut self {
             Self::Button { value, .. } => value.disabled = disabled,
+            Self::Link(value) => value.disabled = disabled,
             Self::Checkbox { config } => config.disabled = disabled,
             Self::TextInput { config } => config.disabled = disabled,
             _ => {}
@@ -531,6 +612,9 @@ impl UiElement {
         I::Item: Into<UiElement>,
     {
         match &mut self {
+            Self::Container { children: current, .. } => {
+                current.extend(children.into_iter().map(Into::into));
+            }
             Self::Text { children: current, .. } => {
                 current.extend(children.into_iter().map(Into::into));
             }
@@ -581,6 +665,15 @@ impl UiElement {
     /// Spawns this element and its descendants below a Bevy UI parent.
     pub fn spawn(self, parent: &mut ChildSpawnerCommands) -> Entity {
         match self {
+            Self::Container { node, children } => {
+                let mut entity = parent.spawn(node);
+                entity.with_children(|parent| {
+                    for child in children {
+                        child.spawn(parent);
+                    }
+                });
+                entity.id()
+            }
             Self::Text { value, children } => {
                 let mut entity = parent.spawn(value);
                 entity.with_children(|parent| {
@@ -621,6 +714,7 @@ impl UiElement {
                         | UiElement::Tooltip(_)
                         | UiElement::Spinner(_)
                         | UiElement::Select(_)
+                        | UiElement::Container { .. }
                         | UiElement::Aria { .. } => continue,
                     });
                 }
@@ -682,6 +776,19 @@ impl UiElement {
     /// parent entity. This is the path used by `app().children(...)`.
     pub fn spawn_in_context(self, context: &mut UiBuildContext<'_>) -> Entity {
         match self {
+            Self::Container { node, children } => {
+                let entity = context
+                    .world
+                    .spawn((node, ChildOf(context.parent)))
+                    .id();
+                for child in children {
+                    child.spawn_in_context(&mut UiBuildContext {
+                        world: context.world,
+                        parent: entity,
+                    });
+                }
+                entity
+            }
             Self::Text { value, children } => {
                 let entity = context.world.spawn((value, ChildOf(context.parent))).id();
                 for child in children {

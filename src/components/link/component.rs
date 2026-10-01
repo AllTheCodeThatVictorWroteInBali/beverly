@@ -16,6 +16,9 @@ pub struct Link {
     pub text: String,
     pub icon: Option<String>,
     pub disabled: bool,
+    pub aria_description: Option<String>,
+    pub target_path: Option<String>,
+    pub params: Vec<(String, String)>,
 }
 
 impl Link {
@@ -24,6 +27,9 @@ impl Link {
             text: text.into(),
             icon: None,
             disabled: false,
+            aria_description: None,
+            target_path: None,
+            params: Vec::new(),
         }
     }
 
@@ -36,6 +42,56 @@ impl Link {
         self.disabled = disabled;
         self
     }
+
+    pub fn aria(mut self, description: impl Into<String>) -> Self {
+        self.aria_description = Some(description.into());
+        self
+    }
+
+    pub fn to(mut self, path: impl Into<String>) -> Self {
+        self.target_path = Some(path.into());
+        self
+    }
+
+    pub fn params<I, K, V>(mut self, params: I) -> Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: ToString,
+    {
+        self.params = params
+            .into_iter()
+            .map(|(key, value)| (key.into(), value.to_string()))
+            .collect();
+        self
+    }
+
+    pub(crate) fn resolved_target(&self) -> String {
+        let Some(path) = &self.target_path else {
+            return String::new();
+        };
+        let (path_part, query_part) = path
+            .split_once('?')
+            .map_or((path.as_str(), None), |(path, query)| (path, Some(query)));
+        let mut segments: Vec<String> = path_part.split('/').map(str::to_string).collect();
+        for segment in &mut segments {
+            if let Some(name) = segment.strip_prefix(':') {
+                if let Some((_, value)) = self.params.iter().find(|(key, _)| key == name) {
+                    *segment = value.clone();
+                }
+            }
+        }
+        let resolved_path = segments.join("/");
+        match query_part {
+            Some(query) if !query.is_empty() => format!("{resolved_path}?{query}"),
+            _ => resolved_path,
+        }
+    }
+}
+
+/// Creates a composable link element with the given visible text.
+pub fn link(text: impl Into<String>) -> crate::primitives::composition::UiElement {
+    crate::primitives::composition::UiElement::link(Link::new(text))
 }
 
 /// Optional child marker for the text portion.
@@ -51,6 +107,9 @@ pub struct LinkPlugin;
 
 impl Plugin for LinkPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::primitives::semantic::SemanticAccessibilityPlugin>() {
+            app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
+        }
         app.add_message::<LinkClicked>()
             .add_systems(
                 Update,
@@ -70,6 +129,11 @@ fn link_semantics_system(
             SemanticNode::new(SemanticRole::Link)
                 .label(link.text.clone()),
         ));
+        if let Some(description) = &link.aria_description {
+            commands
+                .entity(entity)
+                .insert(crate::primitives::semantic::AriaDescription(description.clone()));
+        }
     }
 }
 

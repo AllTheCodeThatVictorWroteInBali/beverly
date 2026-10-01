@@ -83,10 +83,10 @@ fn build_shell(mut commands: Commands) {
         NodeBundle::default(),
         BeverlyAppShell::new(),
     )).with_children(|parent| {
-        parent.spawn(BeverlySidebar::new()).with_children(|sidebar| {
-            sidebar.spawn(BeverlyNavItem::new("Overview").active(true));
-            sidebar.spawn(BeverlyNavItem::new("Reports"));
-            sidebar.spawn(BeverlyNavItem::new("Settings"));
+        parent.spawn(NodeBundle::default()).with_children(|sidebar| {
+            sidebar.spawn(BeverlyButton::primary("Overview"));
+            sidebar.spawn(BeverlyButton::secondary("Reports"));
+            sidebar.spawn(BeverlyButton::secondary("Settings"));
         });
 
         parent.spawn(BeverlyMainPane::new()).with_children(|main| {

@@ -1,8 +1,23 @@
 # Link
 
-`Link` is an interactive UI component that emits a `LinkClicked` message when pressed. It does not navigate to a URL or choose a destination by itself. Your application reads the message and decides what action to perform.
+`Link` is an interactive UI component that emits a `LinkClicked` message when pressed. A link can also carry a route target; when Beverly's router is installed, a target matching a registered `Page` changes the current page. Links without a route target remain app-owned actions.
 
-> **The Link reports an activation. The application owns its meaning and destination.**
+> **Visible text, accessible description, and route destination are separate values.**
+
+## Routed Link
+
+Use the `link()` fluent constructor in a `Ui` tree. `:name` segments are replaced by `.params(...)` values and matched against registered page routes:
+
+```rust
+link("View user")
+    .aria("Opens this user's profile")
+    .to("/users/:id")
+    .params([("id", user_id)])
+```
+
+The visible label is the text passed to `link()`. `.aria(...)` sets the accessible description, `.to(...)` sets the route target, and `.params(...)` supplies values for `:name` path segments. A routed link navigates when its resolved path matches a registered page; query strings on the target become that page's route query. `LinkClicked` is still emitted, so application-specific handlers can observe activations too. The active page's `RouteContext` exposes the path params and query to its child entities; see [Pages, Links, and Layouts](../navigation/pages.md).
+
+For page registration, route parameters, and layouts, see [Pages, Links, and Layouts](../navigation/pages.md).
 
 ## Basic Usage
 
@@ -59,7 +74,8 @@ use beverly::components::link::LinkClicked;
 fn handle_link_clicks(mut clicks: MessageReader<LinkClicked>) {
     for click in clicks.read() {
         info!("Link activated: {:?}", click.entity);
-        // Resolve the entity to an app route or action here.
+        // Handle application-specific actions here; registered route targets
+        // are handled by Beverly's router as well.
     }
 }
 ```
@@ -72,6 +88,9 @@ fn handle_link_clicks(mut clicks: MessageReader<LinkClicked>) {
 
 - `.icon(icon)` stores an optional icon name as a `String`.
 - `.disabled(disabled)` sets whether the link is disabled.
+- `.aria(description)` sets its accessible description.
+- `.to(path)` sets an optional registered route target.
+- `.params(values)` supplies values for `:name` path segments.
 
 These are consuming builder methods, so they can be chained:
 
@@ -109,4 +128,4 @@ The link entity needs a `Surface` for that background feedback. The visual syste
 
 ## Accessibility
 
-Give the link a meaningful visible label and preserve a logical keyboard order. Since `Link` does not supply a destination or accessible name independently of its UI children, make sure your composed entity exposes an appropriate accessible name and action in your application.
+The link's text supplies its accessible name, and `.aria(...)` supplies an optional accessible description. Keep the visible label meaningful and preserve a logical keyboard order. Route metadata does not replace either piece of accessibility information.

@@ -7,4 +7,5 @@ pub mod interaction;
 pub mod keyboard;
 pub mod placeholder;
 pub mod root;
+pub mod routing;
 pub mod semantic;

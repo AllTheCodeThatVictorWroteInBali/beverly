@@ -298,6 +298,31 @@ mod tests {
         state.set_page(99);
         assert_eq!(state.current_page, 3);
     }
+
+    #[test]
+    fn pagination_state_never_allows_zero_page_size_or_page_count() {
+        let mut state = PaginationState::new(0, 0);
+        assert_eq!(state.page_size, 1);
+        assert_eq!(state.total_pages, 1);
+        assert_eq!(state.current_page, 1);
+
+        state.set_page_size(0);
+        state.set_total_pages(0);
+        assert_eq!(state.page_size, 1);
+        assert_eq!(state.total_pages, 1);
+        assert_eq!(state.current_page, 1);
+    }
+
+    #[test]
+    fn reducing_total_pages_clamps_the_current_page() {
+        let mut state = PaginationState::new(10, 10);
+        state.set_page(10);
+        state.set_total_pages(2);
+
+        assert_eq!(state.current_page, 2);
+        assert!(!state.has_next());
+        assert!(state.has_previous());
+    }
 }
 
 fn spawn_pagination_button(
@@ -432,7 +457,7 @@ fn pagination_button_interaction(
 fn update_pagination_ui(
     theme: Option<Res<ThemeResource>>,
     pagination_query: Query<(Entity, &PaginationState, &PaginationStyleConfig), With<Pagination>>,
-    mut pagination_semantics: Query<&mut SemanticNode, With<Pagination>>,
+    mut pagination_semantics: Query<&mut SemanticNode, (With<Pagination>, Without<PaginationButton>)>,
     mut button_query: Query<
         (
             Entity,
@@ -444,7 +469,7 @@ fn update_pagination_ui(
             &mut a11y::TabIndex,
             &mut SemanticNode,
         ),
-        With<Button>,
+        (With<Button>, Without<Pagination>),
     >,
     mut label_query: Query<
         (&PaginationButtonLabel, &mut Text, &mut TextColor),

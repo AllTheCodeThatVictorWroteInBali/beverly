@@ -43,6 +43,7 @@
     - [Images](./components/images/image.md)
     - [Avatar](./components/images/avatar.md)
   - [Navigation](./components/navigation/overview.md)
+    - [Pages, Links, and Layouts](./components/navigation/pages.md)
     - [Navigation Guide](./components/navigation.md)
   - [Feedback](./components/feedback/overview.md)
     - [Alert](./components/content/alert.md)

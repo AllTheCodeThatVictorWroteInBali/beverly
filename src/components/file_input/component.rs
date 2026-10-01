@@ -609,4 +609,11 @@ mod tests {
         assert!(input.accepts(&PathBuf::from("photo.JpEg")));
         assert!(!input.accepts(&PathBuf::from("song.mp3")));
     }
+
+    #[test]
+    fn file_type_detection_rejects_unknown_and_missing_extensions() {
+        assert_eq!(detect_file_type(&PathBuf::from("photo.PNG")), Some(FileType::Image));
+        assert_eq!(detect_file_type(&PathBuf::from("archive.zip")), None);
+        assert_eq!(detect_file_type(&PathBuf::from("README")), None);
+    }
 }

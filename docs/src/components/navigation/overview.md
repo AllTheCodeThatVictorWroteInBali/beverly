@@ -1,5 +1,5 @@
 # Navigation
 
-Beverly provides navigation layout primitives and interactive sidebar controls. The components report user interaction; your application owns route state and page content.
+Beverly provides explicit `Page`, `Layout`, and `Link` primitives for in-app routing, alongside reusable navigation surfaces such as `Navbar`, `Sidebar`, and `NavButton`.
 
-See the [Navigation Guide](../navigation.md) for the `Navbar`, `Sidebar`, and `NavButton` APIs, event-triggered routing, and page enter/exit transitions.
+See [Pages, Links, and Layouts](./pages.md) for route registration and page outlets. The [Navigation Guide](../navigation.md) covers navigation surfaces, app-owned `NavButton` state, and page transitions.

@@ -325,4 +325,23 @@ mod tests {
         let advances: Vec<f32> = shaped.glyphs.iter().map(|glyph| glyph.advance).collect();
         assert!(advances[1] > advances[0]);
     }
+
+    #[test]
+    fn auto_direction_detects_rtl_paragraphs() {
+        assert_eq!(resolve_direction("שלום world", TextDirection::Auto), TextDirection::Rtl);
+        assert_eq!(resolve_direction("Hello עולם", TextDirection::Auto), TextDirection::Ltr);
+    }
+
+    #[test]
+    fn fallback_shape_preserves_unicode_byte_boundaries() {
+        let style = typography();
+        let content = "Aé🙂";
+        let shaped = fallback_shape(content, &style, TextDirection::Ltr);
+
+        assert_eq!(shaped.glyphs.len(), 3);
+        assert_eq!(shaped.glyphs[1].cluster.byte_start, 1);
+        assert_eq!(shaped.glyphs[1].cluster.byte_end, 3);
+        assert_eq!(shaped.glyphs[2].cluster.byte_start, 3);
+        assert_eq!(shaped.glyphs[2].cluster.byte_end, content.len());
+    }
 }

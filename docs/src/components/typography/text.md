@@ -4,16 +4,14 @@ Use `text("...")` as the canonical way to create ordinary text in a Beverly
 application:
 
 ```rust
-app()
-	.children([text("Hello, Beverly!")])
-	.run();
+ui().children([text("Hello, Beverly!")])
 ```
 
 The helper returns Bevy's `Text` component. Beverly's typography systems then
 apply the embedded default font and synchronize its size, color, shaping, and
 layout. Use `ThemedText` when the text needs a semantic role such as a heading,
 caption, or muted label. Add ordinary text to an application with
-`app().children([...])`; the app builder owns the root composition. Every
+`ui().children([...])`; the root `Ui` composition owns the application tree. Every
 composable Beverly element follows the same `.children([...])` convention.
 
 Text carries the supporting content around a title: explanations, labels, metadata, helper copy, and status details. It is the flexible, lower-emphasis counterpart to the title primitive and should inherit the active theme's typography rules.
@@ -50,10 +48,8 @@ The active theme resolves the exact size and color for each role. Prefer a role 
 use bevy::prelude::*;
 use beverly::prelude::*;
 
-fn build_metadata() {
-	app()
-		.children([text("Last synced 2 minutes ago")])
-		.run();
+fn my_ui() -> Ui {
+	ui().children([text("Last synced 2 minutes ago")])
 }
 ```
 
