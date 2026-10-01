@@ -34,6 +34,78 @@ Application
 
 The result is a native interface layer that can live alongside models, files, databases, devices, sensors, GPUs, and private data.
 
+## One Rust Ecosystem for AI
+
+A native AI application can keep its UI, application state, and inference orchestration in one Rust ecosystem. When the inference backend is integrated into the same process, generated output can flow directly to the UI without an IPC or HTTP boundary between separate application runtimes:
+
+```text
+            Rust
+            │
+      ┌─────────┴──────────┐
+      │                    │
+    Beverly              Inference
+     UI                   engine
+      │                    │
+      └─────────┬──────────┘
+            │
+         Application
+           state
+```
+
+That can make streamed output straightforward to represent. An inference task produces chunks; application state accumulates them, and the UI displays each update:
+
+```text
+model generates:
+
+"Hello"
+  ↓
+"Hello, "
+  ↓
+"Hello, world"
+  ↓
+"Hello, world!"
+```
+
+The UI and model remain separate responsibilities, but they can share typed messages and application state rather than repeatedly crossing a JavaScript, browser, or Electron boundary. The exact integration depends on the inference backend; a backend with a native library or Rust API can keep this path in-process.
+
+### A Lightweight Local AI App
+
+For a local-LLM application, the architecture might look like this:
+
+```text
+┌─────────────────────────────────────────────┐
+│                  Beverly                    │
+│                                             │
+│  Conversations │                           │
+│  ├─ Chat 1     │   Hello!                  │
+│  ├─ Chat 2     │                           │
+│  └─ Chat 3     │   ┌───────────────────┐   │
+│                │   │ Ask something... │   │
+│                │   └───────────────────┘   │
+├─────────────────────────────────────────────┤
+│              Application Core               │
+│                                             │
+│  Rust                                        │
+│  ├── model manager                           │
+│  ├── inference                               │
+│  ├── streaming                               │
+│  ├── conversation state                      │
+│  └── persistence                             │
+├─────────────────────────────────────────────┤
+│             Inference Backend                │
+│                                             │
+│       CPU / GPU / Metal / Vulkan             │
+├─────────────────────────────────────────────┤
+│                Local Model                   │
+│                                             │
+│             3B / 7B / 14B ...                │
+└─────────────────────────────────────────────┘
+```
+
+When the goal is to leave as much memory as possible for a local model, optimize the inference backend and model configuration first. Keeping UI overhead low is useful, but the model and inference runtime usually dominate memory; measure the complete application on the target hardware rather than assuming the UI is free or setting UI memory as the first optimization target.
+
+This makes a native Rust AI application with a relatively lightweight UI a practical architecture. The actual memory footprint depends on Beverly, Bevy, the chosen inference backend, and the model being loaded.
+
 ---
 
 ## Design principles
@@ -160,7 +232,7 @@ the current compiling API.
 ```toml
 [dependencies]
 bevy = "0.19"
-beverly = "0.1"
+beverly = "0.0.3"
 ```
 
 Beverly targets Bevy `0.19`.
