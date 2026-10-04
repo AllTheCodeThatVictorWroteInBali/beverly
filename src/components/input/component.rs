@@ -1,16 +1,16 @@
 use bevy::prelude::*;
-use unicode_segmentation::UnicodeSegmentation;
 use bevy::{
     input::{ButtonState, keyboard::KeyboardInput},
     ui::BorderColor,
 };
+use unicode_segmentation::UnicodeSegmentation;
 
+use crate::components::text::{TextRole, ThemedText};
+use crate::icons::{Icon, IconNode};
 use crate::primitives::a11y::{self, FocusGained, FocusLost};
 use crate::primitives::semantic::{SemanticNode, SemanticRole, SemanticValue};
-use crate::icons::{Icon, IconNode};
-use crate::components::text::{TextRole, ThemedText};
-use crate::theme::ThemeResource;
 use crate::rendering::{Border, GradientStop, LinearGradient as UiLinearGradient, Paint, Surface};
+use crate::theme::ThemeResource;
 #[derive(Component)]
 pub struct TextInput {
     pub value: String,
@@ -203,7 +203,10 @@ pub fn spawn_text_input(parent: &mut ChildSpawnerCommands, config: TextInputConf
         TextInputKind::Email => Some(crate::primitives::semantic::TextInputHint::Email),
         TextInputKind::Text | TextInputKind::Search => None,
     };
-    let accessible_label = config.accessible_label.clone().or_else(|| config.floating_label.clone());
+    let accessible_label = config
+        .accessible_label
+        .clone()
+        .or_else(|| config.floating_label.clone());
     if accessible_label.is_none() {
         bevy::log::warn!(
             "TextInput (placeholder {:?}) has no accessible name: call `.label(...)` so screen \
@@ -379,7 +382,9 @@ pub fn spawn_text_input(parent: &mut ChildSpawnerCommands, config: TextInputConf
                         ))
                         .with_children(|submit| {
                             submit.spawn((
-                                IconNode::new(Icon::feather("arrow-right")).size(14.0).color(Color::WHITE),
+                                IconNode::new(Icon::feather("arrow-right"))
+                                    .size(14.0)
+                                    .color(Color::WHITE),
                                 Node {
                                     width: px(14.0),
                                     height: px(14.0),

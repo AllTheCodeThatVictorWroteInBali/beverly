@@ -3,11 +3,11 @@ use bevy::{
     shader::ShaderRef,
 };
 
-use crate::rendering::{InnerShadow, Paint, Surface};
+use crate::components::text::{TextRole, ThemedText};
+use crate::icons::{Icon, IconNode};
 use crate::primitives::a11y;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
-use crate::icons::{Icon, IconNode};
-use crate::components::text::{TextRole, ThemedText};
+use crate::rendering::{InnerShadow, Paint, Surface};
 use crate::theme::{AccessibilityVisualPolicyResource, ThemeResource};
 
 // ============================================================
@@ -310,7 +310,11 @@ pub fn spawn_toggle(
                     BackgroundColor(Color::NONE),
                     Surface::rounded_rect_fill(
                         THUMB_SIZE * 0.5,
-                        Paint::solid(thumb_color(default_colors, config.disabled, Interaction::None)),
+                        Paint::solid(thumb_color(
+                            default_colors,
+                            config.disabled,
+                            Interaction::None,
+                        )),
                     ),
                 ))
                 .with_children(|thumb| {
@@ -542,7 +546,8 @@ fn toggle_visual_system(
 
         surface.fill = Paint::solid(track_color(palette, toggle.disabled, *interaction));
         if let Some(border) = surface.border.as_mut() {
-            border.paint = Paint::solid(track_inner_highlight_border(toggle.disabled, *interaction));
+            border.paint =
+                Paint::solid(track_inner_highlight_border(toggle.disabled, *interaction));
         }
         surface.effects.inner_shadow = Some(track_inner_shadow(toggle.disabled, *interaction));
     }

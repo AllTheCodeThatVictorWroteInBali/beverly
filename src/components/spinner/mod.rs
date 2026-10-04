@@ -1,3 +1,4 @@
+use crate::theme::AccessibilityVisualPolicyResource;
 use bevy::prelude::*;
 
 /// Reusable loading spinner.
@@ -54,16 +55,18 @@ pub struct SpinnerPlugin;
 
 impl Plugin for SpinnerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            animate_spinners.after(crate::icons::component::UiIconSyncSet::Sync),
-        );
+        app.init_resource::<AccessibilityVisualPolicyResource>()
+            .add_systems(
+                Update,
+                animate_spinners.after(crate::icons::component::UiIconSyncSet::Sync),
+            );
     }
 }
 
 /// Rotate every active spinner.
 fn animate_spinners(
     time: Res<Time>,
+    policy: Res<AccessibilityVisualPolicyResource>,
     mut spinners: Query<(&Spinner, Option<&SpinnerAnchor>, &mut Transform)>,
 ) {
     for (spinner, anchor, mut transform) in &mut spinners {
@@ -71,10 +74,45 @@ fn animate_spinners(
             continue;
         }
 
-        transform.rotate_z(spinner.speed * time.delta_secs());
+        if !policy.current.reduced_motion {
+            transform.rotate_z(spinner.speed * time.delta_secs());
+        }
 
         if let Some(anchor) = anchor {
             transform.translation = anchor.center - transform.rotation * anchor.offset;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::{AccessibilityVisualPolicy, AccessibilityVisualPolicyResource};
+
+    #[test]
+    fn reduced_motion_stops_decorative_spinner_rotation() {
+        let mut app = App::new();
+        app.insert_resource(Time::<()>::default())
+            .insert_resource(AccessibilityVisualPolicyResource {
+                current: AccessibilityVisualPolicy {
+                    reduced_motion: true,
+                    ..default()
+                },
+            })
+            .add_systems(Update, animate_spinners);
+        let entity = app
+            .world_mut()
+            .spawn((Spinner::default(), Transform::default()))
+            .id();
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_secs(1));
+
+        app.update();
+
+        assert_eq!(
+            app.world().get::<Transform>(entity).unwrap().rotation,
+            Quat::IDENTITY
+        );
     }
 }

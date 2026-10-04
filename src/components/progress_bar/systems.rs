@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use crate::rendering::{Paint, Surface};
 use super::{ProgressBar, ProgressBarFill};
+use crate::rendering::{Paint, Surface};
 use crate::theme::ThemeResource;
 
 pub fn update_progress_bars(

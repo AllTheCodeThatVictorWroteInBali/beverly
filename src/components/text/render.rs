@@ -26,7 +26,8 @@ pub struct TextRenderItem {
 
 fn ensure_text_render_item(world: &mut World) {
     let entities: Vec<Entity> = {
-        let mut query = world.query_filtered::<Entity, (With<Typography>, Without<TextRenderItem>)>();
+        let mut query =
+            world.query_filtered::<Entity, (With<Typography>, Without<TextRenderItem>)>();
         query.iter(world).collect()
     };
 
@@ -85,6 +86,9 @@ pub struct TextRenderItemPlugin;
 
 impl Plugin for TextRenderItemPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (ensure_text_render_item, build_render_items).chain());
+        app.add_systems(
+            Update,
+            (ensure_text_render_item, build_render_items).chain(),
+        );
     }
 }

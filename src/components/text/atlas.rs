@@ -74,7 +74,8 @@ struct ParsedFontCache {
 
 impl ParsedFontCache {
     fn retain_live_sources(&mut self) {
-        self.by_source.retain(|_, entry| entry.source.strong_count() > 0);
+        self.by_source
+            .retain(|_, entry| entry.source.strong_count() > 0);
     }
 
     fn get(&mut self, bytes: &Arc<Vec<u8>>) -> Option<&FontArc> {
@@ -159,7 +160,12 @@ impl GlyphAtlasCache {
         }
     }
 
-    fn allocate_in_page(page: &mut GlyphAtlasPage, width: u32, height: u32, padding: u32) -> Option<(u32, u32)> {
+    fn allocate_in_page(
+        page: &mut GlyphAtlasPage,
+        width: u32,
+        height: u32,
+        padding: u32,
+    ) -> Option<(u32, u32)> {
         let alloc_width = width.saturating_add(padding.saturating_mul(2));
         let alloc_height = height.saturating_add(padding.saturating_mul(2));
 
@@ -220,14 +226,20 @@ impl GlyphAtlasCache {
     ) -> GlyphAtlasRegion {
         self.ensure_defaults();
 
-        let min_size = glyph.width.max(glyph.height).saturating_add(self.padding * 2).max(2);
+        let min_size = glyph
+            .width
+            .max(glyph.height)
+            .saturating_add(self.padding * 2)
+            .max(2);
         if min_size > self.page_size {
             self.page_size = min_size.next_power_of_two();
         }
 
         let mut allocation = None;
         for (page_index, page) in self.pages.iter_mut().enumerate() {
-            if let Some((x, y)) = Self::allocate_in_page(page, glyph.width.max(1), glyph.height.max(1), self.padding) {
+            if let Some((x, y)) =
+                Self::allocate_in_page(page, glyph.width.max(1), glyph.height.max(1), self.padding)
+            {
                 allocation = Some((page_index as u32, x, y));
                 Self::blit_glyph(page, x, y, &glyph);
                 break;
@@ -236,8 +248,13 @@ impl GlyphAtlasCache {
 
         if allocation.is_none() {
             let mut page = Self::create_page(images, self.page_size);
-            let (x, y) = Self::allocate_in_page(&mut page, glyph.width.max(1), glyph.height.max(1), self.padding)
-                .unwrap_or((self.padding, self.padding));
+            let (x, y) = Self::allocate_in_page(
+                &mut page,
+                glyph.width.max(1),
+                glyph.height.max(1),
+                self.padding,
+            )
+            .unwrap_or((self.padding, self.padding));
             Self::blit_glyph(&mut page, x, y, &glyph);
             self.pages.push(page);
             allocation = Some(((self.pages.len() - 1) as u32, x, y));
@@ -433,8 +450,7 @@ mod tests {
     }
 
     fn real_font_bytes() -> Arc<Vec<u8>> {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("assets/fonts/SFNS.ttf");
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/fonts/SFNS.ttf");
         Arc::new(std::fs::read(&path).unwrap_or_else(|error| {
             panic!("real-font atlas tests require {}: {error}", path.display())
         }))
@@ -461,23 +477,32 @@ mod tests {
             .collect();
         let mut manager = TypographyFontManager::default();
         manager.register_face(
-            "SFNS", FontWeight::NORMAL, FontStyle::Normal, "fonts/SFNS.ttf",
-            Handle::default(), bytes,
+            "SFNS",
+            FontWeight::NORMAL,
+            FontStyle::Normal,
+            "fonts/SFNS.ttf",
+            Handle::default(),
+            bytes,
         );
         let mut world = World::new();
         world.insert_resource(manager);
         world.init_resource::<Assets<Image>>();
         world.init_resource::<GlyphAtlasCache>();
-        let entity = world.spawn((Typography::default(), TextLayoutBlock {
-            runs: vec![GlyphRun {
-                font_family: "SFNS".to_string(),
-                direction: TextDirection::Ltr,
-                script: None,
-                language: None,
-                glyphs,
-            }],
-            ..default()
-        })).id();
+        let entity = world
+            .spawn((
+                Typography::default(),
+                TextLayoutBlock {
+                    runs: vec![GlyphRun {
+                        font_family: "SFNS".to_string(),
+                        direction: TextDirection::Ltr,
+                        script: None,
+                        language: None,
+                        glyphs,
+                    }],
+                    ..default()
+                },
+            ))
+            .id();
         let mut schedule = Schedule::default();
         schedule.set_executor(bevy::ecs::schedule::SingleThreadedExecutor::new());
         if eager {
@@ -504,7 +529,8 @@ mod tests {
         cache.ensure_defaults();
         for (typography, layout) in &query {
             for run in &layout.runs {
-                let face = manager.resolve_face(&run.font_family, typography.weight, typography.style);
+                let face =
+                    manager.resolve_face(&run.font_family, typography.weight, typography.style);
                 for glyph in &run.glyphs {
                     let key = GlyphAtlasKey {
                         family: run.font_family.clone(),
@@ -512,19 +538,22 @@ mod tests {
                         font_size_bits: typography.font_size.to_bits(),
                         mode: GlyphRasterizationMode::Bitmap,
                     };
-                    let rasterized = face.and_then(|resolved| {
-                        if resolved.bytes.is_empty() {
-                            return None;
-                        }
-                        FONT_PARSES.with(|count| count.set(count.get() + 1));
-                        let font = FontArc::try_from_vec(resolved.bytes.as_ref().clone()).ok()?;
-                        Some(rasterize_glyph(&font, glyph.glyph_id, typography.font_size))
-                    }).unwrap_or(RasterizedGlyph {
-                        width: 1,
-                        height: 1,
-                        bearing: Vec2::ZERO,
-                        alpha: vec![255],
-                    });
+                    let rasterized = face
+                        .and_then(|resolved| {
+                            if resolved.bytes.is_empty() {
+                                return None;
+                            }
+                            FONT_PARSES.with(|count| count.set(count.get() + 1));
+                            let font =
+                                FontArc::try_from_vec(resolved.bytes.as_ref().clone()).ok()?;
+                            Some(rasterize_glyph(&font, glyph.glyph_id, typography.font_size))
+                        })
+                        .unwrap_or(RasterizedGlyph {
+                            width: 1,
+                            height: 1,
+                            bearing: Vec2::ZERO,
+                            alpha: vec![255],
+                        });
                     cache.touch_or_insert(&mut images, key, || rasterized);
                 }
             }
@@ -548,7 +577,11 @@ mod tests {
         for _ in 0..3 {
             schedule.run(&mut world);
         }
-        assert_eq!(work(), (0, 0), "warm text must not rasterize or parse fonts");
+        assert_eq!(
+            work(),
+            (0, 0),
+            "warm text must not rasterize or parse fonts"
+        );
         let cache = world.resource::<GlyphAtlasCache>();
         assert_eq!(cache.map, regions);
         assert_eq!(cache.cache_hits, hits + 3_000);
@@ -560,7 +593,10 @@ mod tests {
         for (page, original) in cache.pages.iter().zip(&pages) {
             assert!(!page.dirty);
             assert_eq!(&page.data, original);
-            assert_eq!(images.get(&page.image).unwrap().data.as_ref(), Some(original));
+            assert_eq!(
+                images.get(&page.image).unwrap().data.as_ref(),
+                Some(original)
+            );
         }
     }
 
@@ -615,7 +651,11 @@ mod tests {
         assert!(fonts.get(&bytes).is_some());
         assert!(fonts.get(&bytes.clone()).is_some());
         assert_eq!(work(), (0, 1));
-        assert_eq!(Arc::strong_count(&bytes), 1, "cache must not own source bytes");
+        assert_eq!(
+            Arc::strong_count(&bytes),
+            1,
+            "cache must not own source bytes"
+        );
         let replacement = Arc::new(bytes.as_ref().clone());
         assert!(fonts.get(&replacement).is_some());
         assert_eq!(work(), (0, 2));
@@ -686,9 +726,18 @@ mod tests {
         assert_eq!(after.page_count, before.page_count);
         for (a, b) in before.pages.iter().zip(&after.pages) {
             assert_eq!(a.data, b.data);
-            assert_eq!((a.cursor_x, a.cursor_y, a.row_height), (b.cursor_x, b.cursor_y, b.row_height));
-            assert_eq!(eager.resource::<Assets<Image>>().get(&a.image).unwrap().data,
-                lazy.resource::<Assets<Image>>().get(&b.image).unwrap().data);
+            assert_eq!(
+                (a.cursor_x, a.cursor_y, a.row_height),
+                (b.cursor_x, b.cursor_y, b.row_height)
+            );
+            assert_eq!(
+                eager
+                    .resource::<Assets<Image>>()
+                    .get(&a.image)
+                    .unwrap()
+                    .data,
+                lazy.resource::<Assets<Image>>().get(&b.image).unwrap().data
+            );
         }
     }
 
@@ -725,7 +774,8 @@ mod tests {
         let mut cold_work = (0, 0);
         let mut warm_work = (0, 0);
         for _ in 0..SAMPLES {
-            let (mut world, mut schedule, _) = fixture_with_reference(requests, bytes.clone(), eager);
+            let (mut world, mut schedule, _) =
+                fixture_with_reference(requests, bytes.clone(), eager);
             reset_work();
             let start = Instant::now();
             schedule.run(&mut world);
@@ -746,8 +796,14 @@ mod tests {
         }
         let cold_ms = median_ms(&mut cold);
         let warm_ms = median_ms(&mut warm);
-        println!("ATLAS eager={eager} requests={requests} unique=95 font_bytes={} samples={SAMPLES} warm_frames={WARM_FRAMES} cold_median_ms={cold_ms:.6} warm_median_ms={warm_ms:.6} cold_rasterizations={} cold_parses={} warm_rasterizations={} warm_parses={}",
-            bytes.len(), cold_work.0, cold_work.1, warm_work.0, warm_work.1);
+        println!(
+            "ATLAS eager={eager} requests={requests} unique=95 font_bytes={} samples={SAMPLES} warm_frames={WARM_FRAMES} cold_median_ms={cold_ms:.6} warm_median_ms={warm_ms:.6} cold_rasterizations={} cold_parses={} warm_rasterizations={} warm_parses={}",
+            bytes.len(),
+            cold_work.0,
+            cold_work.1,
+            warm_work.0,
+            warm_work.1
+        );
     }
 
     #[test]
@@ -788,7 +844,10 @@ mod tests {
             }
             samples.push(start.elapsed() / 100);
         }
-        println!("FONT_COPY_PARSE font_bytes={} samples=5 iterations=100 median_ms={:.6}",
-            bytes.len(), median_ms(&mut samples));
+        println!(
+            "FONT_COPY_PARSE font_bytes={} samples=5 iterations=100 median_ms={:.6}",
+            bytes.len(),
+            median_ms(&mut samples)
+        );
     }
 }

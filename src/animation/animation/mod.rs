@@ -2,33 +2,14 @@ use std::fmt::Debug;
 pub mod spring;
 use std::time::Duration;
 
-use bevy::{
-    color::LinearRgba,
-    prelude::*,
-};
+use bevy::{color::LinearRgba, prelude::*};
 
-use crate::rendering::{
-    AngularGradient,
-    Backdrop,
-    Border,
-    BorderWidths,
-    CornerRadii,
-    Decorations,
-    Effects,
-    FocusRing,
-    FocusRingLayer,
-    GradientStop,
-    InnerShadow,
-    LinearGradient,
-    OuterGlow,
-    OuterShadow,
-    Paint,
-    RadialGradient,
-    RoundedRect,
-    Shape,
-    Surface,
-};
 use crate::icons::IconNode;
+use crate::rendering::{
+    AngularGradient, Backdrop, Border, BorderWidths, CornerRadii, Decorations, Effects, FocusRing,
+    FocusRingLayer, GradientStop, InnerShadow, LinearGradient, OuterGlow, OuterShadow, Paint,
+    RadialGradient, RoundedRect, Shape, Surface,
+};
 use crate::theme::{AccessibilityVisualPolicyResource, ThemeResource};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -197,7 +178,9 @@ impl<T: Animatable> AnimationTrack<T> {
     pub fn is_active(&self) -> bool {
         matches!(
             self.state,
-            AnimationLifecycle::Pending | AnimationLifecycle::Running | AnimationLifecycle::Replaced
+            AnimationLifecycle::Pending
+                | AnimationLifecycle::Running
+                | AnimationLifecycle::Replaced
         )
     }
 
@@ -230,7 +213,10 @@ impl<T: Animatable> AnimationTrack<T> {
     }
 
     pub fn tick(&mut self, delta_secs: f32) -> bool {
-        if matches!(self.state, AnimationLifecycle::Completed | AnimationLifecycle::Cancelled) {
+        if matches!(
+            self.state,
+            AnimationLifecycle::Completed | AnimationLifecycle::Cancelled
+        ) {
             return false;
         }
 
@@ -606,7 +592,9 @@ fn sync_surface_transition_targets(
         let transition = target.transition.effective_for_policy(&policy);
 
         if let Some(mut existing_track) = existing_track {
-            if existing_track.0.target() != &target_surface || existing_track.0.transition() != transition {
+            if existing_track.0.target() != &target_surface
+                || existing_track.0.transition() != transition
+            {
                 existing_track.0.set_target(target_surface, transition);
             }
             continue;
@@ -636,7 +624,9 @@ fn sync_text_transition_targets(
         let transition = target.transition.effective_for_policy(&policy);
 
         if let Some(mut existing_track) = existing_track {
-            if existing_track.0.target() != &target_color || existing_track.0.transition() != transition {
+            if existing_track.0.target() != &target_color
+                || existing_track.0.transition() != transition
+            {
                 existing_track.0.set_target(target_color, transition);
             }
             continue;
@@ -644,7 +634,9 @@ fn sync_text_transition_targets(
 
         let mut track = AnimationTrack::from_value(current.0);
         track.set_target(target_color, transition);
-        commands.entity(entity).insert(TextColorAnimationTrack(track));
+        commands
+            .entity(entity)
+            .insert(TextColorAnimationTrack(track));
     }
 }
 
@@ -659,15 +651,21 @@ fn sync_icon_color_transition_targets(
 ) {
     for (entity, current, target, existing_track) in &mut query {
         if let Some(mut existing_track) = existing_track {
-            if existing_track.0.target() != &target.target || existing_track.0.transition() != target.transition {
-                existing_track.0.set_target(target.target, target.transition);
+            if existing_track.0.target() != &target.target
+                || existing_track.0.transition() != target.transition
+            {
+                existing_track
+                    .0
+                    .set_target(target.target, target.transition);
             }
             continue;
         }
 
         let mut track = AnimationTrack::from_value(current.color);
         track.set_target(target.target, target.transition);
-        commands.entity(entity).insert(IconColorAnimationTrack(track));
+        commands
+            .entity(entity)
+            .insert(IconColorAnimationTrack(track));
     }
 }
 
@@ -702,9 +700,15 @@ fn sync_transform_transition_targets(
                 || existing_track.scale.target() != &target_transform.scale
             {
                 existing_track.transition = transition;
-                existing_track.translation.set_target(target_transform.translation, transition);
-                existing_track.rotation.set_target(target_transform.rotation, transition);
-                existing_track.scale.set_target(target_transform.scale, transition);
+                existing_track
+                    .translation
+                    .set_target(target_transform.translation, transition);
+                existing_track
+                    .rotation
+                    .set_target(target_transform.rotation, transition);
+                existing_track
+                    .scale
+                    .set_target(target_transform.scale, transition);
             }
             continue;
         }
@@ -717,11 +721,14 @@ fn sync_transform_transition_targets(
                 continue;
             };
             Transform {
-                translation: ui.translation.resolve(
-                    1.0,
-                    computed.size() * computed.inverse_scale_factor(),
-                    render_target.logical_size(),
-                ).extend(0.0),
+                translation: ui
+                    .translation
+                    .resolve(
+                        1.0,
+                        computed.size() * computed.inverse_scale_factor(),
+                        render_target.logical_size(),
+                    )
+                    .extend(0.0),
                 rotation: Quat::from_rotation_z(ui.rotation.as_radians()),
                 scale: ui.scale.extend(1.0),
             }
@@ -769,7 +776,9 @@ fn sync_node_left_transition_targets(
         let target_percent = sanitize_finite(target.target_percent, current_left);
 
         if let Some(mut existing_track) = existing_track {
-            if existing_track.0.target() != &target_percent || existing_track.0.transition() != transition {
+            if existing_track.0.target() != &target_percent
+                || existing_track.0.transition() != transition
+            {
                 existing_track.0.set_target(target_percent, transition);
             }
             continue;
@@ -777,7 +786,9 @@ fn sync_node_left_transition_targets(
 
         let mut track = AnimationTrack::from_value(current_left);
         track.set_target(target_percent, transition);
-        commands.entity(entity).insert(NodeLeftPercentAnimationTrack(track));
+        commands
+            .entity(entity)
+            .insert(NodeLeftPercentAnimationTrack(track));
     }
 }
 
@@ -799,8 +810,10 @@ fn run_surface_animations(
             mark_dirty(&mut dirty, UiAnimationDirtyKind::EffectDirty);
         }
 
-        if matches!(track.0.state(), AnimationLifecycle::Completed | AnimationLifecycle::Cancelled)
-        {
+        if matches!(
+            track.0.state(),
+            AnimationLifecycle::Completed | AnimationLifecycle::Cancelled
+        ) {
             commands.entity(entity).remove::<SurfaceAnimationTrack>();
         }
     }
@@ -823,8 +836,10 @@ fn run_text_color_animations(
             mark_dirty(&mut dirty, UiAnimationDirtyKind::PaintDirty);
         }
 
-        if matches!(track.0.state(), AnimationLifecycle::Completed | AnimationLifecycle::Cancelled)
-        {
+        if matches!(
+            track.0.state(),
+            AnimationLifecycle::Completed | AnimationLifecycle::Cancelled
+        ) {
             commands.entity(entity).remove::<TextColorAnimationTrack>();
         }
     }
@@ -840,8 +855,10 @@ fn run_icon_color_animations(
             icon.color = *track.0.current();
         }
 
-        if matches!(track.0.state(), AnimationLifecycle::Completed | AnimationLifecycle::Cancelled)
-        {
+        if matches!(
+            track.0.state(),
+            AnimationLifecycle::Completed | AnimationLifecycle::Cancelled
+        ) {
             commands.entity(entity).remove::<IconColorAnimationTrack>();
         }
     }
@@ -873,7 +890,8 @@ fn run_transform_animations(
                     transform.translation = Val2::px(translation.x, translation.y);
                 }
                 if rotation_changed {
-                    transform.rotation = Rot2::radians(track.rotation.current().to_euler(EulerRot::XYZ).2);
+                    transform.rotation =
+                        Rot2::radians(track.rotation.current().to_euler(EulerRot::XYZ).2);
                 }
                 if scale_changed {
                     transform.scale = track.scale.current().truncate();
@@ -895,7 +913,8 @@ fn run_transform_animations(
             mark_dirty(&mut dirty, UiAnimationDirtyKind::TransformDirty);
         }
 
-        if !track.translation.is_active() && !track.rotation.is_active() && !track.scale.is_active() {
+        if !track.translation.is_active() && !track.rotation.is_active() && !track.scale.is_active()
+        {
             commands.entity(entity).remove::<TransformAnimationTrack>();
         }
     }
@@ -918,8 +937,10 @@ fn run_node_left_animations(
             mark_dirty(&mut dirty, UiAnimationDirtyKind::TransformDirty);
         }
 
-        if matches!(track.0.state(), AnimationLifecycle::Completed | AnimationLifecycle::Cancelled)
-        {
+        if matches!(
+            track.0.state(),
+            AnimationLifecycle::Completed | AnimationLifecycle::Cancelled
+        ) {
             commands
                 .entity(entity)
                 .remove::<NodeLeftPercentAnimationTrack>();
@@ -940,28 +961,36 @@ fn rebuild_animation_debug_registry(
         if !track.0.is_active() {
             continue;
         }
-        registry.active.push(debug_entry(entity, "surface", &track.0));
+        registry
+            .active
+            .push(debug_entry(entity, "surface", &track.0));
     }
 
     for (entity, track) in &text {
         if !track.0.is_active() {
             continue;
         }
-        registry.active.push(debug_entry(entity, "text_color", &track.0));
+        registry
+            .active
+            .push(debug_entry(entity, "text_color", &track.0));
     }
 
     for (entity, track) in &node_left {
         if !track.0.is_active() {
             continue;
         }
-        registry.active.push(debug_entry(entity, "node_left_percent", &track.0));
+        registry
+            .active
+            .push(debug_entry(entity, "node_left_percent", &track.0));
     }
 
     for (entity, track) in &transforms {
         if track.translation.is_active() {
-            registry
-                .active
-                .push(debug_entry(entity, "transform.translation", &track.translation));
+            registry.active.push(debug_entry(
+                entity,
+                "transform.translation",
+                &track.translation,
+            ));
         }
         if track.rotation.is_active() {
             registry
@@ -976,7 +1005,11 @@ fn rebuild_animation_debug_registry(
     }
 }
 
-fn debug_entry<T: Animatable>(entity: Entity, property: &'static str, track: &AnimationTrack<T>) -> UiAnimationDebugEntry {
+fn debug_entry<T: Animatable>(
+    entity: Entity,
+    property: &'static str,
+    track: &AnimationTrack<T>,
+) -> UiAnimationDebugEntry {
     UiAnimationDebugEntry {
         entity,
         property,
@@ -1052,7 +1085,12 @@ fn with_min_paint_alpha(paint: Paint, min_alpha: f32) -> Paint {
 
 fn with_min_alpha(color: Color, min_alpha: f32) -> Color {
     let linear = color.to_linear();
-    Color::linear_rgba(linear.red, linear.green, linear.blue, linear.alpha.max(min_alpha))
+    Color::linear_rgba(
+        linear.red,
+        linear.green,
+        linear.blue,
+        linear.alpha.max(min_alpha),
+    )
 }
 
 fn sample_cubic_bezier(x1: f32, y1: f32, x2: f32, y2: f32, p: f32) -> f32 {
@@ -1102,11 +1140,7 @@ fn cubic_bezier_derivative(t: f32, p0: f32, p1: f32, p2: f32, p3: f32) -> f32 {
 }
 
 fn sanitize_finite(value: f32, fallback: f32) -> f32 {
-    if value.is_finite() {
-        value
-    } else {
-        fallback
-    }
+    if value.is_finite() { value } else { fallback }
 }
 
 fn sanitize_non_negative(value: f32) -> f32 {
@@ -1194,7 +1228,11 @@ impl Animatable for LinearGradient {
             start: Vec2::interpolate(&from.start, &to.start, t),
             end: Vec2::interpolate(&from.end, &to.end, t),
             stops: interpolate_stops(&from.stops, &to.stops, t),
-            dithering: if sanitize_unit(t) >= 1.0 { to.dithering } else { from.dithering },
+            dithering: if sanitize_unit(t) >= 1.0 {
+                to.dithering
+            } else {
+                from.dithering
+            },
         }
     }
 }
@@ -1205,7 +1243,11 @@ impl Animatable for RadialGradient {
             center: Vec2::interpolate(&from.center, &to.center, t),
             radius: Vec2::interpolate(&from.radius, &to.radius, t),
             stops: interpolate_stops(&from.stops, &to.stops, t),
-            dithering: if sanitize_unit(t) >= 1.0 { to.dithering } else { from.dithering },
+            dithering: if sanitize_unit(t) >= 1.0 {
+                to.dithering
+            } else {
+                from.dithering
+            },
         }
     }
 }
@@ -1214,9 +1256,17 @@ impl Animatable for AngularGradient {
     fn interpolate(from: &Self, to: &Self, t: f32) -> Self {
         Self {
             center: Vec2::interpolate(&from.center, &to.center, t),
-            angle_radians: shortest_angle_lerp(from.angle_radians, to.angle_radians, sanitize_unit(t)),
+            angle_radians: shortest_angle_lerp(
+                from.angle_radians,
+                to.angle_radians,
+                sanitize_unit(t),
+            ),
             stops: interpolate_stops(&from.stops, &to.stops, t),
-            dithering: if sanitize_unit(t) >= 1.0 { to.dithering } else { from.dithering },
+            dithering: if sanitize_unit(t) >= 1.0 {
+                to.dithering
+            } else {
+                from.dithering
+            },
         }
     }
 }
@@ -1287,7 +1337,9 @@ impl Animatable for RoundedRect {
 impl Animatable for Shape {
     fn interpolate(from: &Self, to: &Self, t: f32) -> Self {
         match (from, to) {
-            (Self::RoundedRect(a), Self::RoundedRect(b)) => Self::RoundedRect(RoundedRect::interpolate(a, b, t)),
+            (Self::RoundedRect(a), Self::RoundedRect(b)) => {
+                Self::RoundedRect(RoundedRect::interpolate(a, b, t))
+            }
         }
     }
 }
@@ -1301,10 +1353,20 @@ impl Animatable for Backdrop {
             brightness: f32::interpolate(&from.brightness, &to.brightness, t),
             saturation: f32::interpolate(&from.saturation, &to.saturation, t),
             contrast: f32::interpolate(&from.contrast, &to.contrast, t),
-            quality: if sanitize_unit(t) >= 1.0 { to.quality } else { from.quality },
+            quality: if sanitize_unit(t) >= 1.0 {
+                to.quality
+            } else {
+                from.quality
+            },
             liquid_glass: match (from.liquid_glass, to.liquid_glass) {
                 (Some(a), Some(b)) => Some(crate::rendering::LiquidGlass::interpolate(&a, &b, t)),
-                _ => if sanitize_unit(t) >= 1.0 { to.liquid_glass } else { from.liquid_glass },
+                _ => {
+                    if sanitize_unit(t) >= 1.0 {
+                        to.liquid_glass
+                    } else {
+                        from.liquid_glass
+                    }
+                }
             },
         }
     }
@@ -1316,14 +1378,23 @@ impl Animatable for crate::rendering::LiquidGlass {
             thickness: f32::interpolate(&from.thickness, &to.thickness, t),
             bezel_width: f32::interpolate(&from.bezel_width, &to.bezel_width, t),
             refractive_index: f32::interpolate(&from.refractive_index, &to.refractive_index, t),
-            specular_intensity: f32::interpolate(&from.specular_intensity, &to.specular_intensity, t),
+            specular_intensity: f32::interpolate(
+                &from.specular_intensity,
+                &to.specular_intensity,
+                t,
+            ),
             specular_width: f32::interpolate(&from.specular_width, &to.specular_width, t),
             light_direction: Vec2::interpolate(&from.light_direction, &to.light_direction, t),
             fresnel: f32::interpolate(&from.fresnel, &to.fresnel, t),
-            chromatic_aberration: f32::interpolate(&from.chromatic_aberration, &to.chromatic_aberration, t),
+            chromatic_aberration: f32::interpolate(
+                &from.chromatic_aberration,
+                &to.chromatic_aberration,
+                t,
+            ),
             press_amount: f32::interpolate(&from.press_amount, &to.press_amount, t),
             ..if sanitize_unit(t) >= 1.0 { *to } else { *from }
-        }.sanitized()
+        }
+        .sanitized()
     }
 }
 
@@ -1335,7 +1406,11 @@ impl Animatable for OuterShadow {
             blur: f32::interpolate(&from.blur, &to.blur, t),
             spread: f32::interpolate(&from.spread, &to.spread, t),
             opacity: f32::interpolate(&from.opacity, &to.opacity, t),
-            falloff: if sanitize_unit(t) >= 1.0 { to.falloff } else { from.falloff },
+            falloff: if sanitize_unit(t) >= 1.0 {
+                to.falloff
+            } else {
+                from.falloff
+            },
         }
     }
 }
@@ -1347,7 +1422,11 @@ impl Animatable for OuterGlow {
             blur: f32::interpolate(&from.blur, &to.blur, t),
             spread: f32::interpolate(&from.spread, &to.spread, t),
             opacity: f32::interpolate(&from.opacity, &to.opacity, t),
-            falloff: if sanitize_unit(t) >= 1.0 { to.falloff } else { from.falloff },
+            falloff: if sanitize_unit(t) >= 1.0 {
+                to.falloff
+            } else {
+                from.falloff
+            },
         }
     }
 }
@@ -1360,7 +1439,11 @@ impl Animatable for InnerShadow {
             blur: f32::interpolate(&from.blur, &to.blur, t),
             spread: f32::interpolate(&from.spread, &to.spread, t),
             opacity: f32::interpolate(&from.opacity, &to.opacity, t),
-            falloff: if sanitize_unit(t) >= 1.0 { to.falloff } else { from.falloff },
+            falloff: if sanitize_unit(t) >= 1.0 {
+                to.falloff
+            } else {
+                from.falloff
+            },
         }
     }
 }
@@ -1427,7 +1510,11 @@ impl Animatable for Surface {
             border: interpolate_option(&from.border, &to.border, t),
             decorations: Decorations::interpolate(&from.decorations, &to.decorations, t),
             effects: Effects::interpolate(&from.effects, &to.effects, t),
-            noise: if sanitize_unit(t) >= 1.0 { to.noise } else { from.noise },
+            noise: if sanitize_unit(t) >= 1.0 {
+                to.noise
+            } else {
+                from.noise
+            },
             clip: if sanitize_unit(t) >= 1.0 {
                 to.clip.clone()
             } else {
@@ -1502,7 +1589,10 @@ pub fn should_animate_target<T: PartialEq>(current: &Option<T>, next: &T) -> boo
     !matches!(current, Some(existing) if existing == next)
 }
 
-pub fn themed_transition(theme: &ThemeResource, picker: fn(&crate::theme::ThemeTransitions) -> Transition) -> Transition {
+pub fn themed_transition(
+    theme: &ThemeResource,
+    picker: fn(&crate::theme::ThemeTransitions) -> Transition,
+) -> Transition {
     picker(&theme.current.transitions)
 }
 
@@ -1514,7 +1604,7 @@ pub mod transform_layout_test_support {
         app::{HierarchyPropagatePlugin, PropagateSet},
         camera::{ComputedCameraValues, RenderTargetInfo},
         text::FontCx,
-        ui::{ui_surface::UiSurface, ui_layout_system, update::propagate_ui_target_cameras},
+        ui::{ui_layout_system, ui_surface::UiSurface, update::propagate_ui_target_cameras},
     };
 
     pub fn app(scale_factor: f32) -> App {
@@ -1528,7 +1618,10 @@ pub mod transform_layout_test_support {
         .init_resource::<UiScale>()
         .init_resource::<UiSurface>()
         .init_resource::<FontCx>()
-        .add_systems(PostUpdate, (propagate_ui_target_cameras, ui_layout_system).chain())
+        .add_systems(
+            PostUpdate,
+            (propagate_ui_target_cameras, ui_layout_system).chain(),
+        )
         .configure_sets(
             PostUpdate,
             PropagateSet::<ComputedUiTargetCamera>::default()
@@ -1563,15 +1656,18 @@ pub mod transform_layout_test_support {
         for point in [Vec2::ZERO, Vec2::X, Vec2::Y] {
             let actual = actual.transform_point2(point);
             let expected = expected.transform_point2(point);
-            assert!((actual - expected).length() < 0.002, "{actual:?} != {expected:?}");
+            assert!(
+                (actual - expected).length() < 0.002,
+                "{actual:?} != {expected:?}"
+            );
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::transform_layout_test_support::{app as layout_app, assert_global};
+    use super::*;
     use bevy::math::Affine2;
 
     fn transform_app(scale_factor: f32) -> App {
@@ -1582,7 +1678,9 @@ mod tests {
     }
 
     fn advance(app: &mut App, delta: f32) {
-        app.world_mut().resource_mut::<UiAnimationClock>().set_fixed_step(delta);
+        app.world_mut()
+            .resource_mut::<UiAnimationClock>()
+            .set_fixed_step(delta);
         app.update();
     }
 
@@ -1602,28 +1700,49 @@ mod tests {
                     rotation: Quat::from_rotation_z(0.6),
                     scale: Vec3::new(1.4, 0.8, 1.0),
                 };
-                let entity = app.world_mut().spawn((
-                    Node { width: px(100.0), height: px(80.0), ..default() },
-                    TransformTransitionTarget::new(target, transition(1000, Easing::Linear)),
-                    UiAnimationDirtyFlags::default(),
-                )).id();
+                let entity = app
+                    .world_mut()
+                    .spawn((
+                        Node {
+                            width: px(100.0),
+                            height: px(80.0),
+                            ..default()
+                        },
+                        TransformTransitionTarget::new(target, transition(1000, Easing::Linear)),
+                        UiAnimationDirtyFlags::default(),
+                    ))
+                    .id();
                 // Node requires UiTransform, not Transform: no legacy component needed.
                 assert!(app.world().get::<Transform>(entity).is_none());
                 for delta in deltas {
                     advance(&mut app, *delta);
                 }
-                assert_eq!(app.world().get::<ComputedNode>(entity).unwrap().size(), Vec2::new(100.0, 80.0) * scale_factor);
-                assert_global(&app, entity, Affine2::from_scale_angle_translation(
-                    Vec2::new(1.2, 0.9), 0.3,
-                    Vec2::new(70.0, 30.0) * scale_factor,
-                ));
-                assert!(app.world().get::<UiAnimationDirtyFlags>(entity).unwrap().contains(UiAnimationDirtyKind::TransformDirty));
+                assert_eq!(
+                    app.world().get::<ComputedNode>(entity).unwrap().size(),
+                    Vec2::new(100.0, 80.0) * scale_factor
+                );
+                assert_global(
+                    &app,
+                    entity,
+                    Affine2::from_scale_angle_translation(
+                        Vec2::new(1.2, 0.9),
+                        0.3,
+                        Vec2::new(70.0, 30.0) * scale_factor,
+                    ),
+                );
+                assert!(
+                    app.world()
+                        .get::<UiAnimationDirtyFlags>(entity)
+                        .unwrap()
+                        .contains(UiAnimationDirtyKind::TransformDirty)
+                );
 
                 // A dropped frame past the end must apply the exact final pose
                 // before removing the track; layout must see it in this frame.
                 advance(&mut app, 2.0);
                 let final_pose = Affine2::from_scale_angle_translation(
-                    target.scale.truncate(), 0.6,
+                    target.scale.truncate(),
+                    0.6,
                     Vec2::new(90.0, 20.0) * scale_factor,
                 );
                 assert_global(&app, entity, final_pose);
@@ -1638,32 +1757,67 @@ mod tests {
     fn transform_ui_starts_from_visible_pose_and_retargets_without_jump() {
         let mut app = transform_app(2.0);
         let legacy = Transform::from_xyz(900.0, 800.0, 7.0);
-        let entity = app.world_mut().spawn((
-            Node { width: px(100.0), height: px(80.0), ..default() },
-            UiTransform::from_translation(Val2::percent(20.0, 25.0)),
-            legacy,
-        )).id();
+        let entity = app
+            .world_mut()
+            .spawn((
+                Node {
+                    width: px(100.0),
+                    height: px(80.0),
+                    ..default()
+                },
+                UiTransform::from_translation(Val2::percent(20.0, 25.0)),
+                legacy,
+            ))
+            .id();
         advance(&mut app, 0.0); // Resolve responsive starting offsets via layout.
-        app.world_mut().entity_mut(entity).insert(TransformTransitionTarget::new(
-            Transform::from_xyz(60.0, 40.0, 0.0),
-            transition(1000, Easing::Linear).with_delay(Duration::from_millis(100)),
-        ));
+        app.world_mut()
+            .entity_mut(entity)
+            .insert(TransformTransitionTarget::new(
+                Transform::from_xyz(60.0, 40.0, 0.0),
+                transition(1000, Easing::Linear).with_delay(Duration::from_millis(100)),
+            ));
         advance(&mut app, 0.05);
-        assert_global(&app, entity, Affine2::from_translation(Vec2::new(140.0, 120.0)));
+        assert_global(
+            &app,
+            entity,
+            Affine2::from_translation(Vec2::new(140.0, 120.0)),
+        );
         advance(&mut app, 0.55);
-        assert_global(&app, entity, Affine2::from_translation(Vec2::new(180.0, 140.0)));
-        app.world_mut().entity_mut(entity).insert(TransformTransitionTarget::new(
-            Transform::IDENTITY, transition(1000, Easing::Linear),
-        ));
+        assert_global(
+            &app,
+            entity,
+            Affine2::from_translation(Vec2::new(180.0, 140.0)),
+        );
+        app.world_mut()
+            .entity_mut(entity)
+            .insert(TransformTransitionTarget::new(
+                Transform::IDENTITY,
+                transition(1000, Easing::Linear),
+            ));
         advance(&mut app, 0.0);
-        assert_global(&app, entity, Affine2::from_translation(Vec2::new(180.0, 140.0)));
+        assert_global(
+            &app,
+            entity,
+            Affine2::from_translation(Vec2::new(180.0, 140.0)),
+        );
         advance(&mut app, 0.5);
-        assert_global(&app, entity, Affine2::from_translation(Vec2::new(140.0, 110.0)));
+        assert_global(
+            &app,
+            entity,
+            Affine2::from_translation(Vec2::new(140.0, 110.0)),
+        );
         assert_eq!(*app.world().get::<Transform>(entity).unwrap(), legacy);
 
-        app.world_mut().resource_mut::<AccessibilityVisualPolicyResource>().current.reduced_motion = true;
+        app.world_mut()
+            .resource_mut::<AccessibilityVisualPolicyResource>()
+            .current
+            .reduced_motion = true;
         advance(&mut app, 0.01);
-        assert_global(&app, entity, Affine2::from_translation(Vec2::new(100.0, 80.0)));
+        assert_global(
+            &app,
+            entity,
+            Affine2::from_translation(Vec2::new(100.0, 80.0)),
+        );
     }
 
     #[test]
@@ -1674,10 +1828,13 @@ mod tests {
             rotation: Quat::from_rotation_x(0.8),
             scale: Vec3::new(2.0, 3.0, 4.0),
         };
-        let entity = app.world_mut().spawn((
-            Transform::IDENTITY,
-            TransformTransitionTarget::new(target, transition(1000, Easing::Linear)),
-        )).id();
+        let entity = app
+            .world_mut()
+            .spawn((
+                Transform::IDENTITY,
+                TransformTransitionTarget::new(target, transition(1000, Easing::Linear)),
+            ))
+            .id();
         advance(&mut app, 0.5);
         let actual = app.world().get::<Transform>(entity).unwrap();
         assert_eq!(actual.translation, target.translation * 0.5);
@@ -1733,7 +1890,17 @@ mod tests {
             y2: -1.0,
         };
 
-        for p in [f32::NEG_INFINITY, f32::NAN, -5.0, 0.0, 0.3, 0.7, 1.0, 5.0, f32::INFINITY] {
+        for p in [
+            f32::NEG_INFINITY,
+            f32::NAN,
+            -5.0,
+            0.0,
+            0.3,
+            0.7,
+            1.0,
+            5.0,
+            f32::INFINITY,
+        ] {
             let out = easing.sample(p);
             assert!(out.is_finite());
             assert!((0.0..=1.0).contains(&out));
@@ -1852,16 +2019,24 @@ mod tests {
         let mut policy = AccessibilityVisualPolicyResource::default();
         policy.current.reduced_motion = true;
 
-        let decorative = transition(200, Easing::EaseOut).with_motion_class(MotionClass::Decorative);
+        let decorative =
+            transition(200, Easing::EaseOut).with_motion_class(MotionClass::Decorative);
         let semantic = transition(200, Easing::EaseOut).with_motion_class(MotionClass::Semantic);
 
-        assert_eq!(decorative.effective_for_policy(&policy).duration, Duration::ZERO);
-        assert_eq!(semantic.effective_for_policy(&policy).duration, Duration::from_millis(200));
+        assert_eq!(
+            decorative.effective_for_policy(&policy).duration,
+            Duration::ZERO
+        );
+        assert_eq!(
+            semantic.effective_for_policy(&policy).duration,
+            Duration::from_millis(200)
+        );
     }
 
     #[test]
     fn reduced_transparency_disables_backdrop() {
-        let mut surface = Surface::rounded_rect_fill(10.0, Paint::solid(Color::srgba(1.0, 1.0, 1.0, 0.2)));
+        let mut surface =
+            Surface::rounded_rect_fill(10.0, Paint::solid(Color::srgba(1.0, 1.0, 1.0, 0.2)));
         surface.backdrop = Some(Backdrop::new().with_blur(12.0));
 
         let next = apply_reduced_transparency_surface(surface);

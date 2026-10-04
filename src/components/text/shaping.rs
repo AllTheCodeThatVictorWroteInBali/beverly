@@ -81,10 +81,7 @@ impl TextShapingKey {
 }
 
 fn content_from_text(text: &Text, typography: &Typography) -> String {
-    typography
-        .content
-        .clone()
-        .unwrap_or_else(|| text.0.clone())
+    typography.content.clone().unwrap_or_else(|| text.0.clone())
 }
 
 fn script_hint(content: &str) -> Option<String> {
@@ -200,7 +197,10 @@ fn shape_with_rustybuzz(
         glyphs.push(ShapedGlyph {
             glyph_id: info.glyph_id,
             advance,
-            offset: Vec2::new(position.x_offset as f32 * scale, -(position.y_offset as f32 * scale)),
+            offset: Vec2::new(
+                position.x_offset as f32 * scale,
+                -(position.y_offset as f32 * scale),
+            ),
             cluster: GlyphCluster {
                 cluster_index,
                 byte_start,
@@ -219,7 +219,8 @@ fn shape_with_rustybuzz(
 
 fn ensure_shaping_result_component(world: &mut World) {
     let entities: Vec<Entity> = {
-        let mut query = world.query_filtered::<Entity, (With<Typography>, Without<TextShapingResult>)>();
+        let mut query =
+            world.query_filtered::<Entity, (With<Typography>, Without<TextShapingResult>)>();
         query.iter(world).collect()
     };
 
@@ -233,7 +234,12 @@ fn ensure_shaping_result_component(world: &mut World) {
 fn shape_text_system(
     mut cache: ResMut<TextShapingCache>,
     font_manager: Res<TypographyFontManager>,
-    query: Query<(&Text, &Typography, Option<&ResolvedFontFace>, &mut TextShapingResult)>,
+    query: Query<(
+        &Text,
+        &Typography,
+        Option<&ResolvedFontFace>,
+        &mut TextShapingResult,
+    )>,
 ) {
     for (text, typography, resolved_face, mut result) in query {
         let content = content_from_text(text, typography);
@@ -310,7 +316,11 @@ mod tests {
     #[test]
     fn shape_keeps_unicode_clusters() {
         let style = typography();
-        let shaped = fallback_shape("Bonjour le monde こんにちは مرحبا", &style, TextDirection::Ltr);
+        let shaped = fallback_shape(
+            "Bonjour le monde こんにちは مرحبا",
+            &style,
+            TextDirection::Ltr,
+        );
 
         assert!(shaped.glyphs.len() >= 10);
         assert_eq!(shaped.language.as_deref(), Some("en"));
@@ -328,8 +338,14 @@ mod tests {
 
     #[test]
     fn auto_direction_detects_rtl_paragraphs() {
-        assert_eq!(resolve_direction("שלום world", TextDirection::Auto), TextDirection::Rtl);
-        assert_eq!(resolve_direction("Hello עולם", TextDirection::Auto), TextDirection::Ltr);
+        assert_eq!(
+            resolve_direction("שלום world", TextDirection::Auto),
+            TextDirection::Rtl
+        );
+        assert_eq!(
+            resolve_direction("Hello עולם", TextDirection::Auto),
+            TextDirection::Ltr
+        );
     }
 
     #[test]

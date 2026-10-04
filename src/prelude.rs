@@ -5,9 +5,10 @@
 //! ```
 
 pub use crate::BeverlyPlugin;
-pub use crate::event;
+pub use crate::app::{BeverlyApp, BeverlyAppExt, Ui, app, ui};
 pub use crate::controller;
-pub use crate::app::{app, ui, BeverlyApp, BeverlyAppExt, Ui};
+pub use crate::event;
+pub use crate::model;
 
 // Theme.
 pub use crate::theme::{ThemeMode, ThemePlugin, ThemeResource, dark_theme, light_theme};
@@ -23,21 +24,24 @@ pub use crate::rendering::{
 
 // Cross-cutting primitives.
 pub use crate::primitives::a11y::A11yPlugin;
-pub use crate::primitives::binding::{BindingErrorState, BindingErrors, SetterBinding};
+pub use crate::primitives::binding::{
+    BindingErrorState, BindingErrors, BindingPlugin, BindingValue, BindingValueType, FieldBinding,
+    SetterBinding,
+};
 pub use crate::primitives::clipboard::ClipboardPlugin;
 pub use crate::primitives::composition::{
-    column, footer, row, UiBuildContext, UiContextSetup, UiElement, UiElementSetup,
+    UiBuildContext, UiContextSetup, UiElement, UiElementSetup, column, footer, row,
 };
 pub use crate::primitives::focus::FocusPlugin;
 pub use crate::primitives::interaction::InteractionPlugin;
 pub use crate::primitives::keyboard::KeyboardPlugin;
 pub use crate::primitives::root::{AppRootSurface, ContentRoot, UiFonts};
 pub use crate::primitives::routing::{
-    layout, page, page_outlet, Layout, Page, RouteContext, RouteState, RouterPlugin,
+    Layout, Page, RouteContext, RouteState, RouterPlugin, layout, page, page_outlet,
 };
 pub use crate::primitives::semantic::{
-    AnnouncementPriority, AriaDescription, SemanticNode, SemanticPlugin, SemanticRelationships, SemanticRole,
-    SemanticSnapshotNode, SemanticState, SemanticTreeSnapshot, SemanticValue,
+    AnnouncementPriority, AriaDescription, SemanticNode, SemanticPlugin, SemanticRelationships,
+    SemanticRole, SemanticSnapshotNode, SemanticState, SemanticTreeSnapshot, SemanticValue,
 };
 
 // Animation.
@@ -52,8 +56,8 @@ pub use crate::components::alert::{Alert, AlertPlugin, AlertVariant};
 pub use crate::components::avatar::Avatar;
 pub use crate::components::badge::Badge;
 pub use crate::components::button::{
-    button, BeverlyButton, ButtonChild, ButtonChildSetup, ButtonColor, ButtonCommand, ButtonPlugin,
-    ButtonEventType,
+    BeverlyButton, ButtonChild, ButtonChildSetup, ButtonColor, ButtonCommand, ButtonEventType,
+    ButtonPlugin, button,
 };
 pub use crate::components::button_group::{ButtonGroup, ButtonGroupPlugin};
 pub use crate::components::card::{Card, CardPlugin};
@@ -61,10 +65,15 @@ pub use crate::components::checkbox::{Checkbox, CheckboxPlugin};
 pub use crate::components::container::Container;
 pub use crate::components::divider::{Divider, DividerPlugin};
 pub use crate::components::dropdown::{Dropdown, DropdownPlugin};
-pub use crate::components::file_input::{FileInput, FileInputPlugin};
+pub use crate::components::file_input::{
+    FileInput, FileInputPlugin, FileInputSelectionState, FileType, SelectedFile,
+};
 pub use crate::components::footer::{Footer, FooterPlugin};
+pub use crate::components::form::{
+    Form, FormEncoding, FormFieldName, FormMethod, FormPlugin, FormRequest, FormSubmitted,
+};
 pub use crate::components::input::{TextInput, TextInputPlugin};
-pub use crate::components::link::{link, Link, LinkPlugin};
+pub use crate::components::link::{Link, LinkPlugin, link};
 pub use crate::components::list_item::{ListItem, ListItemPlugin};
 pub use crate::components::modal::{Modal, ModalPlugin};
 pub use crate::components::nav_button::NavButton;

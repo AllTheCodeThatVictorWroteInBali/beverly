@@ -8,17 +8,12 @@ use bevy::{
 
 use super::{
     backdrop::{Backdrop, BackdropDebugView, BackdropQuality},
-    decoration::{FocusRing, FocusRingLayer, FocusRingPlacement},
     debug::UiRenderDebugView,
+    decoration::{FocusRing, FocusRingLayer, FocusRingPlacement},
     effect::{Effects, InnerShadow, OuterGlow, OuterShadow, ShadowFalloff},
     noise::{Noise, NoiseKind, NoiseSpace, NoiseTarget},
     paint::{
-        AngularGradient,
-        GradientStop,
-        LinearGradient,
-        MAX_GRADIENT_STOPS,
-        Paint,
-        RadialGradient,
+        AngularGradient, GradientStop, LinearGradient, MAX_GRADIENT_STOPS, Paint, RadialGradient,
         normalize_stops,
     },
     sdf::{normalize_border_widths, normalize_corner_radii},
@@ -385,15 +380,29 @@ pub fn build_shape_uniform_with_debug_and_time(
 
     let (border_paint, border_widths) = if let Some(border) = &surface.border {
         let normalized = normalize_border_widths(border.width, logical_size);
-        (encode_paint(&border.paint), normalized.as_vec4() * scale_factor)
+        (
+            encode_paint(&border.paint),
+            normalized.as_vec4() * scale_factor,
+        )
     } else {
         (PaintUniform::default(), Vec4::ZERO)
     };
 
     let (outer_shadow, outer_glow, inner_shadow, effect_bounds) =
         encode_effects(&surface.effects, scale_factor);
-    let (focus_primary_paint, focus_secondary_paint, focus_primary_metrics, focus_secondary_metrics, focus_flags, focus_glow, focus_bounds) =
-        encode_focus_ring(surface.decorations.focus_ring.as_ref(), scale_factor, reduce_effects);
+    let (
+        focus_primary_paint,
+        focus_secondary_paint,
+        focus_primary_metrics,
+        focus_secondary_metrics,
+        focus_flags,
+        focus_glow,
+        focus_bounds,
+    ) = encode_focus_ring(
+        surface.decorations.focus_ring.as_ref(),
+        scale_factor,
+        reduce_effects,
+    );
     let effect_bounds = Vec4::new(
         effect_bounds.x.max(focus_bounds.x),
         effect_bounds.y.max(focus_bounds.y),
@@ -444,22 +453,52 @@ pub fn build_shape_uniform_with_debug_and_time(
         backdrop_params1: backdrop.params1,
         backdrop_tint: backdrop.tint,
         backdrop_uv_rect: backdrop.uv_rect,
-        glass_optics: surface.backdrop.and_then(|b| b.liquid_glass)
+        glass_optics: surface
+            .backdrop
+            .and_then(|b| b.liquid_glass)
             .filter(|g| g.enabled && backdrop_enabled && !reduce_effects)
-            .map(|g| { let g = g.sanitized(); Vec4::new(1.0, g.thickness * scale_factor,
-                g.bezel_width * scale_factor, g.refractive_index) }).unwrap_or(Vec4::ZERO),
-        glass_light: surface.backdrop.and_then(|b| b.liquid_glass).map(|g| {
-            let g = g.sanitized(); Vec4::new(g.specular_intensity,
-                g.specular_width * scale_factor, g.fresnel, g.chromatic_aberration)
-        }).unwrap_or(Vec4::ZERO),
-        glass_state: surface.backdrop.and_then(|b| b.liquid_glass).map(|g| {
-            let g = g.sanitized();
-            let profile = match g.profile {
-                super::GlassProfile::Convex => 0.0, super::GlassProfile::Squircle => 1.0,
-                super::GlassProfile::Concave => 2.0, super::GlassProfile::Lip => 3.0,
-            };
-            Vec4::new(profile, g.press_amount, g.light_direction.x, g.light_direction.y)
-        }).unwrap_or(Vec4::ZERO),
+            .map(|g| {
+                let g = g.sanitized();
+                Vec4::new(
+                    1.0,
+                    g.thickness * scale_factor,
+                    g.bezel_width * scale_factor,
+                    g.refractive_index,
+                )
+            })
+            .unwrap_or(Vec4::ZERO),
+        glass_light: surface
+            .backdrop
+            .and_then(|b| b.liquid_glass)
+            .map(|g| {
+                let g = g.sanitized();
+                Vec4::new(
+                    g.specular_intensity,
+                    g.specular_width * scale_factor,
+                    g.fresnel,
+                    g.chromatic_aberration,
+                )
+            })
+            .unwrap_or(Vec4::ZERO),
+        glass_state: surface
+            .backdrop
+            .and_then(|b| b.liquid_glass)
+            .map(|g| {
+                let g = g.sanitized();
+                let profile = match g.profile {
+                    super::GlassProfile::Convex => 0.0,
+                    super::GlassProfile::Squircle => 1.0,
+                    super::GlassProfile::Concave => 2.0,
+                    super::GlassProfile::Lip => 3.0,
+                };
+                Vec4::new(
+                    profile,
+                    g.press_amount,
+                    g.light_direction.x,
+                    g.light_direction.y,
+                )
+            })
+            .unwrap_or(Vec4::ZERO),
         glass_debug: Vec4::ZERO,
         surface_axes: Vec4::new(1.0, 0.0, 0.0, 1.0),
         debug_view: encode_render_debug(render_debug_view),
@@ -486,7 +525,15 @@ fn encode_focus_ring(
     focus_ring: Option<&FocusRing>,
     scale_factor: f32,
     reduce_effects: bool,
-) -> (PaintUniform, PaintUniform, Vec4, Vec4, Vec4, OuterGlowUniform, Vec4) {
+) -> (
+    PaintUniform,
+    PaintUniform,
+    Vec4,
+    Vec4,
+    Vec4,
+    OuterGlowUniform,
+    Vec4,
+) {
     let Some(focus_ring) = focus_ring else {
         return (
             PaintUniform::default(),
@@ -549,7 +596,11 @@ fn encode_focus_layer(layer: &FocusRingLayer, scale_factor: f32) -> (PaintUnifor
     let width = layer.width.max(0.0) * scale_factor;
     let offset = layer.offset.max(0.0) * scale_factor;
     let opacity = layer.opacity.clamp(0.0, 1.0);
-    let enabled = if width > 1e-5 && opacity > 1e-5 { 1.0 } else { 0.0 };
+    let enabled = if width > 1e-5 && opacity > 1e-5 {
+        1.0
+    } else {
+        0.0
+    };
     (paint, Vec4::new(width, offset, opacity, enabled))
 }
 
@@ -771,7 +822,12 @@ fn encode_mask(mask: super::mask::Mask, logical_size: Vec2, scale_factor: f32) -
 fn encode_effects(
     effects: &Effects,
     scale_factor: f32,
-) -> (OuterShadowUniform, OuterGlowUniform, InnerShadowUniform, Vec4) {
+) -> (
+    OuterShadowUniform,
+    OuterGlowUniform,
+    InnerShadowUniform,
+    Vec4,
+) {
     let shadow = effects
         .outer_shadow
         .map(|value| encode_outer_shadow(value.sanitized(), scale_factor))
@@ -798,7 +854,12 @@ fn encode_outer_shadow(shadow: OuterShadow, scale_factor: f32) -> OuterShadowUni
             shadow.blur * scale_factor,
             shadow.spread * scale_factor,
         ),
-        opacity_and_falloff: Vec4::new(shadow.opacity, encode_shadow_falloff(shadow.falloff), 0.0, 0.0),
+        opacity_and_falloff: Vec4::new(
+            shadow.opacity,
+            encode_shadow_falloff(shadow.falloff),
+            0.0,
+            0.0,
+        ),
     }
 }
 
@@ -823,7 +884,12 @@ fn encode_inner_shadow(shadow: InnerShadow, scale_factor: f32) -> InnerShadowUni
             shadow.blur * scale_factor,
             shadow.spread * scale_factor,
         ),
-        opacity_and_falloff: Vec4::new(shadow.opacity, encode_shadow_falloff(shadow.falloff), 0.0, 0.0),
+        opacity_and_falloff: Vec4::new(
+            shadow.opacity,
+            encode_shadow_falloff(shadow.falloff),
+            0.0,
+            0.0,
+        ),
     }
 }
 
@@ -897,11 +963,20 @@ fn encode_paint(paint: &Paint) -> PaintUniform {
             PaintUniform {
                 kind_and_flags: Vec4::new(4.0, 0.0, 0.0, if shimmer.enabled { 1.0 } else { 0.0 }),
                 solid_color: sanitize_linear_color(shimmer.base_color.to_linear().to_vec4()),
-                linear_points: Vec4::new(shimmer.duration,
-                    if shimmer.direction == super::ShimmerDirection::RightToLeft { -1.0 } else { 1.0 },
-                    shimmer.phase, shimmer.width),
+                linear_points: Vec4::new(
+                    shimmer.duration,
+                    if shimmer.direction == super::ShimmerDirection::RightToLeft {
+                        -1.0
+                    } else {
+                        1.0
+                    },
+                    shimmer.phase,
+                    shimmer.width,
+                ),
                 radial_center_radius: Vec4::new(shimmer.softness, shimmer.intensity, 0.0, 0.0),
-                angular_center_angle: sanitize_linear_color(shimmer.highlight_color.to_linear().to_vec4()),
+                angular_center_angle: sanitize_linear_color(
+                    shimmer.highlight_color.to_linear().to_vec4(),
+                ),
                 ..default()
             }
         }
@@ -1043,43 +1118,19 @@ fn sanitize_angle(value: f32) -> f32 {
 }
 
 fn sanitize_finite(value: f32, fallback: f32) -> f32 {
-    if value.is_finite() {
-        value
-    } else {
-        fallback
-    }
+    if value.is_finite() { value } else { fallback }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        build_shape_uniform,
-        build_shape_uniform_with_debug,
+        build_shape_uniform, build_shape_uniform_with_debug,
         build_shape_uniform_with_debug_and_time,
     };
     use crate::rendering::{
-        AngularGradient,
-        Backdrop,
-        BackdropDebugView,
-        BackdropQuality,
-        Border,
-        BorderWidths,
-        Clip,
-        CornerRadii,
-        Effects,
-        GradientStop,
-        InnerShadow,
-        LinearGradient,
-        Mask,
-        Noise,
-        NoiseTarget,
-        OuterGlow,
-        OuterShadow,
-        Paint,
-        RadialGradient,
-        ShadowFalloff,
-        Shape,
-        Surface,
+        AngularGradient, Backdrop, BackdropDebugView, BackdropQuality, Border, BorderWidths, Clip,
+        CornerRadii, Effects, GradientStop, InnerShadow, LinearGradient, Mask, Noise, NoiseTarget,
+        OuterGlow, OuterShadow, Paint, RadialGradient, ShadowFalloff, Shape, Surface,
         UiRenderDebugView,
     };
     use bevy::prelude::*;
@@ -1087,25 +1138,43 @@ mod tests {
     #[test]
     fn shimmer_kind4_packs_linear_straight_colors_and_all_control_lanes() {
         use crate::rendering::{Shimmer, ShimmerDirection};
-        for (direction, sign) in [(ShimmerDirection::LeftToRight, 1.0),
-            (ShimmerDirection::RightToLeft, -1.0)]
-        {
+        for (direction, sign) in [
+            (ShimmerDirection::LeftToRight, 1.0),
+            (ShimmerDirection::RightToLeft, -1.0),
+        ] {
             for enabled in [false, true] {
                 let shimmer = Shimmer {
                     base_color: Color::srgba(0.5, 0.25, 0.75, 0.25),
                     highlight_color: Color::srgba(0.75, 0.5, 0.25, 0.75),
-                    duration: 2.5, direction, phase: -0.25, width: 0.4,
-                    softness: 0.5, intensity: 0.8, enabled,
+                    duration: 2.5,
+                    direction,
+                    phase: -0.25,
+                    width: 0.4,
+                    softness: 0.5,
+                    intensity: 0.8,
+                    enabled,
                 };
                 let paint = super::encode_paint(&Paint::Shimmer(shimmer));
-                assert_eq!(paint.kind_and_flags, Vec4::new(4.0, 0.0, 0.0, if enabled { 1.0 } else { 0.0 }));
+                assert_eq!(
+                    paint.kind_and_flags,
+                    Vec4::new(4.0, 0.0, 0.0, if enabled { 1.0 } else { 0.0 })
+                );
                 assert_eq!(paint.linear_points, Vec4::new(2.5, sign, 0.75, 0.4));
                 assert_eq!(paint.radial_center_radius, Vec4::new(0.5, 0.8, 0.0, 0.0));
                 assert_eq!(paint.solid_color, shimmer.base_color.to_linear().to_vec4());
-                assert_eq!(paint.angular_center_angle, shimmer.highlight_color.to_linear().to_vec4());
-                assert_eq!(paint.stops, [super::GradientStopUniform::default(); super::MAX_GRADIENT_STOPS]);
+                assert_eq!(
+                    paint.angular_center_angle,
+                    shimmer.highlight_color.to_linear().to_vec4()
+                );
+                assert_eq!(
+                    paint.stops,
+                    [super::GradientStopUniform::default(); super::MAX_GRADIENT_STOPS]
+                );
                 // Distinguish straight-alpha storage from prematurely premultiplying.
-                assert_ne!(paint.solid_color.x, paint.solid_color.x * paint.solid_color.w);
+                assert_ne!(
+                    paint.solid_color.x,
+                    paint.solid_color.x * paint.solid_color.w
+                );
             }
         }
     }
@@ -1113,24 +1182,46 @@ mod tests {
     #[test]
     fn shimmer_kind4_sanitizes_direct_public_inputs_before_gpu_encoding() {
         use crate::rendering::Shimmer;
-        for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY, f32::MIN,
-            -0.0, -f32::from_bits(1), f32::from_bits(1), 0.5, f32::MAX]
-        {
+        for value in [
+            f32::NAN,
+            f32::INFINITY,
+            f32::NEG_INFINITY,
+            f32::MIN,
+            -0.0,
+            -f32::from_bits(1),
+            f32::from_bits(1),
+            0.5,
+            f32::MAX,
+        ] {
             let shimmer = Shimmer {
                 base_color: Color::linear_rgba(f32::NAN, -1.0, 2.0, f32::INFINITY),
                 highlight_color: Color::linear_rgba(f32::NEG_INFINITY, 2.0, -1.0, 0.5),
-                duration: value, phase: value, width: value,
-                softness: value, intensity: value, ..default()
+                duration: value,
+                phase: value,
+                width: value,
+                softness: value,
+                intensity: value,
+                ..default()
             };
             let paint = super::encode_paint(&Paint::Shimmer(shimmer));
             let sanitized = shimmer.sanitized();
-            assert_eq!(paint.linear_points, Vec4::new(sanitized.duration, 1.0, sanitized.phase, sanitized.width));
-            assert_eq!(paint.radial_center_radius, Vec4::new(sanitized.softness, sanitized.intensity, 0.0, 0.0));
+            assert_eq!(
+                paint.linear_points,
+                Vec4::new(sanitized.duration, 1.0, sanitized.phase, sanitized.width)
+            );
+            assert_eq!(
+                paint.radial_center_radius,
+                Vec4::new(sanitized.softness, sanitized.intensity, 0.0, 0.0)
+            );
             assert_eq!(paint.solid_color, Vec4::new(0.0, 0.0, 1.0, 0.0));
             assert_eq!(paint.angular_center_angle, Vec4::new(0.0, 1.0, 0.0, 0.5));
-            for lane in [paint.kind_and_flags, paint.solid_color, paint.linear_points,
-                paint.radial_center_radius, paint.angular_center_angle]
-            {
+            for lane in [
+                paint.kind_and_flags,
+                paint.solid_color,
+                paint.linear_points,
+                paint.radial_center_radius,
+                paint.angular_center_angle,
+            ] {
                 assert!(lane.is_finite(), "input={value}: {lane:?}");
             }
         }
@@ -1141,14 +1232,24 @@ mod tests {
         use crate::rendering::{Shimmer, ShimmerDirection};
         let fill = Paint::Shimmer(Shimmer::new(Color::BLACK, Color::WHITE));
         let border = Paint::Shimmer(Shimmer {
-            direction: ShimmerDirection::RightToLeft, phase: 0.375, ..default()
+            direction: ShimmerDirection::RightToLeft,
+            phase: 0.375,
+            ..default()
         });
         let surface = Surface::rounded_rect_border(8.0, fill.clone(), 2.0, border.clone());
         for scale in [0.0, 1.0, 2.0, 64.0] {
             for time in [0.0, 1.5, 3599.0, f32::MAX] {
-                let uniforms = build_shape_uniform_with_debug_and_time(&surface,
-                    Vec2::new(120.0, 40.0), scale, default(), false,
-                    BackdropDebugView::Final, UiRenderDebugView::Final, time, false);
+                let uniforms = build_shape_uniform_with_debug_and_time(
+                    &surface,
+                    Vec2::new(120.0, 40.0),
+                    scale,
+                    default(),
+                    false,
+                    BackdropDebugView::Final,
+                    UiRenderDebugView::Final,
+                    time,
+                    false,
+                );
                 assert_eq!(uniforms.fill_paint, super::encode_paint(&fill));
                 assert_eq!(uniforms.border_paint, super::encode_paint(&border));
             }
@@ -1162,11 +1263,18 @@ mod tests {
         for size in [0.0, 48.0, super::MAX_RENDER_EXTENT, f32::MAX] {
             let surface = Surface::rounded_rect_fill(size * 0.5, paint.clone());
             for scale in [0.0, 1.0, 2.0, 64.0, f32::MAX, f32::INFINITY] {
-                let uniforms = build_shape_uniform(&surface, Vec2::splat(size), scale,
-                    default(), false, BackdropDebugView::Final);
+                let uniforms = build_shape_uniform(
+                    &surface,
+                    Vec2::splat(size),
+                    scale,
+                    default(),
+                    false,
+                    BackdropDebugView::Final,
+                );
                 assert_bounded_geometry_and_opacity(&uniforms);
                 let bounded_scale = scale.min(64.0);
-                let extent = size.min(super::MAX_RENDER_EXTENT / bounded_scale.max(1.0)) * bounded_scale;
+                let extent =
+                    size.min(super::MAX_RENDER_EXTENT / bounded_scale.max(1.0)) * bounded_scale;
                 assert_eq!(uniforms.size_and_kind, Vec4::new(extent, extent, 0.0, 0.0));
                 assert_eq!(uniforms.corner_radii, Vec4::splat(extent * 0.5));
                 assert_eq!(uniforms.effect_bounds, Vec4::ZERO);
@@ -1177,8 +1285,14 @@ mod tests {
         // a second radius or stretches a circle after unequal dimensions are set.
         for (radius, expected) in [(0.0, 0.0), (12.0, 24.0), (f32::MAX, 60.0)] {
             let surface = Surface::rounded_rect_fill(radius, paint.clone());
-            let uniforms = build_shape_uniform(&surface, Vec2::new(100.0, 60.0), 2.0,
-                default(), false, BackdropDebugView::Final);
+            let uniforms = build_shape_uniform(
+                &surface,
+                Vec2::new(100.0, 60.0),
+                2.0,
+                default(),
+                false,
+                BackdropDebugView::Final,
+            );
             assert_eq!(uniforms.corner_radii, Vec4::splat(expected));
             assert_eq!(uniforms.size_and_kind.z, 0.0);
             assert_eq!(uniforms.fill_paint, super::encode_paint(&paint));
@@ -1188,22 +1302,47 @@ mod tests {
     #[test]
     fn liquid_glass_scales_only_pixel_metrics_and_encodes_profiles() {
         use crate::rendering::{GlassProfile, LiquidGlass};
-        for (profile, code) in [(GlassProfile::Convex, 0.0), (GlassProfile::Squircle, 1.0),
-            (GlassProfile::Concave, 2.0), (GlassProfile::Lip, 3.0)]
-        {
+        for (profile, code) in [
+            (GlassProfile::Convex, 0.0),
+            (GlassProfile::Squircle, 1.0),
+            (GlassProfile::Concave, 2.0),
+            (GlassProfile::Lip, 3.0),
+        ] {
             for scale in [1.0, 1.5, 2.0] {
                 let glass = LiquidGlass {
-                    thickness: 3.0, bezel_width: 4.0, specular_width: 0.75,
-                    refractive_index: 1.5, specular_intensity: 0.25, fresnel: 0.125,
-                    chromatic_aberration: 0.03125, press_amount: 0.5,
-                    light_direction: Vec2::new(0.0, -2.0), profile, ..default()
+                    thickness: 3.0,
+                    bezel_width: 4.0,
+                    specular_width: 0.75,
+                    refractive_index: 1.5,
+                    specular_intensity: 0.25,
+                    fresnel: 0.125,
+                    chromatic_aberration: 0.03125,
+                    press_amount: 0.5,
+                    light_direction: Vec2::new(0.0, -2.0),
+                    profile,
+                    ..default()
                 };
-                let surface = Surface::rounded_rect_fill(8.0, Color::NONE)
-                    .with_backdrop(Backdrop { liquid_glass: Some(glass), ..default() });
-                let uniforms = build_shape_uniform(&surface, Vec2::new(100.0, 50.0), scale,
-                    default(), true, BackdropDebugView::Final);
-                assert_eq!(uniforms.glass_optics, Vec4::new(1.0, 3.0 * scale, 4.0 * scale, 1.5));
-                assert_eq!(uniforms.glass_light, Vec4::new(0.25, 0.75 * scale, 0.125, 0.03125));
+                let surface =
+                    Surface::rounded_rect_fill(8.0, Color::NONE).with_backdrop(Backdrop {
+                        liquid_glass: Some(glass),
+                        ..default()
+                    });
+                let uniforms = build_shape_uniform(
+                    &surface,
+                    Vec2::new(100.0, 50.0),
+                    scale,
+                    default(),
+                    true,
+                    BackdropDebugView::Final,
+                );
+                assert_eq!(
+                    uniforms.glass_optics,
+                    Vec4::new(1.0, 3.0 * scale, 4.0 * scale, 1.5)
+                );
+                assert_eq!(
+                    uniforms.glass_light,
+                    Vec4::new(0.25, 0.75 * scale, 0.125, 0.03125)
+                );
                 assert_eq!(uniforms.glass_state, Vec4::new(code, 0.5, 0.0, -1.0));
                 assert_eq!(uniforms.surface_axes, Vec4::new(1.0, 0.0, 0.0, 1.0));
                 assert_eq!(uniforms.glass_debug, Vec4::ZERO);
@@ -1219,18 +1358,55 @@ mod tests {
         for (glass, capture, reduced, expected) in [
             (Some(LiquidGlass::default()), true, false, 1.0),
             (None, true, false, 0.0),
-            (Some(LiquidGlass { enabled: false, ..default() }), true, false, 0.0),
+            (
+                Some(LiquidGlass {
+                    enabled: false,
+                    ..default()
+                }),
+                true,
+                false,
+                0.0,
+            ),
             (Some(LiquidGlass::default()), false, false, 0.0),
             (Some(LiquidGlass::default()), true, true, 0.0),
-            (Some(LiquidGlass { refractive_index: 1.0, ..default() }), true, false, 1.0),
-            (Some(LiquidGlass { thickness: 0.0, ..default() }), true, false, 1.0),
+            (
+                Some(LiquidGlass {
+                    refractive_index: 1.0,
+                    ..default()
+                }),
+                true,
+                false,
+                1.0,
+            ),
+            (
+                Some(LiquidGlass {
+                    thickness: 0.0,
+                    ..default()
+                }),
+                true,
+                false,
+                1.0,
+            ),
         ] {
-            let surface = Surface::rounded_rect_fill(8.0, Color::NONE)
-                .with_backdrop(Backdrop { liquid_glass: glass, ..default() });
-            let uniforms = build_shape_uniform_with_debug_and_time(&surface,
-                Vec2::splat(100.0), 2.0, default(), capture, BackdropDebugView::Final,
-                UiRenderDebugView::Final, 0.0, reduced);
-            assert_eq!(uniforms.glass_optics.x, expected, "{glass:?}, capture={capture}, reduced={reduced}");
+            let surface = Surface::rounded_rect_fill(8.0, Color::NONE).with_backdrop(Backdrop {
+                liquid_glass: glass,
+                ..default()
+            });
+            let uniforms = build_shape_uniform_with_debug_and_time(
+                &surface,
+                Vec2::splat(100.0),
+                2.0,
+                default(),
+                capture,
+                BackdropDebugView::Final,
+                UiRenderDebugView::Final,
+                0.0,
+                reduced,
+            );
+            assert_eq!(
+                uniforms.glass_optics.x, expected,
+                "{glass:?}, capture={capture}, reduced={reduced}"
+            );
             if expected == 0.0 {
                 assert_eq!(uniforms.glass_optics, Vec4::ZERO);
             } else {
@@ -1243,60 +1419,107 @@ mod tests {
 
     #[test]
     fn liquid_glass_uniform_shader_type_size_matches_naga_layout() {
-        use bevy::{render::render_resource::{DownlevelFlags, ShaderType, WgpuFeatures},
-            shader::{Shader, ShaderCache, ShaderCacheSource}};
+        use bevy::{
+            render::render_resource::{DownlevelFlags, ShaderType, WgpuFeatures},
+            shader::{Shader, ShaderCache, ShaderCacheSource},
+        };
         // Parse the real declarations, including nested paints and scalar
         // padding, without external Bevy imports or a new Naga dependency.
         let shader = include_str!("shaders/ui_shape.wgsl");
-        let declarations = shader.split_once("const MAX_GRADIENT_STOPS").unwrap().1
-            .split_once("@group(1)").unwrap().0;
-        let source = format!("const MAX_GRADIENT_STOPS{declarations}\n\
-            @group(0) @binding(0) var<uniform> uniforms: UiShapeUniforms;");
-        let mut cache = ShaderCache::new((), WgpuFeatures::empty(), DownlevelFlags::empty(),
+        let declarations = shader
+            .split_once("const MAX_GRADIENT_STOPS")
+            .unwrap()
+            .1
+            .split_once("@group(1)")
+            .unwrap()
+            .0;
+        let source = format!(
+            "const MAX_GRADIENT_STOPS{declarations}\n\
+            @group(0) @binding(0) var<uniform> uniforms: UiShapeUniforms;"
+        );
+        let mut cache = ShaderCache::new(
+            (),
+            WgpuFeatures::empty(),
+            DownlevelFlags::empty(),
             |_, source, _| {
-                let ShaderCacheSource::Naga(module) = source else { panic!("expected Naga layout"); };
-                let ty = module.types.iter().find(|(_, ty)|
-                    ty.name.as_deref() == Some("UiShapeUniforms")).unwrap().1;
+                let ShaderCacheSource::Naga(module) = source else {
+                    panic!("expected Naga layout");
+                };
+                let ty = module
+                    .types
+                    .iter()
+                    .find(|(_, ty)| ty.name.as_deref() == Some("UiShapeUniforms"))
+                    .unwrap()
+                    .1;
                 Ok(ty.inner.size(module.to_ctx()))
-            });
+            },
+        );
         let mut assets = Assets::<Shader>::default();
         let shader = Shader::from_wgsl(source, "glass_uniform_layout.wgsl");
         let handle = assets.add(shader.clone());
         cache.set_shader(handle.id(), shader);
-        let size = cache.get(0, handle.id(), &[]).expect("uniform declarations must validate");
+        let size = cache
+            .get(0, handle.id(), &[])
+            .expect("uniform declarations must validate");
         assert_eq!(u64::from(*size), super::UiShapeUniform::min_size().get());
     }
 
     fn assert_bounded_geometry_and_opacity(uniforms: &super::UiShapeUniform) {
         let check = |value: Vec4| {
             assert!(value.is_finite(), "non-finite geometry: {value:?}");
-            assert!(value.abs().cmple(Vec4::splat(super::MAX_RENDER_EXTENT)).all(),
-                "unbounded geometry: {value:?}");
+            assert!(
+                value
+                    .abs()
+                    .cmple(Vec4::splat(super::MAX_RENDER_EXTENT))
+                    .all(),
+                "unbounded geometry: {value:?}"
+            );
         };
         // Deliberately exclude Color payloads: these regressions exercise the
         // geometry/standalone-opacity boundary, not arbitrary color conversions.
         for value in [
-            uniforms.size_and_kind, uniforms.corner_radii, uniforms.border_widths,
-            uniforms.effect_bounds, uniforms.outer_shadow.offset_blur_spread,
+            uniforms.size_and_kind,
+            uniforms.corner_radii,
+            uniforms.border_widths,
+            uniforms.effect_bounds,
+            uniforms.outer_shadow.offset_blur_spread,
             uniforms.outer_shadow.opacity_and_falloff,
             uniforms.outer_glow.blur_spread_opacity_falloff,
             uniforms.inner_shadow.offset_blur_spread,
             uniforms.inner_shadow.opacity_and_falloff,
-            uniforms.focus_primary_metrics, uniforms.focus_secondary_metrics,
-            uniforms.focus_flags, uniforms.focus_glow.blur_spread_opacity_falloff,
-            uniforms.clip_radii, uniforms.mask_radii,
-            uniforms.backdrop_params0, uniforms.backdrop_params1, uniforms.backdrop_uv_rect,
-            uniforms.noise.params0, uniforms.noise.params1, uniforms.noise.params2,
-            Vec4::new(uniforms.clip_kind, uniforms.mask_kind, uniforms.debug_view, 0.0),
+            uniforms.focus_primary_metrics,
+            uniforms.focus_secondary_metrics,
+            uniforms.focus_flags,
+            uniforms.focus_glow.blur_spread_opacity_falloff,
+            uniforms.clip_radii,
+            uniforms.mask_radii,
+            uniforms.backdrop_params0,
+            uniforms.backdrop_params1,
+            uniforms.backdrop_uv_rect,
+            uniforms.noise.params0,
+            uniforms.noise.params1,
+            uniforms.noise.params2,
+            Vec4::new(
+                uniforms.clip_kind,
+                uniforms.mask_kind,
+                uniforms.debug_view,
+                0.0,
+            ),
         ] {
             check(value);
         }
         for paint in [
-            &uniforms.fill_paint, &uniforms.border_paint,
-            &uniforms.focus_primary_paint, &uniforms.focus_secondary_paint,
+            &uniforms.fill_paint,
+            &uniforms.border_paint,
+            &uniforms.focus_primary_paint,
+            &uniforms.focus_secondary_paint,
         ] {
-            for value in [paint.kind_and_flags, paint.linear_points,
-                paint.radial_center_radius, paint.angular_center_angle] {
+            for value in [
+                paint.kind_and_flags,
+                paint.linear_points,
+                paint.radial_center_radius,
+                paint.angular_center_angle,
+            ] {
                 check(value);
             }
             for stop in paint.stops {
@@ -1305,20 +1528,27 @@ mod tests {
             }
         }
         for opacity in [
-            uniforms.clip_opacity, uniforms.mask_opacity,
+            uniforms.clip_opacity,
+            uniforms.mask_opacity,
             uniforms.outer_shadow.opacity_and_falloff.x,
             uniforms.inner_shadow.opacity_and_falloff.x,
             uniforms.outer_glow.blur_spread_opacity_falloff.z,
-            uniforms.focus_primary_metrics.z, uniforms.focus_secondary_metrics.z,
+            uniforms.focus_primary_metrics.z,
+            uniforms.focus_secondary_metrics.z,
             uniforms.focus_glow.blur_spread_opacity_falloff.z,
-            uniforms.backdrop_params1.y, uniforms.noise.params0.z,
+            uniforms.backdrop_params1.y,
+            uniforms.noise.params0.z,
         ] {
             assert!((0.0..=1.0).contains(&opacity), "invalid opacity: {opacity}");
         }
         let width = uniforms.size_and_kind.x;
         let height = uniforms.size_and_kind.y;
         let le = |sum: f32, limit: f32| sum <= limit + limit * 1e-6 + 1e-4;
-        for radii in [uniforms.corner_radii, uniforms.clip_radii, uniforms.mask_radii] {
+        for radii in [
+            uniforms.corner_radii,
+            uniforms.clip_radii,
+            uniforms.mask_radii,
+        ] {
             assert!(radii.cmpge(Vec4::ZERO).all());
             assert!(le(radii.x + radii.y, width));
             assert!(le(radii.w + radii.z, width));
@@ -1326,78 +1556,139 @@ mod tests {
             assert!(le(radii.y + radii.z, height));
         }
         assert!(uniforms.border_widths.cmpge(Vec4::ZERO).all());
-        assert!(le(uniforms.border_widths.y + uniforms.border_widths.w, width));
-        assert!(le(uniforms.border_widths.x + uniforms.border_widths.z, height));
+        assert!(le(
+            uniforms.border_widths.y + uniforms.border_widths.w,
+            width
+        ));
+        assert!(le(
+            uniforms.border_widths.x + uniforms.border_widths.z,
+            height
+        ));
     }
 
     #[test]
     fn gpu_uniform_bounds_raw_geometry_and_opacity_for_all_float_classes() {
-        let values = [f32::NAN, f32::INFINITY, f32::NEG_INFINITY, f32::MAX,
-            f32::MIN, 0.0, f32::from_bits(1), 0.5, 2.0, 64.0];
+        let values = [
+            f32::NAN,
+            f32::INFINITY,
+            f32::NEG_INFINITY,
+            f32::MAX,
+            f32::MIN,
+            0.0,
+            f32::from_bits(1),
+            0.5,
+            2.0,
+            64.0,
+        ];
         for value in values {
             let shape = Shape::rounded_rect_corners(value, 8.0, value, 0.0);
             let stops = vec![GradientStop::new(value, Color::WHITE)];
-            let mut surface = Surface::new(shape, Paint::linear(LinearGradient {
-                start: Vec2::new(value, -value), end: Vec2::new(-value, value),
-                stops: stops.clone(), dithering: true,
-            }));
+            let mut surface = Surface::new(
+                shape,
+                Paint::linear(LinearGradient {
+                    start: Vec2::new(value, -value),
+                    end: Vec2::new(-value, value),
+                    stops: stops.clone(),
+                    dithering: true,
+                }),
+            );
             surface.border = Some(Border {
                 width: BorderWidths::sides(value, 8.0, value, 0.0),
                 paint: Paint::radial(RadialGradient {
-                    center: Vec2::splat(value), radius: Vec2::new(value, -value),
-                    stops: stops.clone(), dithering: true,
+                    center: Vec2::splat(value),
+                    radius: Vec2::new(value, -value),
+                    stops: stops.clone(),
+                    dithering: true,
                 }),
             });
-            surface.clip = Some(Clip { shape, opacity: value });
-            surface.mask = Some(Mask { shape, opacity: value });
+            surface.clip = Some(Clip {
+                shape,
+                opacity: value,
+            });
+            surface.mask = Some(Mask {
+                shape,
+                opacity: value,
+            });
             surface.effects = Effects {
                 outer_shadow: Some(OuterShadow {
-                    color: Color::BLACK, offset: Vec2::new(value, -value),
-                    blur: value, spread: value, opacity: value,
+                    color: Color::BLACK,
+                    offset: Vec2::new(value, -value),
+                    blur: value,
+                    spread: value,
+                    opacity: value,
                     falloff: ShadowFalloff::Gaussian,
                 }),
                 outer_glow: Some(OuterGlow {
-                    color: Color::WHITE, blur: value, spread: value, opacity: value,
+                    color: Color::WHITE,
+                    blur: value,
+                    spread: value,
+                    opacity: value,
                     falloff: ShadowFalloff::Gaussian,
                 }),
                 inner_shadow: Some(InnerShadow {
-                    color: Color::BLACK, offset: Vec2::new(-value, value),
-                    blur: value, spread: -value, opacity: value,
+                    color: Color::BLACK,
+                    offset: Vec2::new(-value, value),
+                    blur: value,
+                    spread: -value,
+                    opacity: value,
                     falloff: ShadowFalloff::Smooth,
                 }),
             };
             let layer = super::FocusRingLayer {
-                width: value, offset: value, opacity: value,
+                width: value,
+                offset: value,
+                opacity: value,
                 paint: Paint::angular(AngularGradient {
-                    center: Vec2::splat(value), angle_radians: value,
-                    stops, dithering: true,
+                    center: Vec2::splat(value),
+                    angle_radians: value,
+                    stops,
+                    dithering: true,
                 }),
             };
             surface.decorations.focus_ring = Some(super::FocusRing {
-                primary: layer.clone(), secondary: Some(layer),
+                primary: layer.clone(),
+                secondary: Some(layer),
                 placement: super::FocusRingPlacement::Outside,
                 glow: surface.effects.outer_glow,
             });
             surface.backdrop = Some(Backdrop {
-                blur: value, tint_opacity: value, brightness: value,
-                saturation: value, contrast: value, ..Backdrop::default()
+                blur: value,
+                tint_opacity: value,
+                brightness: value,
+                saturation: value,
+                contrast: value,
+                ..Backdrop::default()
             });
             surface.noise = Some(Noise {
-                scale: value, strength: value, seed: value, speed: value,
-                animated: true, ..Noise::default()
+                scale: value,
+                strength: value,
+                seed: value,
+                speed: value,
+                animated: true,
+                ..Noise::default()
             });
             for scale in values {
-                for size in [Vec2::new(100.0, 60.0), Vec2::ZERO,
-                    Vec2::new(value, 60.0), Vec2::new(100.0, value),
-                    Vec2::splat(value), Vec2::splat(f32::MAX)] {
+                for size in [
+                    Vec2::new(100.0, 60.0),
+                    Vec2::ZERO,
+                    Vec2::new(value, 60.0),
+                    Vec2::new(100.0, value),
+                    Vec2::splat(value),
+                    Vec2::splat(f32::MAX),
+                ] {
                     let uniforms = build_shape_uniform_with_debug_and_time(
-                        &surface, size, scale,
+                        &surface,
+                        size,
+                        scale,
                         super::BackdropSampleRegion {
                             min_uv: Vec2::new(value, -value),
                             max_uv: Vec2::new(-value, value),
                         },
-                        true, BackdropDebugView::Final, UiRenderDebugView::Final,
-                        value, false,
+                        true,
+                        BackdropDebugView::Final,
+                        UiRenderDebugView::Final,
+                        value,
+                        false,
                     );
                     assert_bounded_geometry_and_opacity(&uniforms);
                 }
@@ -1408,16 +1699,33 @@ mod tests {
     #[test]
     fn gpu_uniform_direct_clip_mask_opacity_matches_existing_sanitizers() {
         for (input, expected) in [
-            (f32::NAN, 1.0), (f32::INFINITY, 1.0), (f32::NEG_INFINITY, 1.0),
-            (f32::MAX, 1.0), (f32::MIN, 0.0), (-0.5, 0.0), (0.0, 0.0),
-            (0.375, 0.375), (1.0, 1.0), (2.0, 1.0),
+            (f32::NAN, 1.0),
+            (f32::INFINITY, 1.0),
+            (f32::NEG_INFINITY, 1.0),
+            (f32::MAX, 1.0),
+            (f32::MIN, 0.0),
+            (-0.5, 0.0),
+            (0.0, 0.0),
+            (0.375, 0.375),
+            (1.0, 1.0),
+            (2.0, 1.0),
         ] {
             let mut surface = Surface::rounded_rect_fill(8.0, Color::WHITE);
-            surface.clip = Some(Clip { shape: surface.shape, opacity: input });
-            surface.mask = Some(Mask { shape: surface.shape, opacity: input });
+            surface.clip = Some(Clip {
+                shape: surface.shape,
+                opacity: input,
+            });
+            surface.mask = Some(Mask {
+                shape: surface.shape,
+                opacity: input,
+            });
             let uniforms = build_shape_uniform(
-                &surface, Vec2::new(100.0, 60.0), 2.0,
-                super::BackdropSampleRegion::default(), true, BackdropDebugView::Final,
+                &surface,
+                Vec2::new(100.0, 60.0),
+                2.0,
+                super::BackdropSampleRegion::default(),
+                true,
+                BackdropDebugView::Final,
             );
             assert_eq!(uniforms.clip_opacity, expected);
             assert_eq!(uniforms.mask_opacity, expected);
@@ -1427,22 +1735,40 @@ mod tests {
     #[test]
     fn gpu_uniform_preserves_valid_asymmetry_and_out_of_unit_gradient_coordinates() {
         let shape = Shape::rounded_rect_corners(80.0, 10.0, 5.0, 10.0);
-        let surface = Surface::new(shape, Paint::linear(LinearGradient::new(
-            Vec2::new(-2.0, 0.5), Vec2::new(3.0, 0.5), vec![],
-        )))
-        .border(Border::per_side(BorderWidths::sides(80.0, 10.0, 5.0, 70.0),
-            Paint::radial(RadialGradient::circular(Vec2::new(-1.0, 2.0), 3.0, vec![]))))
-        .with_clip(Clip::new(shape)).with_mask(Mask::new(shape));
+        let surface = Surface::new(
+            shape,
+            Paint::linear(LinearGradient::new(
+                Vec2::new(-2.0, 0.5),
+                Vec2::new(3.0, 0.5),
+                vec![],
+            )),
+        )
+        .border(Border::per_side(
+            BorderWidths::sides(80.0, 10.0, 5.0, 70.0),
+            Paint::radial(RadialGradient::circular(Vec2::new(-1.0, 2.0), 3.0, vec![])),
+        ))
+        .with_clip(Clip::new(shape))
+        .with_mask(Mask::new(shape));
         let uniforms = build_shape_uniform(
-            &surface, Vec2::splat(100.0), 2.0,
-            super::BackdropSampleRegion::default(), true, BackdropDebugView::Final,
+            &surface,
+            Vec2::splat(100.0),
+            2.0,
+            super::BackdropSampleRegion::default(),
+            true,
+            BackdropDebugView::Final,
         );
         assert_eq!(uniforms.corner_radii, Vec4::new(160.0, 20.0, 10.0, 20.0));
         assert_eq!(uniforms.clip_radii, uniforms.corner_radii);
         assert_eq!(uniforms.mask_radii, uniforms.corner_radii);
         assert_eq!(uniforms.border_widths, Vec4::new(160.0, 20.0, 10.0, 140.0));
-        assert_eq!(uniforms.fill_paint.linear_points, Vec4::new(-2.0, 0.5, 3.0, 0.5));
-        assert_eq!(uniforms.border_paint.radial_center_radius, Vec4::new(-1.0, 2.0, 3.0, 3.0));
+        assert_eq!(
+            uniforms.fill_paint.linear_points,
+            Vec4::new(-2.0, 0.5, 3.0, 0.5)
+        );
+        assert_eq!(
+            uniforms.border_paint.radial_center_radius,
+            Vec4::new(-1.0, 2.0, 3.0, 3.0)
+        );
     }
 
     #[test]
@@ -1489,11 +1815,14 @@ mod tests {
 
     #[test]
     fn gpu_uniform_converts_border_widths_and_color() {
-        let surface = Surface::new(Shape::rounded_rect(12.0), Paint::solid(Color::srgb(0.2, 0.3, 0.4)))
-            .border(Border::per_side(
-                BorderWidths::sides(1.0, 2.0, 3.0, 4.0),
-                Paint::solid(Color::srgb(0.9, 0.1, 0.2)),
-            ));
+        let surface = Surface::new(
+            Shape::rounded_rect(12.0),
+            Paint::solid(Color::srgb(0.2, 0.3, 0.4)),
+        )
+        .border(Border::per_side(
+            BorderWidths::sides(1.0, 2.0, 3.0, 4.0),
+            Paint::solid(Color::srgb(0.9, 0.1, 0.2)),
+        ));
 
         let uniforms = build_shape_uniform(
             &surface,
@@ -1631,12 +1960,9 @@ mod tests {
 
     #[test]
     fn gpu_uniform_encodes_shape_clip_and_mask() {
-        let surface = Surface::new(
-            Shape::rounded_rect(12.0),
-            Paint::solid(Color::WHITE),
-        )
-        .with_clip(Clip::rounded_rect(8.0).with_opacity(0.75))
-        .with_mask(Mask::rounded_rect(10.0).with_opacity(0.5));
+        let surface = Surface::new(Shape::rounded_rect(12.0), Paint::solid(Color::WHITE))
+            .with_clip(Clip::rounded_rect(8.0).with_opacity(0.75))
+            .with_mask(Mask::rounded_rect(10.0).with_opacity(0.5));
 
         let uniforms = build_shape_uniform(
             &surface,
@@ -1827,8 +2153,8 @@ mod tests {
 
     #[test]
     fn gpu_uniform_noise_respects_reduced_effects() {
-        let surface = Surface::rounded_rect_fill(12.0, Color::WHITE)
-            .with_noise(Noise::grain(20.0, 0.08));
+        let surface =
+            Surface::rounded_rect_fill(12.0, Color::WHITE).with_noise(Noise::grain(20.0, 0.08));
 
         let uniforms = build_shape_uniform_with_debug_and_time(
             &surface,

@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 
-use crate::rendering::{Paint, Surface};
 use super::data::TableResponse;
 use super::events::{TableEvent, table_interaction_system};
 use super::header::spawn_header;
 use super::rows::spawn_row;
 use crate::animation::loading::LoadingAssets;
-use crate::theme::ThemeResource;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
+use crate::rendering::{Paint, Surface};
+use crate::theme::ThemeResource;
 
 const HEADER_FONT_SIZE: f32 = 14.0;
 const CELL_FONT_SIZE: f32 = 14.0;
@@ -198,51 +198,48 @@ impl Table {
 }
 
 fn spawn_table_into(parent: &mut ChildSpawnerCommands, config: TableConfig) -> Entity {
-        let table_id = config.id.clone();
-        let root_background = Color::srgba(1.0, 1.0, 1.0, 0.05);
+    let table_id = config.id.clone();
+    let root_background = Color::srgba(1.0, 1.0, 1.0, 0.05);
 
-        let entity = parent
-            .spawn((
-                Table {
-                    id: config.id.clone(),
-                },
-                SemanticNode::new(SemanticRole::Table).label(config.id.clone()),
-                Node {
-                    width: Val::Percent(100.0),
-                    flex_direction: FlexDirection::Column,
-                    border: UiRect::all(px(1.0)),
-                    border_radius: BorderRadius::all(Val::Px(14.0)),
-                    overflow: Overflow::clip(),
-                    ..default()
-                },
-                BackgroundColor(Color::NONE),
-                BorderColor::all(Color::NONE),
-                Surface::rounded_rect_fill(14.0, Paint::solid(root_background))
-                    .uniform_border(1.0, Paint::solid(Color::srgba(1.0, 1.0, 1.0, 0.16))),
-            ))
-            .with_children(|parent| {
-                if config.show_header {
-                    spawn_header(parent, &config);
-                }
+    let entity = parent
+        .spawn((
+            Table {
+                id: config.id.clone(),
+            },
+            SemanticNode::new(SemanticRole::Table).label(config.id.clone()),
+            Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                border: UiRect::all(px(1.0)),
+                border_radius: BorderRadius::all(Val::Px(14.0)),
+                overflow: Overflow::clip(),
+                ..default()
+            },
+            BackgroundColor(Color::NONE),
+            BorderColor::all(Color::NONE),
+            Surface::rounded_rect_fill(14.0, Paint::solid(root_background))
+                .uniform_border(1.0, Paint::solid(Color::srgba(1.0, 1.0, 1.0, 0.16))),
+        ))
+        .with_children(|parent| {
+            if config.show_header {
+                spawn_header(parent, &config);
+            }
 
-                for (index, row) in config.rows.iter().enumerate() {
-                    spawn_row(parent, &table_id, &config, row, index);
-                }
-            })
-            .id();
+            for (index, row) in config.rows.iter().enumerate() {
+                spawn_row(parent, &table_id, &config, row, index);
+            }
+        })
+        .id();
 
-        entity
-    }
+    entity
+}
 
 fn table_visual_system(
     theme: Res<ThemeResource>,
     mut visual_queries: ParamSet<(
         Query<&mut Surface, (With<Table>, Without<TableHeader>, Without<TableRowNode>)>,
         Query<&mut Surface, (With<TableHeader>, Without<Table>, Without<TableRowNode>)>,
-        Query<
-            (&TableRowNode, &Interaction, &mut Surface),
-            (Without<Table>, Without<TableHeader>),
-        >,
+        Query<(&TableRowNode, &Interaction, &mut Surface), (Without<Table>, Without<TableHeader>)>,
         Query<
             (
                 &mut TextColor,

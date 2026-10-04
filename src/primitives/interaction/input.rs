@@ -1,44 +1,25 @@
+use crate::rendering::Surface;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use crate::rendering::Surface;
 
 use super::action::{ActionBinding, DisabledInteraction, derive_activation_actions};
 use super::capture::{
-    PointerCaptureMap,
-    PointerCaptureRequest,
-    PointerReleaseRequest,
-    apply_capture_requests,
+    PointerCaptureMap, PointerCaptureRequest, PointerReleaseRequest, apply_capture_requests,
     cleanup_capture_for_removed_entities,
 };
 use super::debug::{InteractionDebugSettings, InteractionDebugSnapshot};
 use super::event::{
-    InteractionEventContext,
-    InteractionEventPhase,
-    InteractionEventType,
-    PointerButtonState,
-    PointerButtons,
-    PointerEvent,
-    PointerEventModifiers,
-    PointerEventRequest,
-    PointerId,
-    PointerType,
-    UiPointerEvent,
+    InteractionEventContext, InteractionEventPhase, InteractionEventType, PointerButtonState,
+    PointerButtons, PointerEvent, PointerEventModifiers, PointerEventRequest, PointerId,
+    PointerType, UiPointerEvent,
 };
 use super::gesture::{
-    GestureArenaDebugFrame,
-    GestureArenaState,
-    GestureDragEvent,
-    GestureTapEvent,
+    GestureArenaDebugFrame, GestureArenaState, GestureDragEvent, GestureTapEvent,
     update_gesture_arena,
 };
 use super::hit_shape::HitShape;
 use super::hit_test::{
-    HitBehavior,
-    HitTestNode,
-    UiHitNode,
-    UiHitTargetCache,
-    UiHitTestDebugFrame,
-    hit_test_primary,
+    HitBehavior, HitTestNode, UiHitNode, UiHitTargetCache, UiHitTestDebugFrame, hit_test_primary,
 };
 use super::hover::{HoverState, HoverTracker, update_hover_states_from_events};
 use super::pointer_state::PointerFrameState;
@@ -260,11 +241,20 @@ fn route_pointer_events(
     for request in events.read() {
         let pointer = request.pointer;
         pointer_state.update(&pointer);
-        velocity_tracker.push_sample(pointer.pointer_id, pointer.timestamp_secs, pointer.window_position);
+        velocity_tracker.push_sample(
+            pointer.pointer_id,
+            pointer.timestamp_secs,
+            pointer.window_position,
+        );
 
         let captured = capture_map.captured_entity(pointer.pointer_id);
         let hit = windows.single().ok().and_then(|window| {
-            hit_test_primary(pointer.window_position, window.scale_factor(), &query, &parent_query)
+            hit_test_primary(
+                pointer.window_position,
+                window.scale_factor(),
+                &query,
+                &parent_query,
+            )
         });
 
         hit_debug.pointer = pointer.window_position;
@@ -463,13 +453,16 @@ fn bootstrap_interactive_nodes(
 }
 
 fn sync_button_interaction_from_states(
-    mut buttons: Query<(
-        Entity,
-        &mut Interaction,
-        Option<&HoverState>,
-        Option<&PressedState>,
-        Option<&DisabledInteraction>,
-    ), With<Button>>,
+    mut buttons: Query<
+        (
+            Entity,
+            &mut Interaction,
+            Option<&HoverState>,
+            Option<&PressedState>,
+            Option<&DisabledInteraction>,
+        ),
+        With<Button>,
+    >,
 ) {
     for (_, mut interaction, hover, pressed, disabled) in &mut buttons {
         if disabled.is_some() {

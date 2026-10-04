@@ -5,14 +5,14 @@ mod component;
 mod group;
 mod systems;
 
+pub use crate::rendering::ShimmerDirection as SkeletonDirection;
 pub use component::Skeleton;
 pub use group::{SkeletonGroup, SkeletonTextLines};
-pub use crate::rendering::ShimmerDirection as SkeletonDirection;
 
+use crate::primitives::semantic::SemanticAccessibilityPlugin;
+use crate::theme::{AccessibilityVisualPolicyResource, ThemeResource};
 use bevy::prelude::*;
 use bevy::ui::UiSystems;
-use crate::theme::{AccessibilityVisualPolicyResource, ThemeResource};
-use crate::primitives::semantic::SemanticAccessibilityPlugin;
 
 /// Resolves skeleton authoring before native layout and Surface material sync.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]

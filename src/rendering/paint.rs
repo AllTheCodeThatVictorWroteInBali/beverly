@@ -120,7 +120,11 @@ impl AngularGradient {
         }
     }
 
-    pub fn angle_degrees(center: Vec2, angle_degrees: f32, stops: impl Into<Vec<GradientStop>>) -> Self {
+    pub fn angle_degrees(
+        center: Vec2,
+        angle_degrees: f32,
+        stops: impl Into<Vec<GradientStop>>,
+    ) -> Self {
         Self::new(center, angle_degrees.to_radians(), stops)
     }
 
@@ -164,7 +168,10 @@ impl Paint {
     pub fn to_linear_rgba(&self) -> Option<LinearRgba> {
         match self {
             Self::Solid(color) => Some(color.to_linear()),
-            Self::Shimmer(_) | Self::LinearGradient(_) | Self::RadialGradient(_) | Self::AngularGradient(_) => None,
+            Self::Shimmer(_)
+            | Self::LinearGradient(_)
+            | Self::RadialGradient(_)
+            | Self::AngularGradient(_) => None,
         }
     }
 }
@@ -217,9 +224,7 @@ fn sanitize_stop_position(position: f32) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        AngularGradient, GradientStop, LinearGradient, RadialGradient, normalize_stops,
-    };
+    use super::{AngularGradient, GradientStop, LinearGradient, RadialGradient, normalize_stops};
     use bevy::prelude::*;
 
     fn stop(position: f32, color: Color) -> GradientStop {
@@ -277,7 +282,10 @@ mod tests {
 
     #[test]
     fn linear_angle_constructor_maps_zero_degrees_to_rightward() {
-        let g = LinearGradient::angle_degrees(0.0, vec![stop(0.0, Color::WHITE), stop(1.0, Color::BLACK)]);
+        let g = LinearGradient::angle_degrees(
+            0.0,
+            vec![stop(0.0, Color::WHITE), stop(1.0, Color::BLACK)],
+        );
         assert!((g.start.x - 0.0).abs() < 1e-6);
         assert!((g.end.x - 1.0).abs() < 1e-6);
         assert!((g.start.y - 0.5).abs() < 1e-6);

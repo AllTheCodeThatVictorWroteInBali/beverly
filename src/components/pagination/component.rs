@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use crate::rendering::{Border, Paint, Surface};
 use crate::primitives::a11y;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
+use crate::rendering::{Border, Paint, Surface};
 use crate::theme::{ThemeResource, dark_theme};
 
 /// Marker component for the pagination root.
@@ -457,7 +457,10 @@ fn pagination_button_interaction(
 fn update_pagination_ui(
     theme: Option<Res<ThemeResource>>,
     pagination_query: Query<(Entity, &PaginationState, &PaginationStyleConfig), With<Pagination>>,
-    mut pagination_semantics: Query<&mut SemanticNode, (With<Pagination>, Without<PaginationButton>)>,
+    mut pagination_semantics: Query<
+        &mut SemanticNode,
+        (With<Pagination>, Without<PaginationButton>),
+    >,
     mut button_query: Query<
         (
             Entity,
@@ -487,7 +490,10 @@ fn update_pagination_ui(
 
     for (pagination_entity, state, style) in &pagination_query {
         if let Ok(mut semantic) = pagination_semantics.get_mut(pagination_entity) {
-            semantic.value = Some(format!("Page {} of {}", state.current_page, state.total_pages));
+            semantic.value = Some(format!(
+                "Page {} of {}",
+                state.current_page, state.total_pages
+            ));
         }
         let visible_buttons = state.total_pages.min(style.max_page_buttons.max(1));
         let page_window_start =

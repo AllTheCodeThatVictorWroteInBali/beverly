@@ -125,14 +125,16 @@ impl Divider {
             },
         };
 
-        (self, style, BackgroundColor(Color::NONE), Surface::rounded_rect_fill(0.0, Paint::solid(color)))
+        (
+            self,
+            style,
+            BackgroundColor(Color::NONE),
+            Surface::rounded_rect_fill(0.0, Paint::solid(color)),
+        )
     }
 }
 
-fn divider_theme_system(
-    theme: Res<ThemeResource>,
-    mut query: Query<(&Divider, &mut Surface)>,
-) {
+fn divider_theme_system(theme: Res<ThemeResource>, mut query: Query<(&Divider, &mut Surface)>) {
     let theme_color = theme.current.colors.border;
 
     for (divider, mut surface) in &mut query {

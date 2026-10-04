@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::rendering::{Paint, Surface};
+use crate::theme::AccessibilityVisualPolicyResource;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum UiMotionPreset {
@@ -143,22 +144,18 @@ pub struct UiMotionPlugin;
 
 impl Plugin for UiMotionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (capture_motion_base, begin_exit_phase, tick_ui_motion).chain(),
-        );
+        app.init_resource::<AccessibilityVisualPolicyResource>()
+            .add_systems(
+                Update,
+                (capture_motion_base, begin_exit_phase, tick_ui_motion).chain(),
+            );
     }
 }
 
 fn capture_motion_base(
     mut commands: Commands,
     query: Query<
-        (
-            Entity,
-            Option<&Node>,
-            Option<&Surface>,
-            Option<&TextColor>,
-        ),
+        (Entity, Option<&Node>, Option<&Surface>, Option<&TextColor>),
         (With<UiMotion>, Added<UiMotion>, Without<UiMotionBase>),
     >,
 ) {
@@ -203,6 +200,7 @@ fn begin_exit_phase(
 fn tick_ui_motion(
     mut commands: Commands,
     time: Res<Time>,
+    policy: Res<AccessibilityVisualPolicyResource>,
     mut query: Query<(
         Entity,
         &mut UiMotion,
@@ -214,6 +212,24 @@ fn tick_ui_motion(
     )>,
 ) {
     for (entity, mut motion, base, node, background, text, exit_requested) in &mut query {
+        if policy.current.reduced_motion {
+            if motion.phase == UiMotionPhase::Exiting || exit_requested.is_some() {
+                commands
+                    .entity(entity)
+                    .despawn_related::<Children>()
+                    .despawn();
+            } else if motion.phase == UiMotionPhase::Entering {
+                motion.phase = UiMotionPhase::Idle;
+                motion.elapsed_secs = 0.0;
+                if let Some(base) = base {
+                    apply_alpha(background, base.background_alpha, 1.0);
+                    apply_text_alpha(text, base.text_alpha, 1.0);
+                    apply_offset(node, *base, UiMotionPreset::Fade, UiMotionPhase::Idle, 1.0);
+                }
+            }
+            continue;
+        }
+
         let spec = match motion.phase {
             UiMotionPhase::Entering => motion.enter,
             UiMotionPhase::Exiting => motion.exit,
@@ -277,11 +293,7 @@ fn tick_ui_motion(
     }
 }
 
-fn apply_alpha(
-    mut background: Option<Mut<Surface>>,
-    base_alpha: Option<f32>,
-    alpha_factor: f32,
-) {
+fn apply_alpha(mut background: Option<Mut<Surface>>, base_alpha: Option<f32>, alpha_factor: f32) {
     let (Some(mut background), Some(base_alpha)) = (background.take(), base_alpha) else {
         return;
     };
@@ -352,5 +364,65 @@ mod tests {
 
         assert_eq!(motion.phase, UiMotionPhase::Entering);
         assert_eq!(motion.elapsed_secs, 0.0);
+    }
+
+    #[test]
+    fn reduced_motion_finishes_entering_motion_without_time_advancing() {
+        let mut app = App::new();
+        app.insert_resource(AccessibilityVisualPolicyResource {
+            current: crate::theme::AccessibilityVisualPolicy {
+                reduced_motion: true,
+                ..default()
+            },
+        })
+        .init_resource::<Time>()
+        .add_systems(Update, tick_ui_motion);
+        let entity = app
+            .world_mut()
+            .spawn((
+                UiMotion::fade_up(),
+                UiMotionBase {
+                    top_px: 12.0,
+                    background_alpha: None,
+                    text_alpha: None,
+                },
+                Node {
+                    margin: UiRect::top(Val::Px(12.0)),
+                    ..default()
+                },
+            ))
+            .id();
+
+        app.update();
+
+        assert_eq!(
+            app.world().get::<UiMotion>(entity).unwrap().phase,
+            UiMotionPhase::Idle
+        );
+        assert_eq!(
+            app.world().get::<Node>(entity).unwrap().margin.top,
+            Val::Px(12.0)
+        );
+    }
+
+    #[test]
+    fn reduced_motion_despawns_requested_exit_immediately() {
+        let mut app = App::new();
+        app.insert_resource(AccessibilityVisualPolicyResource {
+            current: crate::theme::AccessibilityVisualPolicy {
+                reduced_motion: true,
+                ..default()
+            },
+        })
+        .init_resource::<Time>()
+        .add_systems(Update, tick_ui_motion);
+        let entity = app
+            .world_mut()
+            .spawn((UiMotion::fade(), UiMotionExitRequested))
+            .id();
+
+        app.update();
+
+        assert!(app.world().get_entity(entity).is_err());
     }
 }

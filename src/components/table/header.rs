@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use crate::rendering::{Paint, Surface};
 use crate::components::text::{TextRole, ThemedText};
+use crate::rendering::{Paint, Surface};
 
 use super::component::{TableConfig, TableHeader, TableHeaderLabel, TableHeaderNode};
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
@@ -43,7 +43,10 @@ pub(crate) fn spawn_header(parent: &mut ChildSpawnerCommands, config: &TableConf
                             ..default()
                         },
                         BackgroundColor(Color::NONE),
-                        Surface::rounded_rect_fill(0.0, Paint::solid(Color::srgba(1.0, 1.0, 1.0, 0.00))),
+                        Surface::rounded_rect_fill(
+                            0.0,
+                            Paint::solid(Color::srgba(1.0, 1.0, 1.0, 0.00)),
+                        ),
                     ))
                     .with_children(|button| {
                         button.spawn((

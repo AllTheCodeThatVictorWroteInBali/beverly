@@ -109,7 +109,16 @@ pub fn spawn_progress_bar_into(
 
 fn progress_bar_parts(
     progress_bar: ProgressBar,
-) -> ((ProgressBar, crate::primitives::semantic::SemanticNode, Node, Surface), f32, Color) {
+) -> (
+    (
+        ProgressBar,
+        crate::primitives::semantic::SemanticNode,
+        Node,
+        Surface,
+    ),
+    f32,
+    Color,
+) {
     let width = progress_bar.width;
     let height = progress_bar.height;
 
@@ -128,18 +137,22 @@ fn progress_bar_parts(
         step: None,
     };
 
-    ((
-        progress_bar,
-        semantic,
-        Node {
-            width: Val::Px(width),
-            height: Val::Px(height),
-            border_radius: BorderRadius::all(Val::Px(height / 2.0)),
-            overflow: Overflow::clip(),
-            ..default()
-        },
-        Surface::rounded_rect_fill(height / 2.0, Paint::solid(background_color)),
-    ), height, fill_color)
+    (
+        (
+            progress_bar,
+            semantic,
+            Node {
+                width: Val::Px(width),
+                height: Val::Px(height),
+                border_radius: BorderRadius::all(Val::Px(height / 2.0)),
+                overflow: Overflow::clip(),
+                ..default()
+            },
+            Surface::rounded_rect_fill(height / 2.0, Paint::solid(background_color)),
+        ),
+        height,
+        fill_color,
+    )
 }
 
 fn progress_fill_bundle(height: f32, fill_color: Color) -> (ProgressBarFill, Node, Surface) {

@@ -1,12 +1,12 @@
-use crate::icons::{Icon, IconCommands};
 use crate::components::text::{TextRole, ThemedText};
 use crate::components::title::{ThemedTitle, TitleLevel};
+use crate::icons::{Icon, IconCommands};
 use bevy::prelude::*;
 use std::time::Duration;
 
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::rendering::{Paint, Surface};
 use crate::theme::{ThemeColors, ThemeResource};
-use crate::primitives::semantic::{SemanticNode, SemanticRole};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlertVariant {
@@ -175,12 +175,19 @@ fn spawn_alert_ui(
 
         root.insert((
             AlertRoot,
-            SemanticNode::new(if matches!(alert.variant, AlertVariant::Error | AlertVariant::Warning) {
-                SemanticRole::Alert
-            } else {
-                SemanticRole::Status
-            })
-            .label(alert.title.clone().unwrap_or_else(|| alert.variant.label().to_string()))
+            SemanticNode::new(
+                if matches!(alert.variant, AlertVariant::Error | AlertVariant::Warning) {
+                    SemanticRole::Alert
+                } else {
+                    SemanticRole::Status
+                },
+            )
+            .label(
+                alert
+                    .title
+                    .clone()
+                    .unwrap_or_else(|| alert.variant.label().to_string()),
+            )
             .description(alert.message.clone()),
             Node {
                 display: Display::Flex,
@@ -267,11 +274,7 @@ fn spawn_alert_ui(
                         },
                     ))
                     .with_children(|button| {
-                        button.spawn_icon_colored(
-                            Icon::feather("x"),
-                            18.0,
-                            colors.text_muted,
-                        );
+                        button.spawn_icon_colored(Icon::feather("x"), 18.0, colors.text_muted);
                     });
             }
         });

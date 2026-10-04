@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 
-use crate::rendering::{GradientStop, LinearGradient, Paint, Surface};
 use crate::components::nav_button::{
     DrawerButton, DrawerLabel, DrawerToggle, DrawerToggleLabel, PageId, drawer_toggle, nav_button,
 };
-use crate::theme::ThemeResource;
 use crate::primitives::root::UiFonts;
+use crate::rendering::{GradientStop, LinearGradient, Paint, Surface};
+use crate::theme::ThemeResource;
 
 const SIDEBAR_OPEN_WIDTH: f32 = 30.0;
 const SIDEBAR_COLLAPSED_WIDTH: f32 = 6.0;

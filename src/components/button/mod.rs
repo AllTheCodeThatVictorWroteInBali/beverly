@@ -1,6 +1,6 @@
 pub mod component;
 
 pub use component::{
-	button, BeverlyButton, ButtonChild, ButtonChildSetup, ButtonColor, ButtonCommand,
-	ButtonEventType, ButtonPlugin,
+    BeverlyButton, ButtonChild, ButtonChildSetup, ButtonColor, ButtonCommand, ButtonEventType,
+    ButtonPlugin, button,
 };

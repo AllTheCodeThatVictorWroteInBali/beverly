@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
+use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::rendering::{Paint, Surface};
 use crate::theme::ThemeResource;
-use crate::primitives::semantic::{SemanticNode, SemanticRole};
 
 /// Event emitted when a [`Link`] is clicked.
 #[derive(Message, Debug, Clone)]
@@ -110,29 +110,30 @@ impl Plugin for LinkPlugin {
         if !app.is_plugin_added::<crate::primitives::semantic::SemanticAccessibilityPlugin>() {
             app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
         }
-        app.add_message::<LinkClicked>()
-            .add_systems(
-                Update,
-                (link_semantics_system, link_interaction_system, link_visual_system),
-            );
+        app.add_message::<LinkClicked>().add_systems(
+            Update,
+            (
+                link_semantics_system,
+                link_interaction_system,
+                link_visual_system,
+            ),
+        );
     }
 }
 
-fn link_semantics_system(
-    mut commands: Commands,
-    links: Query<(Entity, &Link), Added<Link>>,
-) {
+fn link_semantics_system(mut commands: Commands, links: Query<(Entity, &Link), Added<Link>>) {
     for (entity, link) in &links {
         commands.entity(entity).insert((
             Button,
             crate::primitives::a11y::TabIndex(if link.disabled { -1 } else { 0 }),
-            SemanticNode::new(SemanticRole::Link)
-                .label(link.text.clone()),
+            SemanticNode::new(SemanticRole::Link).label(link.text.clone()),
         ));
         if let Some(description) = &link.aria_description {
             commands
                 .entity(entity)
-                .insert(crate::primitives::semantic::AriaDescription(description.clone()));
+                .insert(crate::primitives::semantic::AriaDescription(
+                    description.clone(),
+                ));
         }
     }
 }
@@ -194,14 +195,16 @@ fn link_visual_system(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::theme::{light_theme, ThemeResource};
+    use crate::theme::{ThemeResource, light_theme};
     use bevy::a11y::AccessibilityNode;
 
     #[test]
     fn link_gets_link_semantics_and_accessible_name() {
         let mut app = App::new();
-        app.insert_resource(ThemeResource { current: light_theme() })
-            .add_plugins(LinkPlugin);
+        app.insert_resource(ThemeResource {
+            current: light_theme(),
+        })
+        .add_plugins(LinkPlugin);
         let entity = app.world_mut().spawn(Link::new("Documentation")).id();
         app.update();
 

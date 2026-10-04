@@ -1,10 +1,10 @@
 use bevy::input_focus::InputFocus;
 use bevy::prelude::*;
 
-use crate::rendering::{Paint, Surface};
+use crate::components::text::{TextRole, ThemedText};
 use crate::primitives::a11y::{self, FocusCause};
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
-use crate::components::text::{TextRole, ThemedText};
+use crate::rendering::{Paint, Surface};
 use crate::theme::{ThemeColors, ThemeResource, dark_theme};
 
 /// Identifies a radio group.

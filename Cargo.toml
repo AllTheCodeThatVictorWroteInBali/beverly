@@ -14,6 +14,7 @@ exclude = ["docs/", "index.html", "tools/", "dist/"]
 
 include = [
     "src/**",
+    "beverly-macros/**",
     "assets/**",
     "README.md",
     "LICENSE",
@@ -27,10 +28,11 @@ path = "src/lib.rs"
 # `beverly` remains a regular (non-virtual) manifest: this package is still the
 # workspace root, and `tools/cargo-beverly` is an additional member alongside it.
 [workspace]
-members = ["tools/cargo-beverly"]
+members = ["tools/cargo-beverly", "beverly-macros"]
 
 [dependencies]
-bevy = "0.19"
+bevy = { version = "0.19", default-features = false, features = ["2d", "ui"] }
+beverly-macros = { version = "0.0.3", path = "beverly-macros" }
 bevy_svg = "0.19"
 ab_glyph = "0.2"
 accesskit = "0.24"

@@ -1,11 +1,11 @@
 #![allow(deprecated)] // Legacy plugin is opt-in; native loading uses SkeletonPlugin.
 use bevy::prelude::*;
 
-use crate::rendering::{Paint, Surface};
 use super::{
     Placeholder, PlaceholderAnimation, PlaceholderMaterial, PlaceholderRoot, PlaceholderShape,
     PlaceholderUniforms, calculate_effect,
 };
+use crate::rendering::{Paint, Surface};
 
 /// Spawn a placeholder and return its root entity.
 pub fn spawn_placeholder(

@@ -3,6 +3,42 @@
 > **Current status:** `.bind(...)` examples describe planned model-setter
 > integration and are not currently executable against the crate.
 
+## Current GET submission API
+
+The executable GET path uses `Form`, a named fluent control, and the
+`FormSubmitted` message. The submit button gathers named descendant controls,
+combines them with fields configured directly on `Form`, and emits a
+`FormRequest`. The application owns transport and response handling; the
+Bevy update system does not perform blocking network I/O.
+
+```rust
+use bevy::prelude::*;
+use beverly::prelude::*;
+
+fn search_form() -> UiElement {
+    UiElement::form(Form::get("https://example.test/search"))
+        .children([
+            UiElement::input("Search terms")
+                .label("Search terms")
+                .name("q"),
+        ])
+}
+
+fn handle_search_submit(mut submitted: MessageReader<FormSubmitted>) {
+    for submission in submitted.read() {
+        let encoded_url = submission.request.request_url();
+        info!(form = ?submission.form, %encoded_url, "GET form submitted");
+    }
+}
+```
+
+`Form::fields(...)` adds fixed values, while `.name(...)` supplies a query key
+for a supported control. Disabled controls and unchecked checkbox/toggle
+controls are omitted. The generated URL uses form encoding and preserves
+existing query parameters. For HTTP transport, handle the message in an
+application-owned task or worker rather than calling the blocking convenience
+method from a Bevy system.
+
 `submit()` represents the action that submits a form.
 
 It is intentionally simple.

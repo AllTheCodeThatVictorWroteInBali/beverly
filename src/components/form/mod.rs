@@ -1,3 +1,6 @@
 pub mod component;
 
-pub use component::{Form, FormEncoding, FormMethod, FormRequest, spawn_form};
+pub use component::{
+    Form, FormEncoding, FormFieldName, FormMethod, FormPlugin, FormRequest, FormSubmitButton,
+    FormSubmitted, spawn_form,
+};

@@ -2,11 +2,11 @@ use bevy::input::{ButtonState, keyboard::KeyboardInput};
 use bevy::input_focus::InputFocus;
 use bevy::prelude::*;
 
-use crate::rendering::{Border, Paint, Surface};
+use crate::components::text::{TextRole, ThemedText};
+use crate::icons::{Icon, IconNode};
 use crate::primitives::a11y;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
-use crate::icons::{Icon, IconNode};
-use crate::components::text::{TextRole, ThemedText};
+use crate::rendering::{Border, Paint, Surface};
 use crate::theme::{ThemeResource, dark_theme};
 
 // ============================================================
@@ -319,7 +319,10 @@ pub fn spawn_dropdown(parent: &mut ChildSpawnerCommands, config: DropdownConfig)
                             ..default()
                         },
                         BackgroundColor(Color::NONE),
-                        Surface::rounded_rect_fill(8.0, Paint::solid(colors.surface.with_alpha(0.0))),
+                        Surface::rounded_rect_fill(
+                            8.0,
+                            Paint::solid(colors.surface.with_alpha(0.0)),
+                        ),
                     ))
                     .with_children(|option_button| {
                         option_button.spawn((
@@ -720,7 +723,11 @@ fn dropdown_menu_animation_system(
         animation.target = if state.open { 1.0 } else { 0.0 };
         spring_step(&mut animation, time.delta_secs());
         let clamped_progress = animation.progress.clamp(0.0, 1.0);
-        let active_animation = if state.open { profile.open } else { profile.close };
+        let active_animation = if state.open {
+            profile.open
+        } else {
+            profile.close
+        };
         let visual = active_animation.sample(clamped_progress);
 
         if animation.target > 0.0 || clamped_progress > 0.001 {
@@ -905,14 +912,8 @@ fn spring_step(animation: &mut DropdownMenuAnimation, dt: f32) {
 /// state in sync with `DropdownState` for screen readers.
 fn dropdown_a11y_system(
     dropdown_query: Query<(Entity, &Dropdown, &DropdownState), Changed<DropdownState>>,
-    mut surface_query: Query<
-        (&DropdownSurface, &mut SemanticNode),
-        Without<DropdownOptionButton>,
-    >,
-    mut option_query: Query<
-        (&DropdownOptionButton, &mut SemanticNode),
-        Without<DropdownSurface>,
-    >,
+    mut surface_query: Query<(&DropdownSurface, &mut SemanticNode), Without<DropdownOptionButton>>,
+    mut option_query: Query<(&DropdownOptionButton, &mut SemanticNode), Without<DropdownSurface>>,
 ) {
     for (entity, dropdown, state) in &dropdown_query {
         let label_text = state

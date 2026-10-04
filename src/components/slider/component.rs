@@ -2,11 +2,11 @@ use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 use bevy::window::{CursorIcon, PrimaryWindow, SystemCursorIcon};
 
-use crate::rendering::{OuterShadow, Paint, Surface};
+use crate::components::text::{TextRole, ThemedText};
 use crate::primitives::a11y;
 use crate::primitives::interaction::InteractionAction;
 use crate::primitives::semantic::{SemanticNode, SemanticRole, SemanticValue};
-use crate::components::text::{TextRole, ThemedText};
+use crate::rendering::{OuterShadow, Paint, Surface};
 use crate::theme::ThemeResource;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -215,9 +215,14 @@ pub fn spawn_slider(
 
         track_slot_node.with_children(|track_slot| {
             // Track
-            let track_surface = Surface::rounded_rect_fill(style.track_height * 0.5, Paint::solid(style.track_color))
-                .with_mask(crate::rendering::Mask::rounded_rect(style.track_height * 0.5).with_opacity(1.0))
-                .uniform_border(1.0, Paint::solid(colors.border.with_alpha(0.55)));
+            let track_surface = Surface::rounded_rect_fill(
+                style.track_height * 0.5,
+                Paint::solid(style.track_color),
+            )
+            .with_mask(
+                crate::rendering::Mask::rounded_rect(style.track_height * 0.5).with_opacity(1.0),
+            )
+            .uniform_border(1.0, Paint::solid(colors.border.with_alpha(0.55)));
             track_slot
                 .spawn((
                     Node {
@@ -244,9 +249,15 @@ pub fn spawn_slider(
                                     ..default()
                                 },
                                 BackgroundColor(style.fill_color.with_alpha(0.96)),
-                                Surface::rounded_rect_fill(style.track_height * 0.5, Paint::solid(style.fill_color))
-                                    .with_mask(crate::rendering::Mask::rounded_rect(style.track_height * 0.5).with_opacity(1.0))
-                                    .uniform_border(1.0, Paint::solid(colors.border.with_alpha(0.45))),
+                                Surface::rounded_rect_fill(
+                                    style.track_height * 0.5,
+                                    Paint::solid(style.fill_color),
+                                )
+                                .with_mask(
+                                    crate::rendering::Mask::rounded_rect(style.track_height * 0.5)
+                                        .with_opacity(1.0),
+                                )
+                                .uniform_border(1.0, Paint::solid(colors.border.with_alpha(0.45))),
                                 SliderFill,
                             ))
                             .id(),
@@ -268,7 +279,10 @@ pub fn spawn_slider(
                 BackgroundColor(style.thumb_color.with_alpha(0.96)),
                 BorderColor::all(colors.border.with_alpha(0.45)),
                 Surface::rounded_rect_fill(style.thumb_size * 0.5, Paint::solid(style.thumb_color))
-                    .with_mask(crate::rendering::Mask::rounded_rect(style.thumb_size * 0.5).with_opacity(1.0))
+                    .with_mask(
+                        crate::rendering::Mask::rounded_rect(style.thumb_size * 0.5)
+                            .with_opacity(1.0),
+                    )
                     .outer_shadow(OuterShadow::small(Color::BLACK).with_opacity(0.75))
                     .uniform_border(2.0, Paint::solid(colors.primary.with_alpha(0.7))),
                 RelativeCursorPosition::default(),
@@ -421,7 +435,8 @@ fn update_slider_visuals(
             } else {
                 0.20
             };
-            surface.effects.outer_shadow = Some(OuterShadow::small(Color::BLACK).with_opacity(shadow_opacity));
+            surface.effects.outer_shadow =
+                Some(OuterShadow::small(Color::BLACK).with_opacity(shadow_opacity));
             if let Some(border) = surface.border.as_mut() {
                 border.paint = Paint::solid(if interaction.dragging {
                     colors.focus.with_alpha(0.60)
@@ -588,13 +603,7 @@ impl Plugin for SliderPlugin {
             app.add_plugins(crate::primitives::semantic::SemanticAccessibilityPlugin);
         }
         app.add_message::<SliderChanged>()
-            .add_systems(
-                Update,
-                (
-                    slider_interaction,
-                    slider_cursor_icon,
-                ),
-            )
+            .add_systems(Update, (slider_interaction, slider_cursor_icon))
             .add_systems(PostUpdate, update_slider_visuals);
     }
 }

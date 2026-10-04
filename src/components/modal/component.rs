@@ -2,16 +2,16 @@ use bevy::input_focus::InputFocus;
 use bevy::prelude::*;
 use std::collections::HashMap;
 
-use crate::primitives::a11y;
 use crate::animation::blur::component::{BackdropBlur, spawn_backdrop_blur};
-use crate::primitives::focus::{FocusOrigin, FocusRequest, FocusScope, FocusSystems};
+use crate::components::text::{TextRole, ThemedText};
+use crate::components::title::{ThemedTitle, TitleLevel};
 use crate::icons::{Icon, IconNode};
+use crate::primitives::a11y;
+use crate::primitives::focus::{FocusOrigin, FocusRequest, FocusScope, FocusSystems};
 use crate::primitives::interaction::{InteractionAction, InteractionActionEvent};
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
-use crate::components::text::{TextRole, ThemedText};
-use crate::theme::{AccessibilityVisualPolicyResource, ThemeResource};
-use crate::components::title::{ThemedTitle, TitleLevel};
 use crate::rendering::prelude::*;
+use crate::theme::{AccessibilityVisualPolicyResource, ThemeResource};
 
 fn dialog_semantics(label: impl Into<String>) -> SemanticNode {
     let mut semantic = SemanticNode::new(SemanticRole::Dialog).label(label);
@@ -241,7 +241,13 @@ pub fn spawn_modal(
             modal.clone(),
             crate::components::container::component::Container,
             a11y::TabGroup::modal(),
-            (FocusScope { active: modal.open, ..FocusScope::modal() }, a11y::TabIndex(-1)),
+            (
+                FocusScope {
+                    active: modal.open,
+                    ..FocusScope::modal()
+                },
+                a11y::TabIndex(-1),
+            ),
             dialog_semantics(content.title.clone()),
             ModalReturnFocus::default(),
             Node {
@@ -485,7 +491,13 @@ where
             modal.clone(),
             crate::components::container::component::Container,
             a11y::TabGroup::modal(),
-            (FocusScope { active: modal.open, ..FocusScope::modal() }, a11y::TabIndex(-1)),
+            (
+                FocusScope {
+                    active: modal.open,
+                    ..FocusScope::modal()
+                },
+                a11y::TabIndex(-1),
+            ),
             dialog_semantics(title.clone()),
             ModalReturnFocus::default(),
             Node {
@@ -944,16 +956,14 @@ fn modal_animation(
 
     mut modals: Query<(&Modal, &Children), With<Modal>>,
 
-    mut surfaces: Query<
-        (
-            Option<&ModalOverlay>,
-            Option<&ModalSurface>,
-            Option<&mut ModalAnimation>,
-            &ModalBaseColor,
-            &mut Surface,
-            Option<&mut UiTransform>,
-        ),
-    >,
+    mut surfaces: Query<(
+        Option<&ModalOverlay>,
+        Option<&ModalSurface>,
+        Option<&mut ModalAnimation>,
+        &ModalBaseColor,
+        &mut Surface,
+        Option<&mut UiTransform>,
+    )>,
     mut backdrops: Query<&mut BackdropBlur>,
 ) {
     // Like shared decorative animation tracks, reduced motion snaps to the
@@ -980,7 +990,11 @@ fn modal_animation(
             };
 
             if overlay_marker.is_some() {
-                let overlay_target = if modal.open { base_color.0.alpha() } else { 0.0 };
+                let overlay_target = if modal.open {
+                    base_color.0.alpha()
+                } else {
+                    0.0
+                };
                 let current = match &surface.fill {
                     Paint::Solid(color) => color.alpha(),
                     _ => 0.0,
@@ -1053,7 +1067,8 @@ impl Plugin for ModalPlugin {
                     modal_commands,
                     modal_animation,
                     modal_visibility,
-                ).chain(),
+                )
+                    .chain(),
             )
             .add_systems(
                 PostUpdate,
@@ -1065,11 +1080,11 @@ impl Plugin for ModalPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::primitives::focus::FocusNavigationPolicy;
+    use crate::primitives::focus::{FocusPlugin, FocusRejectReason, FocusRejected};
+    use crate::primitives::keyboard::KeyboardPlugin;
     use bevy::input::ButtonState;
     use bevy::input::keyboard::{Key, KeyboardInput};
-    use crate::primitives::focus::{FocusPlugin, FocusRejectReason, FocusRejected};
-    use crate::primitives::focus::FocusNavigationPolicy;
-    use crate::primitives::keyboard::KeyboardPlugin;
 
     fn modal_app() -> App {
         let mut app = App::new();
@@ -1089,56 +1104,93 @@ mod tests {
     }
 
     fn mount(app: &mut App, open: bool) -> (Entity, Entity) {
-        let modal = app.world_mut().spawn((
-            Modal { open, ..default() },
-            ModalReturnFocus::default(),
-            FocusScope { active: open, ..FocusScope::modal() },
-            Node::default(),
-            // No renderer/visibility propagation runs in this headless app.
-            InheritedVisibility::VISIBLE,
-            a11y::TabIndex(-1),
-        )).id();
-        let close = app.world_mut().spawn((
-            Button,
-            ModalCloseButton,
-            ModalActionButton { owner: modal },
-            a11y::TabIndex(0),
-            InheritedVisibility::VISIBLE,
-            ChildOf(modal),
-        )).id();
+        let modal = app
+            .world_mut()
+            .spawn((
+                Modal { open, ..default() },
+                ModalReturnFocus::default(),
+                FocusScope {
+                    active: open,
+                    ..FocusScope::modal()
+                },
+                Node::default(),
+                // No renderer/visibility propagation runs in this headless app.
+                InheritedVisibility::VISIBLE,
+                a11y::TabIndex(-1),
+            ))
+            .id();
+        let close = app
+            .world_mut()
+            .spawn((
+                Button,
+                ModalCloseButton,
+                ModalActionButton { owner: modal },
+                a11y::TabIndex(0),
+                InheritedVisibility::VISIBLE,
+                ChildOf(modal),
+            ))
+            .id();
         (modal, close)
     }
 
     fn request(app: &mut App, target: Entity) {
-        app.world_mut().write_message(FocusRequest { target, origin: FocusOrigin::Programmatic });
+        app.world_mut().write_message(FocusRequest {
+            target,
+            origin: FocusOrigin::Programmatic,
+        });
     }
 
     fn mount_visual_modal(app: &mut App, custom: bool) -> (Entity, Entity, Entity, Entity) {
         // Use the real spawn helpers and composed focus/modal schedules, without
         // a renderer. Explicit policy makes these tests independent of the env.
-        app.world_mut().insert_resource(AccessibilityVisualPolicyResource {
-            current: crate::theme::AccessibilityVisualPolicy::default(),
-        });
+        app.world_mut()
+            .insert_resource(AccessibilityVisualPolicyResource {
+                current: crate::theme::AccessibilityVisualPolicy::default(),
+            });
         let parent = app.world_mut().spawn(Node::default()).id();
         let theme = ThemeResource::default();
         let mut commands = app.world_mut().commands();
         let modal = if custom {
-            spawn_modal_with_surface(&mut commands, parent, Modal::new(), ModalStyle::default(),
-                "Title", |_| {}, &theme)
+            spawn_modal_with_surface(
+                &mut commands,
+                parent,
+                Modal::new(),
+                ModalStyle::default(),
+                "Title",
+                |_| {},
+                &theme,
+            )
         } else {
-            spawn_modal(&mut commands, parent, Modal::new(), ModalStyle::default(),
-                BasicModalContent::new("Title", "Body"), &theme)
+            spawn_modal(
+                &mut commands,
+                parent,
+                Modal::new(),
+                ModalStyle::default(),
+                BasicModalContent::new("Title", "Body"),
+                &theme,
+            )
         };
         app.world_mut().flush();
         let children = app.world().get::<Children>(modal).unwrap();
-        let surface = children.iter().find(|&e| app.world().get::<ModalSurface>(e).is_some()).unwrap();
-        let overlay = children.iter().find(|&e| app.world().get::<ModalOverlay>(e).is_some()).unwrap();
-        let backdrop = children.iter().find(|&e| app.world().get::<BackdropBlur>(e).is_some()).unwrap();
+        let surface = children
+            .iter()
+            .find(|&e| app.world().get::<ModalSurface>(e).is_some())
+            .unwrap();
+        let overlay = children
+            .iter()
+            .find(|&e| app.world().get::<ModalOverlay>(e).is_some())
+            .unwrap();
+        let backdrop = children
+            .iter()
+            .find(|&e| app.world().get::<BackdropBlur>(e).is_some())
+            .unwrap();
         (modal, surface, overlay, backdrop)
     }
 
     fn advance_modal(app: &mut App, seconds: f32) {
-        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(seconds));
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_secs_f32(seconds));
         app.update();
     }
 
@@ -1154,27 +1206,42 @@ mod tests {
         for custom in [false, true] {
             let mut app = modal_app();
             let (modal, surface, _, _) = mount_visual_modal(&mut app, custom);
-            assert_eq!(app.world().get::<UiTransform>(surface).unwrap().scale, Vec2::splat(0.92));
+            assert_eq!(
+                app.world().get::<UiTransform>(surface).unwrap().scale,
+                Vec2::splat(0.92)
+            );
             assert!(app.world().get::<Transform>(surface).is_none());
             app.world_mut().write_message(ModalCommand::Open(modal));
             advance_modal(&mut app, 1.0 / 60.0);
             let animation = app.world().get::<ModalAnimation>(surface).unwrap();
             let expected = 0.92 + 0.08 * (1.0 - (-16.0_f32 / 60.0).exp());
             assert!((animation.scale - expected).abs() < 1e-6);
-            assert_eq!(app.world().get::<UiTransform>(surface).unwrap().scale, Vec2::splat(animation.scale));
+            assert_eq!(
+                app.world().get::<UiTransform>(surface).unwrap().scale,
+                Vec2::splat(animation.scale)
+            );
             assert!(animation.opacity > 0.0 && animation.opacity < 1.0);
-            assert_eq!(app.world().get::<Node>(modal).unwrap().display, Display::Flex);
+            assert_eq!(
+                app.world().get::<Node>(modal).unwrap().display,
+                Display::Flex
+            );
 
             app.world_mut().write_message(ModalCommand::Close(modal));
             advance_modal(&mut app, 1.0 / 60.0);
             // Focus is released immediately, but the legacy opacity threshold
             // still keeps the closing surface displayed until its fade finishes.
             assert!(!app.world().get::<FocusScope>(modal).unwrap().active);
-            assert_eq!(app.world().get::<Node>(modal).unwrap().display, Display::Flex);
+            assert_eq!(
+                app.world().get::<Node>(modal).unwrap().display,
+                Display::Flex
+            );
             for _ in 0..120 {
                 advance_modal(&mut app, 1.0 / 60.0);
             }
-            assert_eq!(app.world().get::<Node>(modal).unwrap().display, Display::None);
+            assert_eq!(
+                app.world().get::<Node>(modal).unwrap().display,
+                Display::None
+            );
             assert!((app.world().get::<UiTransform>(surface).unwrap().scale.x - 0.92).abs() < 1e-6);
         }
     }
@@ -1185,7 +1252,8 @@ mod tests {
             let mut app = modal_app();
             let (modal, _, overlay, _) = mount_visual_modal(&mut app, custom);
             let base = app.world().get::<ModalBaseColor>(overlay).unwrap().0;
-            app.world_mut().get_mut::<Surface>(overlay).unwrap().fill = Paint::solid(base.with_alpha(0.2));
+            app.world_mut().get_mut::<Surface>(overlay).unwrap().fill =
+                Paint::solid(base.with_alpha(0.2));
             app.world_mut().write_message(ModalCommand::Open(modal));
             advance_modal(&mut app, 1.0 / 60.0);
             let expected = 0.2 + (base.alpha() - 0.2) * (1.0 - (-12.0_f32 / 60.0).exp());
@@ -1215,7 +1283,10 @@ mod tests {
             app.world_mut().write_message(ModalCommand::Open(modal));
             advance_modal(&mut app, 1.0 / 60.0);
             assert!(app.world().get::<ModalAnimation>(surface).unwrap().scale < 1.0);
-            app.world_mut().resource_mut::<AccessibilityVisualPolicyResource>().current.reduced_motion = true;
+            app.world_mut()
+                .resource_mut::<AccessibilityVisualPolicyResource>()
+                .current
+                .reduced_motion = true;
             // A policy change snaps an in-flight transition even at zero delta.
             advance_modal(&mut app, 0.0);
             for open in [true, false] {
@@ -1226,22 +1297,55 @@ mod tests {
                 let animation = app.world().get::<ModalAnimation>(surface).unwrap();
                 assert_eq!(animation.opacity, if open { 1.0 } else { 0.0 });
                 assert_eq!(animation.scale, if open { 1.0 } else { 0.92 });
-                assert_eq!(app.world().get::<UiTransform>(surface).unwrap().scale, Vec2::splat(animation.scale));
+                assert_eq!(
+                    app.world().get::<UiTransform>(surface).unwrap().scale,
+                    Vec2::splat(animation.scale)
+                );
                 for entity in [surface, overlay] {
                     let base = app.world().get::<ModalBaseColor>(entity).unwrap().0;
                     assert_eq!(alpha(&app, entity), if open { base.alpha() } else { 0.0 });
                 }
-                assert_eq!(app.world().get::<BackdropBlur>(backdrop).unwrap().visible, open);
-                assert_eq!(app.world().get::<Node>(modal).unwrap().display, if open { Display::Flex } else { Display::None });
+                assert_eq!(
+                    app.world().get::<BackdropBlur>(backdrop).unwrap().visible,
+                    open
+                );
+                assert_eq!(
+                    app.world().get::<Node>(modal).unwrap().display,
+                    if open { Display::Flex } else { Display::None }
+                );
 
                 app.world_mut().clear_trackers();
                 advance_modal(&mut app, 1.0 / 60.0);
-                assert!(!app.world().entity(surface).get_ref::<ModalAnimation>().unwrap().is_changed());
-                assert!(!app.world().entity(surface).get_ref::<UiTransform>().unwrap().is_changed());
+                assert!(
+                    !app.world()
+                        .entity(surface)
+                        .get_ref::<ModalAnimation>()
+                        .unwrap()
+                        .is_changed()
+                );
+                assert!(
+                    !app.world()
+                        .entity(surface)
+                        .get_ref::<UiTransform>()
+                        .unwrap()
+                        .is_changed()
+                );
                 for entity in [surface, overlay] {
-                    assert!(!app.world().entity(entity).get_ref::<Surface>().unwrap().is_changed());
+                    assert!(
+                        !app.world()
+                            .entity(entity)
+                            .get_ref::<Surface>()
+                            .unwrap()
+                            .is_changed()
+                    );
                 }
-                assert!(!app.world().entity(backdrop).get_ref::<BackdropBlur>().unwrap().is_changed());
+                assert!(
+                    !app.world()
+                        .entity(backdrop)
+                        .get_ref::<BackdropBlur>()
+                        .unwrap()
+                        .is_changed()
+                );
             }
         }
     }
@@ -1297,14 +1401,21 @@ mod tests {
         request(&mut app, outside);
         app.update();
         assert_eq!(app.world().resource::<InputFocus>().get(), Some(close));
-        let rejected: Vec<_> = app.world_mut().resource_mut::<Messages<FocusRejected>>().drain().collect();
+        let rejected: Vec<_> = app
+            .world_mut()
+            .resource_mut::<Messages<FocusRejected>>()
+            .drain()
+            .collect();
         assert_eq!(rejected.len(), 1);
         assert_eq!(rejected[0].reason, FocusRejectReason::OutsideActiveScope);
 
         // Reissuing Open or changing unrelated options must not replace the
         // original return target with a descendant of the modal itself.
         app.world_mut().write_message(ModalCommand::Open(modal));
-        app.world_mut().get_mut::<Modal>(modal).unwrap().close_on_escape = false;
+        app.world_mut()
+            .get_mut::<Modal>(modal)
+            .unwrap()
+            .close_on_escape = false;
         app.update();
         app.world_mut().write_message(ModalCommand::Close(modal));
         app.update();
@@ -1318,7 +1429,10 @@ mod tests {
         app.world_mut().get_mut::<Modal>(modal).unwrap().open = true;
         app.update();
         assert_eq!(app.world().resource::<InputFocus>().get(), Some(close));
-        app.world_mut().get_mut::<Interaction>(close).unwrap().set_if_neq(Interaction::Pressed);
+        app.world_mut()
+            .get_mut::<Interaction>(close)
+            .unwrap()
+            .set_if_neq(Interaction::Pressed);
         app.update();
         assert!(!app.world().get::<FocusScope>(modal).unwrap().active);
         assert_eq!(app.world().resource::<InputFocus>().get(), Some(outside));
@@ -1328,13 +1442,16 @@ mod tests {
     fn initially_open_modal_restores_and_closed_sibling_does_not_trap() {
         let mut app = modal_app();
         let outside = app.world_mut().spawn(a11y::TabIndex(0)).id();
-        app.world_mut().insert_resource(InputFocus::from_entity(outside));
+        app.world_mut()
+            .insert_resource(InputFocus::from_entity(outside));
         let (closed, _) = mount(&mut app, false);
         let (modal, close) = mount(&mut app, true);
         app.update();
         assert!(!app.world().get::<FocusScope>(closed).unwrap().active);
         assert_eq!(app.world().resource::<InputFocus>().get(), Some(close));
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::Escape);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Escape);
         app.update();
         assert!(!app.world().get::<FocusScope>(modal).unwrap().active);
         assert_eq!(app.world().resource::<InputFocus>().get(), Some(outside));
@@ -1345,19 +1462,26 @@ mod tests {
         let mut app = keyboard_modal_app();
         let outside = app.world_mut().spawn(a11y::TabIndex(0)).id();
         let (modal, close) = mount(&mut app, false);
-        app.world_mut().entity_mut(modal).get_mut::<FocusScope>().unwrap().navigation_policy = FocusNavigationPolicy::Directional;
+        app.world_mut()
+            .entity_mut(modal)
+            .get_mut::<FocusScope>()
+            .unwrap()
+            .navigation_policy = FocusNavigationPolicy::Directional;
         app.world_mut().entity_mut(close).insert((
             ComputedNode::default(),
             UiGlobalTransform::from_xy(0.0, 0.0),
         ));
-        let next = app.world_mut().spawn((
-            Button,
-            a11y::TabIndex(0),
-            ComputedNode::default(),
-            UiGlobalTransform::from_xy(100.0, 0.0),
-            InheritedVisibility::VISIBLE,
-            ChildOf(modal),
-        )).id();
+        let next = app
+            .world_mut()
+            .spawn((
+                Button,
+                a11y::TabIndex(0),
+                ComputedNode::default(),
+                UiGlobalTransform::from_xy(100.0, 0.0),
+                InheritedVisibility::VISIBLE,
+                ChildOf(modal),
+            ))
+            .id();
 
         request(&mut app, outside);
         app.update();
@@ -1393,14 +1517,19 @@ mod tests {
         let mut app = keyboard_modal_app();
         let outside = app.world_mut().spawn(a11y::TabIndex(0)).id();
         let (modal, close) = mount(&mut app, false);
-        app.world_mut().get_mut::<Modal>(modal).unwrap().close_on_escape = false;
+        app.world_mut()
+            .get_mut::<Modal>(modal)
+            .unwrap()
+            .close_on_escape = false;
         request(&mut app, outside);
         app.update();
         app.world_mut().write_message(ModalCommand::Open(modal));
         app.update();
         assert_eq!(app.world().resource::<InputFocus>().get(), Some(close));
 
-        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::Escape);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Escape);
         app.update();
         assert!(app.world().get::<Modal>(modal).unwrap().open);
         assert_eq!(app.world().resource::<InputFocus>().get(), Some(close));
@@ -1412,10 +1541,23 @@ mod tests {
         let parent = app.world_mut().spawn(Node::default()).id();
         let theme = ThemeResource::default();
         let mut commands = app.world_mut().commands();
-        let basic = spawn_modal(&mut commands, parent, Modal::new(), ModalStyle::default(),
-            BasicModalContent::new("Title", "Body"), &theme);
-        let custom = spawn_modal_with_surface(&mut commands, parent, Modal::new(), ModalStyle::default(),
-            "Title", |_| {}, &theme);
+        let basic = spawn_modal(
+            &mut commands,
+            parent,
+            Modal::new(),
+            ModalStyle::default(),
+            BasicModalContent::new("Title", "Body"),
+            &theme,
+        );
+        let custom = spawn_modal_with_surface(
+            &mut commands,
+            parent,
+            Modal::new(),
+            ModalStyle::default(),
+            "Title",
+            |_| {},
+            &theme,
+        );
         app.world_mut().flush();
         for modal in [basic, custom] {
             assert!(!app.world().get::<FocusScope>(modal).unwrap().active);

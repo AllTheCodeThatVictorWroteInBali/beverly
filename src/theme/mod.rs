@@ -1,18 +1,11 @@
 use bevy::prelude::*;
 use std::time::Duration;
 
-use crate::rendering::{
-    FocusRing,
-    FocusRingLayer,
-    FocusRingPlacement,
-    GradientStop,
-    LinearGradient,
-    OuterGlow,
-    OuterShadow,
-    Paint,
-    ShadowFalloff,
-};
 use crate::animation::animation::{Easing, MotionClass, Transition};
+use crate::rendering::{
+    FocusRing, FocusRingLayer, FocusRingPlacement, GradientStop, LinearGradient, OuterGlow,
+    OuterShadow, Paint, ShadowFalloff,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ThemeMode {
@@ -71,7 +64,12 @@ impl ThemeColors {
     }
 
     pub fn overlay_paint(self) -> Paint {
-        Paint::solid(Color::srgba(0.0, 0.0, 0.0, if self.is_dark() { 0.55 } else { 0.45 }))
+        Paint::solid(Color::srgba(
+            0.0,
+            0.0,
+            0.0,
+            if self.is_dark() { 0.55 } else { 0.45 },
+        ))
     }
 
     pub fn accent_paint(self) -> Paint {
@@ -145,7 +143,10 @@ impl ThemeColors {
             .with_placement(FocusRingPlacement::Outside);
 
         let wants_dual = matches!(a11y.contrast, AccessibilityContrastMode::High)
-            || matches!(context.tone, SurfaceTone::Glass | SurfaceTone::Accent | SurfaceTone::Danger);
+            || matches!(
+                context.tone,
+                SurfaceTone::Glass | SurfaceTone::Accent | SurfaceTone::Danger
+            );
         if wants_dual {
             let secondary_color = if primary_color.to_linear().luminance() > 0.5 {
                 Color::BLACK
@@ -585,7 +586,10 @@ mod tests {
 
         assert!(surface_luminance > background_luminance);
         assert!(elevated_luminance > surface_luminance);
-        assert!(muted_luminance > 0.35, "muted text should stay readable against the dark background");
+        assert!(
+            muted_luminance > 0.35,
+            "muted text should stay readable against the dark background"
+        );
         assert!(colors.border.to_linear().luminance() < 0.45);
     }
 
@@ -595,14 +599,21 @@ mod tests {
         assert!((contrast_ratio(Color::BLACK, Color::WHITE) - 21.0).abs() < 0.01);
         assert!((contrast_ratio(Color::WHITE, Color::WHITE) - 1.0).abs() < 0.01);
         assert!((contrast_ratio(Color::BLACK, Color::BLACK) - 1.0).abs() < 0.01);
-        assert!(meets_contrast(Color::WHITE, Color::BLACK, WCAG_AAA_NORMAL_TEXT));
+        assert!(meets_contrast(
+            Color::WHITE,
+            Color::BLACK,
+            WCAG_AAA_NORMAL_TEXT
+        ));
     }
 
     #[test]
     fn theme_text_meets_wcag_aa_normal_text_contrast() {
         for theme in [light_theme(), dark_theme()] {
             let colors = theme.colors;
-            for (name, background) in [("background", colors.background), ("surface", colors.surface)] {
+            for (name, background) in [
+                ("background", colors.background),
+                ("surface", colors.surface),
+            ] {
                 let ratio = contrast_ratio(colors.text, background);
                 assert!(
                     ratio >= WCAG_AA_NORMAL_TEXT,
@@ -626,13 +637,23 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(ThemePlugin);
 
-        app.world_mut().write_message(ThemeChanged { mode: ThemeMode::Dark });
+        app.world_mut().write_message(ThemeChanged {
+            mode: ThemeMode::Dark,
+        });
         app.update();
-        assert_eq!(app.world().resource::<ThemeResource>().current.mode, ThemeMode::Dark);
+        assert_eq!(
+            app.world().resource::<ThemeResource>().current.mode,
+            ThemeMode::Dark
+        );
 
-        app.world_mut().write_message(ThemeChanged { mode: ThemeMode::Light });
+        app.world_mut().write_message(ThemeChanged {
+            mode: ThemeMode::Light,
+        });
         app.update();
-        assert_eq!(app.world().resource::<ThemeResource>().current.mode, ThemeMode::Light);
+        assert_eq!(
+            app.world().resource::<ThemeResource>().current.mode,
+            ThemeMode::Light
+        );
     }
 }
 

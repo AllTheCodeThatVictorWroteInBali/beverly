@@ -85,7 +85,8 @@ fn report_typography_stats(
 fn ensure_overlay_component(world: &mut World) {
     let entities: Vec<Entity> = {
         let mut query = world
-            .query_filtered::<Entity, (With<Typography>, Without<TypographyDebugOverlayEntities>)>();
+            .query_filtered::<Entity, (With<Typography>, Without<TypographyDebugOverlayEntities>)>(
+            );
         query.iter(world).collect()
     };
 
@@ -212,7 +213,14 @@ fn spawn_overlay_for_text(
 fn render_typography_overlay(
     mut commands: Commands,
     settings: Res<TypographyDebugSettings>,
-    mut query: Query<(Entity, &TextLayoutBlock, &mut TypographyDebugOverlayEntities), Or<(Changed<TextLayoutBlock>, Changed<TypographyDebugSettings>)>>,
+    mut query: Query<
+        (
+            Entity,
+            &TextLayoutBlock,
+            &mut TypographyDebugOverlayEntities,
+        ),
+        Or<(Changed<TextLayoutBlock>, Changed<TypographyDebugSettings>)>,
+    >,
 ) {
     for (entity, layout, mut overlays) in &mut query {
         clear_overlay_entities(&mut commands, &mut overlays);

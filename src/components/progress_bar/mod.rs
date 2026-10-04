@@ -4,8 +4,8 @@ mod systems;
 pub use component::*;
 pub use systems::*;
 
-use bevy::prelude::*;
 use crate::primitives::semantic::{SemanticNode, SemanticValue};
+use bevy::prelude::*;
 
 fn sync_progress_bar_a11y(
     mut bars: Query<(&ProgressBar, &mut SemanticNode), Changed<ProgressBar>>,

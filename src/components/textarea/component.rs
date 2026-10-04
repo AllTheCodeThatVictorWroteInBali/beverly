@@ -2,9 +2,9 @@
 
 use bevy::prelude::*;
 
+use crate::components::text::{TextRole, ThemedText};
 use crate::primitives::a11y;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
-use crate::components::text::{TextRole, ThemedText};
 use crate::rendering::{Paint, Surface};
 
 #[derive(Component)]
@@ -327,9 +327,8 @@ pub fn spawn_textarea(parent: &mut ChildSpawnerCommands, config: TextareaConfig)
     if let Some(label) = config.accessible_label.clone() {
         semantic = semantic.label(label);
     }
-    semantic.semantic_value = crate::primitives::semantic::SemanticValue::Text(
-        textarea.value.clone(),
-    );
+    semantic.semantic_value =
+        crate::primitives::semantic::SemanticValue::Text(textarea.value.clone());
 
     if let Some(max_length) = config.max_length {
         textarea = textarea.max_length(max_length);
@@ -351,12 +350,9 @@ pub fn spawn_textarea(parent: &mut ChildSpawnerCommands, config: TextareaConfig)
                 border_radius: BorderRadius::all(px(0.0)),
                 ..default()
             },
-                BackgroundColor(Color::NONE),
-                BorderColor::all(Color::NONE),
-                Surface::rounded_rect_fill(
-                    0.0,
-                    Paint::solid(Color::srgb(0.96, 0.96, 0.96)),
-                )
+            BackgroundColor(Color::NONE),
+            BorderColor::all(Color::NONE),
+            Surface::rounded_rect_fill(0.0, Paint::solid(Color::srgb(0.96, 0.96, 0.96)))
                 .uniform_border(1.0, Paint::solid(Color::srgb(0.83, 0.83, 0.81))),
             TextareaSurface,
         ))

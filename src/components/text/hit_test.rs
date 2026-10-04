@@ -105,6 +105,12 @@ mod tests {
         };
 
         let hit = hit_test(&layout, Vec2::new(11.0, 8.0));
-        assert_eq!(hit, Some(TextHit { line_index: 0, cluster_index: 1 }));
+        assert_eq!(
+            hit,
+            Some(TextHit {
+                line_index: 0,
+                cluster_index: 1
+            })
+        );
     }
 }

@@ -135,14 +135,31 @@ mod hierarchy_tests {
         let mut world = World::new();
         let root = world.spawn(Node::default()).id();
         world.commands().entity(root).with_children(|parent| {
-            spawn_container(parent, Node::default(), BackgroundColor(Color::NONE),
-                ContainerScroll::none(), (), |container| {
-                    spawn_container(container, Node::default(), BackgroundColor(Color::NONE),
-                        ContainerScroll::y(), (), |_| {});
-                });
+            spawn_container(
+                parent,
+                Node::default(),
+                BackgroundColor(Color::NONE),
+                ContainerScroll::none(),
+                (),
+                |container| {
+                    spawn_container(
+                        container,
+                        Node::default(),
+                        BackgroundColor(Color::NONE),
+                        ContainerScroll::y(),
+                        (),
+                        |_| {},
+                    );
+                },
+            );
         });
         world.flush();
-        let mut nodes = world.query::<(Entity, &UiTransform, &UiGlobalTransform, &InheritedVisibility)>();
+        let mut nodes = world.query::<(
+            Entity,
+            &UiTransform,
+            &UiGlobalTransform,
+            &InheritedVisibility,
+        )>();
         let entities: Vec<_> = nodes.iter(&world).map(|(entity, ..)| entity).collect();
         assert_eq!(entities.len(), 3);
         for entity in entities {

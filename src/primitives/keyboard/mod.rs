@@ -6,25 +6,17 @@ use bevy::input_focus::InputFocus;
 use bevy::prelude::*;
 
 use crate::components::checkbox::Checkbox;
-use crate::primitives::focus::{
-    FocusDirection,
-    FocusNavigationPolicy,
-    FocusOrigin,
-    FocusRequest,
-    FocusScope,
-    Focusable,
-};
 use crate::components::input::TextInput;
-use crate::primitives::interaction::{
-    InteractionAction,
-    InteractionActionEvent,
-    InteractionActionSource,
-    UiActionSystems,
-};
 use crate::components::link::Link;
 use crate::components::slider::Slider;
 use crate::components::textarea::Textarea;
 use crate::components::toggle::Toggle;
+use crate::primitives::focus::{
+    FocusDirection, FocusNavigationPolicy, FocusOrigin, FocusRequest, FocusScope, Focusable,
+};
+use crate::primitives::interaction::{
+    InteractionAction, InteractionActionEvent, InteractionActionSource, UiActionSystems,
+};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct KeyboardModifiers {
@@ -266,7 +258,9 @@ fn apply_shortcut_registration(
     }
 
     for removal in removals.read() {
-        registry.entries.retain(|existing| existing.id != removal.id);
+        registry
+            .entries
+            .retain(|existing| existing.id != removal.id);
     }
 }
 
@@ -404,7 +398,10 @@ fn derive_default_keyboard_actions(
                 push_trace(
                     &mut debug.actions,
                     capacity,
-                    format!("id={} default=Toggle target={:?}", key_event.event.id, target),
+                    format!(
+                        "id={} default=Toggle target={:?}",
+                        key_event.event.id, target
+                    ),
                 );
             }
             continue;
@@ -425,7 +422,10 @@ fn derive_default_keyboard_actions(
                 push_trace(
                     &mut debug.actions,
                     capacity,
-                    format!("id={} default=Toggle target={:?}", key_event.event.id, target),
+                    format!(
+                        "id={} default=Toggle target={:?}",
+                        key_event.event.id, target
+                    ),
                 );
             }
             continue;
@@ -459,7 +459,10 @@ fn derive_default_keyboard_actions(
                 push_trace(
                     &mut debug.actions,
                     capacity,
-                    format!("id={} default={:?} target={:?}", key_event.event.id, action, target),
+                    format!(
+                        "id={} default={:?} target={:?}",
+                        key_event.event.id, action, target
+                    ),
                 );
             }
             continue;
@@ -467,7 +470,10 @@ fn derive_default_keyboard_actions(
 
         if links.contains(target) {
             if key_event.event.state.is_pressed()
-                && matches!(key_event.event.key_code, KeyCode::Enter | KeyCode::NumpadEnter)
+                && matches!(
+                    key_event.event.key_code,
+                    KeyCode::Enter | KeyCode::NumpadEnter
+                )
                 && !key_event.event.repeat
             {
                 actions.write(InteractionActionEvent {
@@ -480,7 +486,10 @@ fn derive_default_keyboard_actions(
                 push_trace(
                     &mut debug.actions,
                     capacity,
-                    format!("id={} default=Activate(link) target={:?}", key_event.event.id, target),
+                    format!(
+                        "id={} default=Activate(link) target={:?}",
+                        key_event.event.id, target
+                    ),
                 );
             }
             continue;
@@ -491,7 +500,9 @@ fn derive_default_keyboard_actions(
         }
 
         match (key_event.event.key_code, key_event.event.state) {
-            (KeyCode::Enter | KeyCode::NumpadEnter, ButtonState::Pressed) if !key_event.event.repeat => {
+            (KeyCode::Enter | KeyCode::NumpadEnter, ButtonState::Pressed)
+                if !key_event.event.repeat =>
+            {
                 actions.write(InteractionActionEvent {
                     action: InteractionAction::Activate,
                     target,
@@ -502,7 +513,10 @@ fn derive_default_keyboard_actions(
                 push_trace(
                     &mut debug.actions,
                     capacity,
-                    format!("id={} default=Activate(button-enter) target={:?}", key_event.event.id, target),
+                    format!(
+                        "id={} default=Activate(button-enter) target={:?}",
+                        key_event.event.id, target
+                    ),
                 );
             }
             (KeyCode::Space, ButtonState::Pressed) if !key_event.event.repeat => {
@@ -520,7 +534,10 @@ fn derive_default_keyboard_actions(
                     push_trace(
                         &mut debug.actions,
                         capacity,
-                        format!("id={} default=Activate(button-space) target={:?}", key_event.event.id, target),
+                        format!(
+                            "id={} default=Activate(button-space) target={:?}",
+                            key_event.event.id, target
+                        ),
                     );
                 }
                 press_tracker.space_pressed_target = None;
@@ -542,7 +559,8 @@ fn process_shortcuts(
     scope_query: Query<&FocusScope>,
 ) {
     let focused = focus.get();
-    let active_scope = focused.and_then(|entity| nearest_scope(entity, &parent_query, &scope_query));
+    let active_scope =
+        focused.and_then(|entity| nearest_scope(entity, &parent_query, &scope_query));
     let capacity = debug.capacity;
 
     for key_event in keyboard.read() {
@@ -606,11 +624,7 @@ fn process_shortcuts(
             capacity,
             format!(
                 "id={} shortcut={} scope={:?} action={:?} target={:?}",
-                key_event.event.id,
-                entry.id,
-                entry.scope,
-                entry.action,
-                target
+                key_event.event.id, entry.id, entry.scope, entry.action, target
             ),
         );
 
@@ -652,7 +666,8 @@ fn resolve_directional_focus_navigation(
             continue;
         }
 
-        if text_inputs.contains(current) || textareas.contains(current) || sliders.contains(current) {
+        if text_inputs.contains(current) || textareas.contains(current) || sliders.contains(current)
+        {
             continue;
         }
 
@@ -662,7 +677,12 @@ fn resolve_directional_focus_navigation(
 
         let scope = nearest_scope(current, &parent_query, &scope_query);
         let policy = scope
-            .and_then(|entity| scope_query.get(entity).ok().map(|value| value.navigation_policy))
+            .and_then(|entity| {
+                scope_query
+                    .get(entity)
+                    .ok()
+                    .map(|value| value.navigation_policy)
+            })
             .unwrap_or(FocusNavigationPolicy::Sequential);
 
         if !matches!(
@@ -672,17 +692,20 @@ fn resolve_directional_focus_navigation(
             continue;
         }
 
-        let Some(next) = directional_candidate(current, direction, scope, &focusables, &parent_query, &scope_query)
-        else {
+        let Some(next) = directional_candidate(
+            current,
+            direction,
+            scope,
+            &focusables,
+            &parent_query,
+            &scope_query,
+        ) else {
             push_trace(
                 &mut debug.routing,
                 capacity,
                 format!(
                     "id={} directional={:?} from={:?} scope={:?} result=none",
-                    key_event.event.id,
-                    direction,
-                    current,
-                    scope
+                    key_event.event.id, direction, current, scope
                 ),
             );
             continue;
@@ -698,11 +721,7 @@ fn resolve_directional_focus_navigation(
             capacity,
             format!(
                 "id={} directional={:?} from={:?} to={:?} scope={:?}",
-                key_event.event.id,
-                direction,
-                current,
-                next,
-                scope
+                key_event.event.id, direction, current, next, scope
             ),
         );
     }
@@ -774,7 +793,9 @@ fn directional_candidate(
 
 fn node_center(node: &ComputedNode, transform: Option<&UiGlobalTransform>) -> Vec2 {
     let size = node.size() * node.inverse_scale_factor();
-    let center = transform.map(|value| value.translation).unwrap_or(Vec2::ZERO);
+    let center = transform
+        .map(|value| value.translation)
+        .unwrap_or(Vec2::ZERO);
     center + (node.content_box().min + size * 0.5)
 }
 
@@ -945,10 +966,14 @@ mod tests {
 
     #[test]
     fn shortcut_scope_precedence_orders_most_specific_first() {
-        assert!(shortcut_scope_rank(ShortcutScope::FocusedComponent)
-            < shortcut_scope_rank(ShortcutScope::Application));
-        assert!(shortcut_scope_rank(ShortcutScope::ActiveFocusScope)
-            < shortcut_scope_rank(ShortcutScope::Window));
+        assert!(
+            shortcut_scope_rank(ShortcutScope::FocusedComponent)
+                < shortcut_scope_rank(ShortcutScope::Application)
+        );
+        assert!(
+            shortcut_scope_rank(ShortcutScope::ActiveFocusScope)
+                < shortcut_scope_rank(ShortcutScope::Window)
+        );
     }
 
     #[test]

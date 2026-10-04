@@ -90,8 +90,10 @@ impl OuterShadow {
     pub fn sanitized(self) -> Self {
         Self {
             color: self.color,
-            offset: sanitize_vec2(self.offset, Vec2::ZERO)
-                .clamp(Vec2::splat(-MAX_EFFECT_OFFSET), Vec2::splat(MAX_EFFECT_OFFSET)),
+            offset: sanitize_vec2(self.offset, Vec2::ZERO).clamp(
+                Vec2::splat(-MAX_EFFECT_OFFSET),
+                Vec2::splat(MAX_EFFECT_OFFSET),
+            ),
             blur: sanitize_non_negative(self.blur, 0.0).min(MAX_EFFECT_BLUR),
             spread: sanitize_finite(self.spread, 0.0).clamp(-MAX_EFFECT_SPREAD, MAX_EFFECT_SPREAD),
             opacity: sanitize_unit(self.opacity, 0.0),
@@ -246,8 +248,10 @@ impl InnerShadow {
     pub fn sanitized(self) -> Self {
         Self {
             color: self.color,
-            offset: sanitize_vec2(self.offset, Vec2::ZERO)
-                .clamp(Vec2::splat(-MAX_EFFECT_OFFSET), Vec2::splat(MAX_EFFECT_OFFSET)),
+            offset: sanitize_vec2(self.offset, Vec2::ZERO).clamp(
+                Vec2::splat(-MAX_EFFECT_OFFSET),
+                Vec2::splat(MAX_EFFECT_OFFSET),
+            ),
             blur: sanitize_non_negative(self.blur, 0.0).min(MAX_EFFECT_BLUR),
             spread: sanitize_finite(self.spread, 0.0).clamp(-MAX_EFFECT_SPREAD, MAX_EFFECT_SPREAD),
             opacity: sanitize_unit(self.opacity, 0.0),
@@ -339,11 +343,7 @@ impl FromIterator<Effect> for Effects {
 }
 
 fn sanitize_finite(value: f32, fallback: f32) -> f32 {
-    if value.is_nan() {
-        fallback
-    } else {
-        value
-    }
+    if value.is_nan() { fallback } else { value }
 }
 
 fn sanitize_non_negative(value: f32, fallback: f32) -> f32 {
@@ -458,7 +458,10 @@ mod tests {
             .with_opacity(999_999.0)
             .sanitized();
 
-        assert_eq!(shadow.offset, Vec2::new(super::MAX_EFFECT_OFFSET, -super::MAX_EFFECT_OFFSET));
+        assert_eq!(
+            shadow.offset,
+            Vec2::new(super::MAX_EFFECT_OFFSET, -super::MAX_EFFECT_OFFSET)
+        );
         assert_eq!(shadow.blur, super::MAX_EFFECT_BLUR);
         assert_eq!(shadow.spread, -super::MAX_EFFECT_SPREAD);
         assert_eq!(shadow.opacity, 1.0);

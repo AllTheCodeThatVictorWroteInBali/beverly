@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use crate::rendering::{Paint, Surface};
 use crate::primitives::a11y;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
+use crate::rendering::{Paint, Surface};
 
 // ============================================================
 // Button Group
@@ -135,18 +135,12 @@ pub fn spawn_button_group(
             Node {
                 display: Display::Flex,
                 flex_direction: direction,
-                column_gap: if matches!(
-                    config.orientation,
-                    ButtonGroupOrientation::Vertical
-                ) {
+                column_gap: if matches!(config.orientation, ButtonGroupOrientation::Vertical) {
                     Val::Px(config.spacing)
                 } else {
                     Val::Px(0.0)
                 },
-                row_gap: if matches!(
-                    config.orientation,
-                    ButtonGroupOrientation::Horizontal
-                ) {
+                row_gap: if matches!(config.orientation, ButtonGroupOrientation::Horizontal) {
                     Val::Px(config.spacing)
                 } else {
                     Val::Px(0.0)
@@ -165,10 +159,7 @@ pub fn spawn_button_group(
             .spawn((
                 Button,
                 Node {
-                    padding: UiRect::axes(
-                        Val::Px(12.0),
-                        Val::Px(8.0),
-                    ),
+                    padding: UiRect::axes(Val::Px(12.0), Val::Px(8.0)),
                     ..default()
                 },
                 BackgroundColor(Color::NONE),
@@ -187,14 +178,10 @@ pub fn spawn_button_group(
                     disabled: button.disabled,
                 },
                 a11y::TabIndex(if button.disabled { -1 } else { 0 }),
-                SemanticNode::new(SemanticRole::Button)
-                    .label(button.label.clone()),
+                SemanticNode::new(SemanticRole::Button).label(button.label.clone()),
             ))
             .with_children(|parent| {
-                parent.spawn((
-                    Text::new(button.label),
-                    TextColor(Color::WHITE),
-                ));
+                parent.spawn((Text::new(button.label), TextColor(Color::WHITE)));
             })
             .id();
 
@@ -255,7 +242,9 @@ fn button_group_interaction(
             }
 
             ButtonGroupSelection::Single => {
-                for (other_entity, mut other, mut surface, mut semantic, mut tab_index) in &mut buttons {
+                for (other_entity, mut other, mut surface, mut semantic, mut tab_index) in
+                    &mut buttons
+                {
                     if other.group != item_group {
                         continue;
                     }

@@ -1,16 +1,13 @@
 use bevy::input_focus::InputFocus;
 use bevy::prelude::*;
 
-use crate::rendering::{Paint, Surface};
 use crate::animation::animation::{
-    NodeLeftPercentTransitionTarget,
-    SurfaceTransitionTarget,
-    TextColorTransitionTarget,
-    should_animate_target,
-    themed_transition,
+    NodeLeftPercentTransitionTarget, SurfaceTransitionTarget, TextColorTransitionTarget,
+    should_animate_target, themed_transition,
 };
 use crate::primitives::a11y::{self, FocusCause};
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
+use crate::rendering::{Paint, Surface};
 use crate::theme::{ThemeColors, ThemeResource, dark_theme};
 
 /// A single tab definition.
@@ -252,11 +249,8 @@ where
             },
             BackgroundColor(Color::NONE),
             BorderColor::all(Color::NONE),
-            Surface::rounded_rect_fill(
-                20.0,
-                Paint::solid(colors.surface.with_alpha(0.62)),
-            )
-            .uniform_border(1.0, Paint::solid(colors.border.with_alpha(0.40))),
+            Surface::rounded_rect_fill(20.0, Paint::solid(colors.surface.with_alpha(0.62)))
+                .uniform_border(1.0, Paint::solid(colors.border.with_alpha(0.40))),
         ))
         .with_children(|content| {
             for (index, tab) in config.tabs.iter().enumerate() {
@@ -408,11 +402,8 @@ where
             },
             BackgroundColor(Color::NONE),
             BorderColor::all(Color::NONE),
-            Surface::rounded_rect_fill(
-                20.0,
-                Paint::solid(colors.surface.with_alpha(0.62)),
-            )
-            .uniform_border(1.0, Paint::solid(colors.border.with_alpha(0.40))),
+            Surface::rounded_rect_fill(20.0, Paint::solid(colors.surface.with_alpha(0.62)))
+                .uniform_border(1.0, Paint::solid(colors.border.with_alpha(0.40))),
         ))
         .with_children(|content| {
             for (index, tab) in config.tabs.iter().enumerate() {
@@ -753,7 +744,9 @@ fn update_tab_visuals(
     }
 
     for (tabs_entity, tabs) in &tabs_query {
-        for (entity, button, interaction, surface, children, current_target) in &mut surface_queries.p0() {
+        for (entity, button, interaction, surface, children, current_target) in
+            &mut surface_queries.p0()
+        {
             if button.tabs_entity != tabs_entity {
                 continue;
             }
@@ -780,7 +773,8 @@ fn update_tab_visuals(
 
             for child in children.iter() {
                 if let Ok((text_entity, _, current_text_target)) = texts.get_mut(child) {
-                    if should_animate_target(&current_text_target.map(|value| value.target), &text) {
+                    if should_animate_target(&current_text_target.map(|value| value.target), &text)
+                    {
                         commands
                             .entity(text_entity)
                             .insert(TextColorTransitionTarget::new(text, transition));
@@ -859,10 +853,16 @@ fn animate_tab_content(
                 100.0
             };
 
-            if should_animate_target(&current_target.map(|value| value.target_percent), &target_percent) {
-                commands.entity(entity).insert(
-                    NodeLeftPercentTransitionTarget::new(target_percent, transition_spec),
-                );
+            if should_animate_target(
+                &current_target.map(|value| value.target_percent),
+                &target_percent,
+            ) {
+                commands
+                    .entity(entity)
+                    .insert(NodeLeftPercentTransitionTarget::new(
+                        target_percent,
+                        transition_spec,
+                    ));
             }
         }
     }

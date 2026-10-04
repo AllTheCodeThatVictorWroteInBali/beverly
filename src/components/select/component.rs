@@ -2,11 +2,11 @@ use bevy::prelude::*;
 use std::fmt::Display as FmtDisplay;
 use std::marker::PhantomData;
 
-use crate::rendering::{Paint, Surface};
+use crate::components::text::{TextRole, ThemedText};
+use crate::icons::{Icon, IconNode};
 use crate::primitives::a11y;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
-use crate::icons::{Icon, IconNode};
-use crate::components::text::{TextRole, ThemedText};
+use crate::rendering::{Paint, Surface};
 use crate::theme::{ThemeResource, dark_theme};
 
 // ============================================================
@@ -192,7 +192,10 @@ where
         }
         app.add_message::<SelectChanged<T>>()
             .add_systems(Update, select_input_system::<T>)
-            .add_systems(PostUpdate, (select_visual_system::<T>, select_a11y_system::<T>));
+            .add_systems(
+                PostUpdate,
+                (select_visual_system::<T>, select_a11y_system::<T>),
+            );
     }
 }
 
@@ -350,8 +353,7 @@ fn select_input_system<T>(
     mut dropdowns: Query<(&SelectDropdown, &mut Node)>,
     mut events: MessageWriter<SelectChanged<T>>,
     keyboard: Res<ButtonInput<KeyCode>>,
-)
-where
+) where
     T: Clone + Send + Sync + 'static,
 {
     for (interaction, button) in &mut interaction_query {
@@ -447,8 +449,7 @@ fn select_a11y_system<T>(
     select_query: Query<(Entity, &Select<T>)>,
     mut button_query: Query<(&SelectButton, &mut SemanticNode), Without<SelectOption>>,
     mut option_query: Query<(&SelectOption, &mut SemanticNode), Without<SelectButton>>,
-)
-where
+) where
     T: SelectSemanticValue + Clone + Send + Sync + 'static,
 {
     for (entity, select) in &select_query {
@@ -493,20 +494,13 @@ fn select_visual_system<T>(
     theme: Res<ThemeResource>,
     select_query: Query<(Entity, &Select<T>)>,
     mut surface_queries: ParamSet<(
-        Query<
-            (&SelectButton, &mut Surface),
-            (Without<SelectDropdown>, Without<SelectOption>),
-        >,
-        Query<
-            (&SelectDropdown, &mut Surface),
-            (Without<SelectButton>, Without<SelectOption>),
-        >,
+        Query<(&SelectButton, &mut Surface), (Without<SelectDropdown>, Without<SelectOption>)>,
+        Query<(&SelectDropdown, &mut Surface), (Without<SelectButton>, Without<SelectOption>)>,
     )>,
     mut label_query: Query<(&SelectLabel, &mut Text, &mut TextColor)>,
     mut arrow_query: Query<(&SelectArrow, &mut IconNode)>,
     mut option_query: Query<(&SelectOption, &Interaction, &mut Surface, &Children)>,
-)
-where
+) where
     T: SelectSemanticValue + Clone + Send + Sync + 'static,
 {
     let colors = theme.current.colors;
@@ -614,7 +608,10 @@ mod tests {
             .world_mut()
             .spawn((
                 Button,
-                SelectOption { parent: root, index: 1 },
+                SelectOption {
+                    parent: root,
+                    index: 1,
+                },
                 {
                     let mut semantic = SemanticNode::new(SemanticRole::ListBoxOption)
                         .label(Region::UsWest.accessible_label());
@@ -641,20 +638,31 @@ mod tests {
         app.update();
 
         // Opening the trigger must flip `is_open` and expose it via `aria-expanded`.
-        app.world_mut().entity_mut(button).insert(Interaction::Pressed);
+        app.world_mut()
+            .entity_mut(button)
+            .insert(Interaction::Pressed);
         app.update();
         assert!(app.world().get::<Select<Region>>(root).unwrap().is_open);
         assert_eq!(
-            app.world().get::<SemanticNode>(button).unwrap().state.expanded,
+            app.world()
+                .get::<SemanticNode>(button)
+                .unwrap()
+                .state
+                .expanded,
             Some(true),
         );
 
         // Picking an option must select the real `Region` value (not a
         // re-parsed string), emit a typed `SelectChanged<Region>`, and mark
         // the option's SemanticNode as selected.
-        app.world_mut().entity_mut(option).insert(Interaction::Pressed);
+        app.world_mut()
+            .entity_mut(option)
+            .insert(Interaction::Pressed);
         app.update();
-        assert_eq!(app.world().get::<Select<Region>>(root).unwrap().selected, Some(1));
+        assert_eq!(
+            app.world().get::<Select<Region>>(root).unwrap().selected,
+            Some(1)
+        );
 
         let changes: Vec<_> = app
             .world_mut()
@@ -667,9 +675,19 @@ mod tests {
 
         app.world_mut().entity_mut(option).insert(Interaction::None);
         app.update();
-        assert!(app.world().get::<SemanticNode>(option).unwrap().state.selected);
+        assert!(
+            app.world()
+                .get::<SemanticNode>(option)
+                .unwrap()
+                .state
+                .selected
+        );
         assert_eq!(
-            app.world().get::<SemanticNode>(button).unwrap().label.as_deref(),
+            app.world()
+                .get::<SemanticNode>(button)
+                .unwrap()
+                .label
+                .as_deref(),
             Some("US West"),
         );
     }

@@ -153,9 +153,8 @@ impl TypographyFontManager {
                 return Some(best_style);
             }
 
-            if let Some(best_any_style) = faces
-                .iter()
-                .min_by_key(|face| face.weight.distance(weight))
+            if let Some(best_any_style) =
+                faces.iter().min_by_key(|face| face.weight.distance(weight))
             {
                 return Some(best_any_style);
             }
@@ -200,7 +199,10 @@ fn initialize_font_manager(
         match std::fs::read(&disk_path) {
             Ok(bytes) => Arc::new(bytes),
             Err(error) => {
-                warn!("failed to read font bytes from {}: {error}", disk_path.display());
+                warn!(
+                    "failed to read font bytes from {}: {error}",
+                    disk_path.display()
+                );
                 Arc::new(Vec::new())
             }
         }
@@ -263,7 +265,10 @@ fn initialize_font_manager(
         manager.set_default_family(TypographyFontManager::DEFAULT_FAMILY);
     }
 
-    if manager.by_family.contains_key(TypographyFontManager::DEFAULT_FAMILY) {
+    if manager
+        .by_family
+        .contains_key(TypographyFontManager::DEFAULT_FAMILY)
+    {
         manager.set_fallback_chain(
             TypographyFontManager::DEFAULT_FAMILY,
             vec!["SFNS".to_string(), "AppleSymbols".to_string()],
@@ -305,7 +310,8 @@ fn resolve_text_font_faces(
 
 fn ensure_resolved_face_component(world: &mut World) {
     let entities: Vec<Entity> = {
-        let mut query = world.query_filtered::<Entity, (With<Typography>, Without<ResolvedFontFace>)>();
+        let mut query =
+            world.query_filtered::<Entity, (With<Typography>, Without<ResolvedFontFace>)>();
         query.iter(world).collect()
     };
 

@@ -4,14 +4,8 @@ use std::collections::HashMap;
 use super::drag::GestureDragEvent;
 use super::tap::GestureTapEvent;
 use crate::primitives::interaction::{
-    InteractionConfig,
-    InteractionEventType,
-    PointerCaptureRequest,
-    PointerId,
-    PointerReleaseRequest,
-    PointerVelocityTracker,
-    PressTracker,
-    UiPointerEvent,
+    InteractionConfig, InteractionEventType, PointerCaptureRequest, PointerId,
+    PointerReleaseRequest, PointerVelocityTracker, PressTracker, UiPointerEvent,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -160,19 +154,21 @@ pub fn update_gesture_arena(
                     && moved <= config.click_max_distance
                     && press_tracker.pressed_target(state.pointer_id).is_none()
                 {
-                    let count = if let Some((last_target, last_time, last_position)) = arena.last_tap {
-                        if last_target == state.down_target
-                            && (event.pointer.timestamp_secs - last_time)
-                                <= config.double_click_duration_secs as f64
-                            && state.latest_position.distance(last_position) <= config.click_max_distance
-                        {
-                            2
+                    let count =
+                        if let Some((last_target, last_time, last_position)) = arena.last_tap {
+                            if last_target == state.down_target
+                                && (event.pointer.timestamp_secs - last_time)
+                                    <= config.double_click_duration_secs as f64
+                                && state.latest_position.distance(last_position)
+                                    <= config.click_max_distance
+                            {
+                                2
+                            } else {
+                                1
+                            }
                         } else {
                             1
-                        }
-                    } else {
-                        1
-                    };
+                        };
 
                     tap_writer.write(GestureTapEvent {
                         pointer_id: state.pointer_id,
@@ -180,7 +176,11 @@ pub fn update_gesture_arena(
                         position: state.latest_position,
                         count,
                     });
-                    arena.last_tap = Some((state.down_target, event.pointer.timestamp_secs, state.latest_position));
+                    arena.last_tap = Some((
+                        state.down_target,
+                        event.pointer.timestamp_secs,
+                        state.latest_position,
+                    ));
                 }
             }
             InteractionEventType::PointerCancel => {
@@ -212,9 +212,7 @@ pub fn update_gesture_arena(
 
         debug.lines.push(format!(
             "pointer={:?} event={:?} target={:?}",
-            event.pointer.pointer_id,
-            event.event_type,
-            event.context.target
+            event.pointer.pointer_id, event.event_type, event.context.target
         ));
     }
 }
@@ -267,13 +265,30 @@ mod tests {
     #[test]
     fn movement_below_slop_emits_a_tap_on_release() {
         let mut app = app();
-        app.world_mut().write_message(event(InteractionEventType::PointerDown, Vec2::ZERO, 0.0));
-        app.world_mut().write_message(event(InteractionEventType::PointerMove, Vec2::new(4.0, 0.0), 0.1));
-        app.world_mut().write_message(event(InteractionEventType::PointerUp, Vec2::new(4.0, 0.0), 0.2));
+        app.world_mut()
+            .write_message(event(InteractionEventType::PointerDown, Vec2::ZERO, 0.0));
+        app.world_mut().write_message(event(
+            InteractionEventType::PointerMove,
+            Vec2::new(4.0, 0.0),
+            0.1,
+        ));
+        app.world_mut().write_message(event(
+            InteractionEventType::PointerUp,
+            Vec2::new(4.0, 0.0),
+            0.2,
+        ));
         app.update();
 
-        let taps: Vec<_> = app.world_mut().resource_mut::<Messages<GestureTapEvent>>().drain().collect();
-        let drags: Vec<_> = app.world_mut().resource_mut::<Messages<GestureDragEvent>>().drain().collect();
+        let taps: Vec<_> = app
+            .world_mut()
+            .resource_mut::<Messages<GestureTapEvent>>()
+            .drain()
+            .collect();
+        let drags: Vec<_> = app
+            .world_mut()
+            .resource_mut::<Messages<GestureDragEvent>>()
+            .drain()
+            .collect();
         assert_eq!(taps.len(), 1);
         assert_eq!(taps[0].count, 1);
         assert!(drags.is_empty());
@@ -282,13 +297,30 @@ mod tests {
     #[test]
     fn movement_at_slop_starts_and_completes_a_drag_without_tap() {
         let mut app = app();
-        app.world_mut().write_message(event(InteractionEventType::PointerDown, Vec2::ZERO, 0.0));
-        app.world_mut().write_message(event(InteractionEventType::PointerMove, Vec2::new(8.0, 0.0), 0.1));
-        app.world_mut().write_message(event(InteractionEventType::PointerUp, Vec2::new(12.0, 0.0), 0.2));
+        app.world_mut()
+            .write_message(event(InteractionEventType::PointerDown, Vec2::ZERO, 0.0));
+        app.world_mut().write_message(event(
+            InteractionEventType::PointerMove,
+            Vec2::new(8.0, 0.0),
+            0.1,
+        ));
+        app.world_mut().write_message(event(
+            InteractionEventType::PointerUp,
+            Vec2::new(12.0, 0.0),
+            0.2,
+        ));
         app.update();
 
-        let taps: Vec<_> = app.world_mut().resource_mut::<Messages<GestureTapEvent>>().drain().collect();
-        let drags: Vec<_> = app.world_mut().resource_mut::<Messages<GestureDragEvent>>().drain().collect();
+        let taps: Vec<_> = app
+            .world_mut()
+            .resource_mut::<Messages<GestureTapEvent>>()
+            .drain()
+            .collect();
+        let drags: Vec<_> = app
+            .world_mut()
+            .resource_mut::<Messages<GestureDragEvent>>()
+            .drain()
+            .collect();
         assert!(taps.is_empty());
         assert_eq!(drags.len(), 2);
         assert!(!drags[0].ended && !drags[0].cancelled);
@@ -299,13 +331,30 @@ mod tests {
     #[test]
     fn cancelling_an_active_drag_emits_cancel_without_tap() {
         let mut app = app();
-        app.world_mut().write_message(event(InteractionEventType::PointerDown, Vec2::ZERO, 0.0));
-        app.world_mut().write_message(event(InteractionEventType::PointerMove, Vec2::new(10.0, 0.0), 0.1));
-        app.world_mut().write_message(event(InteractionEventType::PointerCancel, Vec2::new(10.0, 0.0), 0.2));
+        app.world_mut()
+            .write_message(event(InteractionEventType::PointerDown, Vec2::ZERO, 0.0));
+        app.world_mut().write_message(event(
+            InteractionEventType::PointerMove,
+            Vec2::new(10.0, 0.0),
+            0.1,
+        ));
+        app.world_mut().write_message(event(
+            InteractionEventType::PointerCancel,
+            Vec2::new(10.0, 0.0),
+            0.2,
+        ));
         app.update();
 
-        let taps: Vec<_> = app.world_mut().resource_mut::<Messages<GestureTapEvent>>().drain().collect();
-        let drags: Vec<_> = app.world_mut().resource_mut::<Messages<GestureDragEvent>>().drain().collect();
+        let taps: Vec<_> = app
+            .world_mut()
+            .resource_mut::<Messages<GestureTapEvent>>()
+            .drain()
+            .collect();
+        let drags: Vec<_> = app
+            .world_mut()
+            .resource_mut::<Messages<GestureDragEvent>>()
+            .drain()
+            .collect();
         assert!(taps.is_empty());
         assert_eq!(drags.len(), 2);
         assert!(drags[1].cancelled && !drags[1].ended);

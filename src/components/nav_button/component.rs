@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
 use crate::icons::{Icon, IconCommands};
-use crate::primitives::root::UiFonts;
-use crate::rendering::{Paint, Surface};
 use crate::primitives::a11y;
+use crate::primitives::root::UiFonts;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
+use crate::rendering::{Paint, Surface};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PageId {

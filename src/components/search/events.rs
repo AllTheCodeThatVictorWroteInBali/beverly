@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 
-use crate::rendering::{Border, Paint, Surface};
 use crate::components::search::component::{
     Search, SearchBar, SearchChanged, SearchCompletion, SearchCompletionRequested,
     SearchPlaceholderText, SearchProviders, SearchSubmitted, SearchSuggestionSelected,
     SearchValueText,
 };
+use crate::rendering::{Border, Paint, Surface};
 use crate::theme::ThemeResource;
 
 pub fn focus_search_bar(
@@ -34,7 +34,10 @@ pub fn focus_search_bar(
 pub fn update_search_visuals(
     theme: Res<ThemeResource>,
     mut searches: Query<(Entity, &Search, &mut Surface), With<SearchBar>>,
-    mut value_query: Query<(&ChildOf, &mut Text), (With<SearchValueText>, Without<SearchPlaceholderText>)>,
+    mut value_query: Query<
+        (&ChildOf, &mut Text),
+        (With<SearchValueText>, Without<SearchPlaceholderText>),
+    >,
     mut placeholder_query: Query<
         (&ChildOf, &mut Text, &mut Visibility),
         (With<SearchPlaceholderText>, Without<SearchValueText>),

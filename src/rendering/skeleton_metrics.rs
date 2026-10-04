@@ -108,7 +108,10 @@ impl Config {
             return Ok(None);
         }
         if let Some(nodes) = nodes {
-            if !matches!(number("UI_SKELETON_NODES", &nodes)?, 1 | 10 | 100 | 500 | 1000) {
+            if !matches!(
+                number("UI_SKELETON_NODES", &nodes)?,
+                1 | 10 | 100 | 500 | 1000
+            ) {
                 return Err("UI_SKELETON_NODES must be 1, 10, 100, 500 or 1000".into());
             }
         }
@@ -122,7 +125,9 @@ impl Config {
             .unwrap_or_else(|| frames.map_or(60, |frames| (frames / 4).min(120)));
         let frames = match frames {
             Some(frames) => frames,
-            None => warmup.checked_add(60).ok_or("warmup + 60 overflows usize")?,
+            None => warmup
+                .checked_add(60)
+                .ok_or("warmup + 60 overflows usize")?,
         };
         if warmup >= frames {
             return Err("UI_AUDIT_WARMUP must be less than UI_AUDIT_FRAMES".into());
@@ -151,7 +156,11 @@ struct Counts {
 
 impl Counts {
     fn push(&mut self, value: usize) {
-        self.min = if self.samples == 0 { value } else { self.min.min(value) };
+        self.min = if self.samples == 0 {
+            value
+        } else {
+            self.min.min(value)
+        };
         self.max = self.max.max(value);
         self.last = value;
         self.total += value as u128;
@@ -160,7 +169,12 @@ impl Counts {
 
     fn summary(&self) -> Option<(f64, usize, usize, usize)> {
         (self.samples > 0).then(|| {
-            (self.total as f64 / self.samples as f64, self.min, self.max, self.last)
+            (
+                self.total as f64 / self.samples as f64,
+                self.min,
+                self.max,
+                self.last,
+            )
         })
     }
 }
@@ -188,8 +202,11 @@ impl CpuTotals {
     // Never interpret a missing hook as a zero-cost function.
     fn summary(&self) -> Option<(f64, usize, usize)> {
         (self.instrumented_frames > 0).then(|| {
-            (self.elapsed.as_secs_f64() * 1_000_000.0 / self.instrumented_frames as f64,
-                self.instrumented_frames, self.calls)
+            (
+                self.elapsed.as_secs_f64() * 1_000_000.0 / self.instrumented_frames as f64,
+                self.instrumented_frames,
+                self.calls,
+            )
         })
     }
 }
@@ -247,11 +264,22 @@ struct MainMetrics {
 impl MainMetrics {
     fn new(config: Config, render_app_present: bool) -> Self {
         Self {
-            config, render_app_present, frame: None, measured_frame: None, reported: false,
-            handles: default(), previous_handles: default(), modified_ids: default(),
-            skeletons: default(), visible_nonempty: default(), material_nodes: default(),
-            unique_handles: default(), modified_events: default(), modified_unique: default(),
-            skeleton_cpu: default(), surface_cpu: default(),
+            config,
+            render_app_present,
+            frame: None,
+            measured_frame: None,
+            reported: false,
+            handles: default(),
+            previous_handles: default(),
+            modified_ids: default(),
+            skeletons: default(),
+            visible_nonempty: default(),
+            material_nodes: default(),
+            unique_handles: default(),
+            modified_events: default(),
+            modified_unique: default(),
+            skeleton_cpu: default(),
+            surface_cpu: default(),
         }
     }
 
@@ -263,7 +291,9 @@ impl MainMetrics {
     }
 }
 
-fn main_pending(state: Res<MainMetrics>) -> bool { !state.reported }
+fn main_pending(state: Res<MainMetrics>) -> bool {
+    !state.reported
+}
 
 fn is_skeleton_modification(
     event: &AssetEvent<UiShapeMaterial>,
@@ -283,11 +313,14 @@ fn collect_main(
     mut events: MessageReader<AssetEvent<UiShapeMaterial>>,
     app_state: Option<Res<State<AppState>>>,
     cameras: Query<Entity, (With<Camera>, With<IsDefaultUiCamera>)>,
-    skeletons: Query<(
-        Option<&MaterialNode<UiShapeMaterial>>,
-        Option<&InheritedVisibility>,
-        Option<&ComputedNode>,
-    ), With<Skeleton>>,
+    skeletons: Query<
+        (
+            Option<&MaterialNode<UiShapeMaterial>>,
+            Option<&InheritedVisibility>,
+            Option<&ComputedNode>,
+        ),
+        With<Skeleton>,
+    >,
 ) {
     let cpu = std::mem::take(&mut *cpu);
     if state.frame.is_none()
@@ -307,8 +340,10 @@ fn collect_main(
     let (mut count, mut visible, mut material_nodes) = (0, 0, 0);
     for (material, visibility, computed) in &skeletons {
         count += 1;
-        visible += usize::from(visibility.is_some_and(|visibility| visibility.get())
-            && computed.is_some_and(|node| !node.is_empty()));
+        visible += usize::from(
+            visibility.is_some_and(|visibility| visibility.get())
+                && computed.is_some_and(|node| !node.is_empty()),
+        );
         if let Some(material) = material {
             material_nodes += 1;
             state.handles.insert(material.id());
@@ -323,7 +358,9 @@ fn collect_main(
     }
     // Drain warmup/baseline messages without counting them. Added/Removed/Unused
     // events and unrelated UiShapeMaterial Modified events never count as writes.
-    if state.measured_frame.is_none() { return; }
+    if state.measured_frame.is_none() {
+        return;
+    }
     state.skeletons.push(count);
     state.visible_nonempty.push(visible);
     state.material_nodes.push(material_nodes);
@@ -347,8 +384,14 @@ fn extract_frame(
     skeletons: Extract<Query<(), With<Skeleton>>>,
     nodes: Option<Res<ExtractedUiMaterialNodes<UiShapeMaterial>>>,
 ) {
-    frame.sample = if state.reported { None } else { state.measured_frame };
-    if frame.sample.is_none() { return; }
+    frame.sample = if state.reported {
+        None
+    } else {
+        state.measured_frame
+    };
+    if frame.sample.is_none() {
+        return;
+    }
     frame.handles.clear();
     frame.native_skeletons = nodes.map(|nodes| {
         let mut count = 0;
@@ -388,9 +431,12 @@ fn collect_prepared(
     cache: Option<Res<PipelineCache>>,
     mut ids: Local<HashSet<CachedRenderPipelineId>>,
 ) {
-    let Some(sample) = frame.sample else { return; };
+    let Some(sample) = frame.sample else {
+        return;
+    };
     // All scanning stays outside the cross-world lock. No GPU readback or wait.
-    let shape_draw = draws.and_then(|draws| draws.read().get_id::<DrawUiMaterial<UiShapeMaterial>>());
+    let shape_draw =
+        draws.and_then(|draws| draws.read().get_id::<DrawUiMaterial<UiShapeMaterial>>());
     ids.clear();
     let (mut ui_batches, mut shape_batches, mut ready_batches) = (0, 0, 0);
     if let Some(phases) = phases.as_ref() {
@@ -403,14 +449,20 @@ fn collect_prepared(
                     // set, but NOT empty tails or capture sentinels in batch counts.
                     ids.insert(item.pipeline);
                     shape_batches += usize::from(batch);
-                    ready_batches += usize::from(batch && cache.as_ref()
-                        .is_some_and(|cache| cache.get_render_pipeline(item.pipeline).is_some()));
+                    ready_batches += usize::from(
+                        batch
+                            && cache.as_ref().is_some_and(|cache| {
+                                cache.get_render_pipeline(item.pipeline).is_some()
+                            }),
+                    );
                 }
             }
         }
     }
     let mut totals = shared.0.lock().unwrap_or_else(|error| error.into_inner());
-    if totals.closed || sample <= totals.last_sample { return; }
+    if totals.closed || sample <= totals.last_sample {
+        return;
+    }
     totals.last_sample = sample;
     totals.observed_frames += 1;
     if let Some(count) = frame.native_skeletons {
@@ -426,7 +478,9 @@ fn collect_prepared(
         totals.shape_batches.push(shape_batches);
         totals.shape_pipeline_count.push(ids.len());
         totals.shape_pipeline_ids.extend(ids.iter().copied());
-        if cache.is_some() { totals.shape_ready_batches.push(ready_batches); }
+        if cache.is_some() {
+            totals.shape_ready_batches.push(ready_batches);
+        }
     }
 }
 
@@ -435,17 +489,25 @@ fn report_once(
     mut state: ResMut<MainMetrics>,
     shared: Res<SharedRenderTotals>,
 ) {
-    if state.frame != Some(state.config.frames) { return; }
+    if state.frame != Some(state.config.frames) {
+        return;
+    }
     state.reported = true;
     // Optional parent timers also become inert after the bounded measurement.
     commands.remove_resource::<SkeletonSyncCpuMetrics>();
     let mut render = shared.0.lock().unwrap_or_else(|error| error.into_inner());
     render.closed = true;
-    let pending = state.skeletons.samples.saturating_sub(render.observed_frames);
+    let pending = state
+        .skeletons
+        .samples
+        .saturating_sub(render.observed_frames);
     // Stable formatting; IDs identify this process's observed cached pipelines,
     // not stable shader identities or every entry in SpecializedRenderPipelines.
-    let mut pipeline_ids: Vec<_> = render.shape_pipeline_ids.iter()
-        .map(|id| format!("{id:?}")).collect();
+    let mut pipeline_ids: Vec<_> = render
+        .shape_pipeline_ids
+        .iter()
+        .map(|id| format!("{id:?}"))
+        .collect();
     pipeline_ids.sort();
     info!(
         "Skeleton metrics FINAL: warmup={} main_samples={} render_app={} render_samples={} render_pending_or_unobserved={} phases_missing={}; \
@@ -459,16 +521,32 @@ fn report_once(
          batches cover all UI views, not skeleton-only draws; pipeline-ready does not prove submission. \
          Modified counts are published asset events for current/previous-frame skeleton handles, not GPU uploads or unique property writes. \
          Render samples may lag at shutdown; no missing samples imputed. Metrics scanning/locking adds profiling overhead.",
-        state.config.warmup, state.skeletons.samples, state.render_app_present,
-        render.observed_frames, pending, render.phases_missing,
-        state.skeletons.summary(), state.visible_nonempty.summary(),
-        state.material_nodes.summary(), state.unique_handles.summary(),
-        state.modified_events.summary(), state.modified_unique.summary(), state.modified_events.total,
-        render.extracted_skeletons.summary(), render.extracted_handles.summary(), render.extracted_skeletons.samples,
-        render.ui_batches.summary(), render.ui_batches.samples, render.shape_batches.summary(), render.shape_batches.samples,
-        render.shape_ready_batches.summary(), render.shape_ready_batches.samples,
-        render.shape_pipeline_count.summary(), pipeline_ids,
-        state.skeleton_cpu.summary(), state.surface_cpu.summary(),
+        state.config.warmup,
+        state.skeletons.samples,
+        state.render_app_present,
+        render.observed_frames,
+        pending,
+        render.phases_missing,
+        state.skeletons.summary(),
+        state.visible_nonempty.summary(),
+        state.material_nodes.summary(),
+        state.unique_handles.summary(),
+        state.modified_events.summary(),
+        state.modified_unique.summary(),
+        state.modified_events.total,
+        render.extracted_skeletons.summary(),
+        render.extracted_handles.summary(),
+        render.extracted_skeletons.samples,
+        render.ui_batches.summary(),
+        render.ui_batches.samples,
+        render.shape_batches.summary(),
+        render.shape_batches.samples,
+        render.shape_ready_batches.summary(),
+        render.shape_ready_batches.samples,
+        render.shape_pipeline_count.summary(),
+        pipeline_ids,
+        state.skeleton_cpu.summary(),
+        state.surface_cpu.summary(),
     );
 }
 
@@ -477,8 +555,12 @@ mod tests {
     use super::*;
 
     fn config(values: &[(&str, &str)]) -> Result<Option<Config>, String> {
-        Config::parse(|key| values.iter().find(|(name, _)| *name == key)
-            .map(|(_, value)| (*value).to_owned()))
+        Config::parse(|key| {
+            values
+                .iter()
+                .find(|(name, _)| *name == key)
+                .map(|(_, value)| (*value).to_owned())
+        })
     }
 
     #[test]
@@ -490,11 +572,21 @@ mod tests {
     #[test]
     fn supports_every_dense_grid_size_and_manual_default() {
         for nodes in ["1", "10", "100", "500", "1000"] {
-            assert_eq!(config(&[("UI_SKELETON_NODES", nodes)]).unwrap(),
-                Some(Config { warmup: 60, frames: 120 }));
+            assert_eq!(
+                config(&[("UI_SKELETON_NODES", nodes)]).unwrap(),
+                Some(Config {
+                    warmup: 60,
+                    frames: 120
+                })
+            );
         }
-        assert_eq!(config(&[("UI_SKELETON_DEMO", "1"), ("UI_AUDIT_FRAMES", "0")]).unwrap(),
-            Some(Config { warmup: 60, frames: 120 }));
+        assert_eq!(
+            config(&[("UI_SKELETON_DEMO", "1"), ("UI_AUDIT_FRAMES", "0")]).unwrap(),
+            Some(Config {
+                warmup: 60,
+                frames: 120
+            })
+        );
     }
 
     #[test]
@@ -506,15 +598,32 @@ mod tests {
 
     #[test]
     fn audit_window_matches_existing_defaults_and_rejects_empty_measurement() {
-        assert_eq!(config(&[("UI_SKELETON_DEMO", "1"), ("UI_AUDIT_FRAMES", "180")]).unwrap(),
-            Some(Config { warmup: 45, frames: 180 }));
-        assert!(config(&[("UI_SKELETON_DEMO", "1"), ("UI_AUDIT_FRAMES", "60"),
-            ("UI_AUDIT_WARMUP", "60")]).is_err());
+        assert_eq!(
+            config(&[("UI_SKELETON_DEMO", "1"), ("UI_AUDIT_FRAMES", "180")]).unwrap(),
+            Some(Config {
+                warmup: 45,
+                frames: 180
+            })
+        );
+        assert!(
+            config(&[
+                ("UI_SKELETON_DEMO", "1"),
+                ("UI_AUDIT_FRAMES", "60"),
+                ("UI_AUDIT_WARMUP", "60")
+            ])
+            .is_err()
+        );
     }
 
     #[test]
     fn baseline_and_warmup_are_not_samples() {
-        let mut state = MainMetrics::new(Config { warmup: 2, frames: 4 }, false);
+        let mut state = MainMetrics::new(
+            Config {
+                warmup: 2,
+                frames: 4,
+            },
+            false,
+        );
         for expected in [None, None, None, Some(1), Some(2)] {
             state.advance();
             assert_eq!(state.measured_frame, expected);
@@ -536,11 +645,26 @@ mod tests {
         let id = Handle::<UiShapeMaterial>::default().id();
         let empty = HashSet::new();
         let tracked = HashSet::from([id]);
-        assert_eq!(is_skeleton_modification(&AssetEvent::Modified { id }, &tracked, &empty), Some(id));
-        assert_eq!(is_skeleton_modification(&AssetEvent::Modified { id }, &empty, &tracked), Some(id));
-        assert_eq!(is_skeleton_modification(&AssetEvent::Modified { id }, &empty, &empty), None);
-        assert_eq!(is_skeleton_modification(&AssetEvent::Added { id }, &tracked, &tracked), None);
-        assert_eq!(is_skeleton_modification(&AssetEvent::Removed { id }, &tracked, &tracked), None);
+        assert_eq!(
+            is_skeleton_modification(&AssetEvent::Modified { id }, &tracked, &empty),
+            Some(id)
+        );
+        assert_eq!(
+            is_skeleton_modification(&AssetEvent::Modified { id }, &empty, &tracked),
+            Some(id)
+        );
+        assert_eq!(
+            is_skeleton_modification(&AssetEvent::Modified { id }, &empty, &empty),
+            None
+        );
+        assert_eq!(
+            is_skeleton_modification(&AssetEvent::Added { id }, &tracked, &tracked),
+            None
+        );
+        assert_eq!(
+            is_skeleton_modification(&AssetEvent::Removed { id }, &tracked, &tracked),
+            None
+        );
     }
 
     #[test]

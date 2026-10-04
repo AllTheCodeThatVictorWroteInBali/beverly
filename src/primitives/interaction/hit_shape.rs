@@ -57,7 +57,8 @@ impl HitShape {
             Self::LayoutRect => true,
             Self::Circle => {
                 let center = size * 0.5;
-                let radius = size.min_element() * 0.5 + slop.top.max(slop.left).max(slop.right).max(slop.bottom);
+                let radius = size.min_element() * 0.5
+                    + slop.top.max(slop.left).max(slop.right).max(slop.bottom);
                 local.distance_squared(center) <= radius * radius
             }
             Self::CustomRect(rect) => rect.contains(local),
@@ -77,10 +78,22 @@ fn contains_rounded_rect(local: Vec2, size: Vec2, radii: CornerRadii, slop: HitS
         return false;
     }
 
-    let tl = (radii.top_left + slop_max).max(0.0).min(width * 0.5).min(height * 0.5);
-    let tr = (radii.top_right + slop_max).max(0.0).min(width * 0.5).min(height * 0.5);
-    let br = (radii.bottom_right + slop_max).max(0.0).min(width * 0.5).min(height * 0.5);
-    let bl = (radii.bottom_left + slop_max).max(0.0).min(width * 0.5).min(height * 0.5);
+    let tl = (radii.top_left + slop_max)
+        .max(0.0)
+        .min(width * 0.5)
+        .min(height * 0.5);
+    let tr = (radii.top_right + slop_max)
+        .max(0.0)
+        .min(width * 0.5)
+        .min(height * 0.5);
+    let br = (radii.bottom_right + slop_max)
+        .max(0.0)
+        .min(width * 0.5)
+        .min(height * 0.5);
+    let bl = (radii.bottom_left + slop_max)
+        .max(0.0)
+        .min(width * 0.5)
+        .min(height * 0.5);
 
     if x >= tl && x <= width - tr {
         return true;
@@ -116,18 +129,30 @@ mod tests {
     #[test]
     fn rounded_rect_contains_center() {
         let shape = HitShape::RoundedRect(CornerRadii::new(12.0));
-        assert!(shape.contains_local(Vec2::new(50.0, 20.0), Vec2::new(100.0, 40.0), HitSlop::default()));
+        assert!(shape.contains_local(
+            Vec2::new(50.0, 20.0),
+            Vec2::new(100.0, 40.0),
+            HitSlop::default()
+        ));
     }
 
     #[test]
     fn circle_rejects_outside_point() {
         let shape = HitShape::Circle;
-        assert!(!shape.contains_local(Vec2::new(50.0, 0.0), Vec2::new(40.0, 40.0), HitSlop::default()));
+        assert!(!shape.contains_local(
+            Vec2::new(50.0, 0.0),
+            Vec2::new(40.0, 40.0),
+            HitSlop::default()
+        ));
     }
 
     #[test]
     fn hit_slop_expands_target() {
         let shape = HitShape::LayoutRect;
-        assert!(shape.contains_local(Vec2::new(-8.0, 20.0), Vec2::new(40.0, 40.0), HitSlop::all(10.0)));
+        assert!(shape.contains_local(
+            Vec2::new(-8.0, 20.0),
+            Vec2::new(40.0, 40.0),
+            HitSlop::all(10.0)
+        ));
     }
 }

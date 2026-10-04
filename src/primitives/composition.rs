@@ -1,47 +1,46 @@
 use bevy::prelude::*;
+use std::sync::Arc;
 
-use crate::components::button::{
-    BeverlyButton, ButtonChild, ButtonChildSetup, ButtonColor,
-};
 use crate::components::alert::Alert;
-use crate::components::checkbox::{spawn_checkbox, CheckboxConfig};
-use crate::components::input::{spawn_text_input, TextInputConfig};
-use crate::components::input::TextInputKind;
-use crate::components::toast::{Toast, ToastSections};
+use crate::components::avatar::{AvatarConfig, spawn_avatar_in};
+use crate::components::button::{BeverlyButton, ButtonChild, ButtonChildSetup, ButtonColor};
+use crate::components::card::{CardBody, CardFooter, CardHeader, CardStyle, spawn_card};
+use crate::components::checkbox::{CheckboxConfig, spawn_checkbox};
 use crate::components::divider::Divider;
-use crate::components::progress_bar::{spawn_progress_bar_into, ProgressBar};
-use crate::components::dropdown::{spawn_dropdown, DropdownConfig};
-use crate::components::pagination::{spawn_pagination, PaginationConfig};
-use crate::components::textarea::{spawn_textarea, TextareaConfig};
-use crate::components::toggle::{spawn_toggle, ToggleConfig, ToggleShadowMaterial};
-use crate::components::slider::{spawn_slider, Slider, SliderStyle};
-use crate::components::avatar::{spawn_avatar_in, AvatarConfig};
-use crate::components::photo::{spawn_photo, Photo};
-use crate::components::card::{spawn_card, CardBody, CardFooter, CardHeader, CardStyle};
+use crate::components::dropdown::{DropdownConfig, spawn_dropdown};
+use crate::components::file_input::{FileInput, FileInputDragState, FileInputSelectionState};
+use crate::components::footer::{FooterConfig, spawn_footer};
+use crate::components::form::{Form, spawn_form};
+use crate::components::input::TextInputKind;
+use crate::components::input::{TextInputConfig, spawn_text_input};
+use crate::components::link::Link;
 use crate::components::list_item::spawn_list_item;
-use crate::components::form::{spawn_form, Form};
-use crate::components::radio::RadioGroupBuilder;
-use crate::components::table::{Table, TableConfig};
-use crate::components::tabs::{spawn_tabs_in, TabsConfig};
 use crate::components::modal::{
-    spawn_modal_with_surface, BasicModalContent, Modal, ModalBody, ModalFooter,
-    ModalHeader, ModalStyle,
+    BasicModalContent, Modal, ModalBody, ModalFooter, ModalHeader, ModalStyle,
+    spawn_modal_with_surface,
 };
+use crate::components::navbar::spawn_navbar;
+use crate::components::pagination::{PaginationConfig, spawn_pagination};
+use crate::components::photo::{Photo, spawn_photo};
+use crate::components::progress_bar::{ProgressBar, spawn_progress_bar_into};
+use crate::components::radio::RadioGroupBuilder;
 use crate::components::search::spawn_search;
 use crate::components::searchbox::spawn_searchbox;
-use crate::components::file_input::{FileInput, FileInputDragState};
-use crate::primitives::root::UiFonts;
-use crate::components::navbar::spawn_navbar;
-use crate::components::footer::{spawn_footer, FooterConfig};
+use crate::components::select::{Select, spawn_select};
 use crate::components::sidebar::spawn_sidebar;
-use crate::components::link::Link;
-use crate::components::tooltip::Tooltip;
+use crate::components::slider::{Slider, SliderStyle, spawn_slider};
 use crate::components::spinner::Spinner;
-use crate::components::select::{spawn_select, Select};
+use crate::components::table::{Table, TableConfig};
+use crate::components::tabs::{TabsConfig, spawn_tabs_in};
+use crate::components::textarea::{TextareaConfig, spawn_textarea};
+use crate::components::toast::{Toast, ToastSections};
+use crate::components::toggle::{ToggleConfig, ToggleShadowMaterial, spawn_toggle};
+use crate::components::tooltip::Tooltip;
 use crate::icons::Icon;
-use crate::theme::ThemeResource;
+use crate::primitives::root::UiFonts;
 use crate::primitives::semantic::AriaDescription;
 use crate::rendering::{Paint, Surface};
+use crate::theme::ThemeResource;
 
 /// A composable UI node used by fluent application builders.
 #[derive(Clone)]
@@ -79,7 +78,10 @@ pub enum UiElement {
     Pagination(PaginationConfig),
     Textarea(TextareaConfig),
     Toggle(ToggleConfig),
-    Slider { value: Slider, style: SliderStyle },
+    Slider {
+        value: Slider,
+        style: SliderStyle,
+    },
     Avatar(AvatarConfig),
     Photo(Photo),
     Card {
@@ -89,11 +91,21 @@ pub enum UiElement {
         body: Vec<UiElement>,
         footer: Vec<UiElement>,
     },
-    ListItem { title: String, subtitle: Option<String>, icon: Option<Icon> },
-    Form { value: Form, children: Vec<UiElement> },
+    ListItem {
+        title: String,
+        subtitle: Option<String>,
+        icon: Option<Icon>,
+    },
+    Form {
+        value: Form,
+        children: Vec<UiElement>,
+    },
     Radio(RadioGroupBuilder),
     Table(TableConfig),
-    Tabs { config: TabsConfig, children: Vec<UiElement> },
+    Tabs {
+        config: TabsConfig,
+        children: Vec<UiElement>,
+    },
     Modal {
         value: Modal,
         style: ModalStyle,
@@ -103,11 +115,20 @@ pub enum UiElement {
         footer: Vec<UiElement>,
     },
     Search,
-    SearchBox { placeholder: String },
+    SearchBox {
+        placeholder: String,
+    },
     FileInput(FileInput),
-    Navbar { fixed: bool },
-    Footer { fixed: bool, config: FooterConfig },
-    Sidebar { top_offset_px: f32 },
+    Navbar {
+        fixed: bool,
+    },
+    Footer {
+        fixed: bool,
+        config: FooterConfig,
+    },
+    Sidebar {
+        top_offset_px: f32,
+    },
     Link(Link),
     Tooltip(Tooltip),
     Spinner(Spinner),
@@ -116,7 +137,18 @@ pub enum UiElement {
     Custom(UiElementSetup),
     ButtonCustom(ButtonChildSetup),
     ContextCustom(UiContextSetup),
-    Aria { element: Box<UiElement>, description: String },
+    Aria {
+        element: Box<UiElement>,
+        description: String,
+    },
+    Named {
+        element: Box<UiElement>,
+        name: String,
+    },
+    Bound {
+        element: Box<UiElement>,
+        binding: Arc<dyn crate::primitives::binding::ErasedFieldBinding>,
+    },
 }
 
 impl IntoIterator for UiElement {
@@ -281,6 +313,13 @@ impl UiElement {
         }
     }
 
+    pub fn name(self, name: impl Into<String>) -> Self {
+        Self::Named {
+            element: Box::new(self),
+            name: name.into(),
+        }
+    }
+
     pub fn to(mut self, path: impl Into<String>) -> Self {
         if let Self::Link(link) = &mut self {
             link.target_path = Some(path.into());
@@ -301,6 +340,20 @@ impl UiElement {
                 .collect();
         }
         self
+    }
+
+    pub fn bind<Model, Value>(
+        self,
+        binding: crate::primitives::binding::FieldBinding<Model, Value>,
+    ) -> Self
+    where
+        Model: Resource,
+        Value: crate::primitives::binding::BindingValueType,
+    {
+        Self::Bound {
+            element: Box::new(self),
+            binding: binding.erase(),
+        }
     }
 
     pub fn button() -> Self {
@@ -360,7 +413,10 @@ impl UiElement {
     }
 
     pub fn slider(value: Slider) -> Self {
-        Self::Slider { value, style: SliderStyle::default() }
+        Self::Slider {
+            value,
+            style: SliderStyle::default(),
+        }
     }
 
     pub fn avatar(value: AvatarConfig) -> Self {
@@ -382,7 +438,11 @@ impl UiElement {
     }
 
     pub fn list_item(title: impl Into<String>) -> Self {
-        Self::ListItem { title: title.into(), subtitle: None, icon: None }
+        Self::ListItem {
+            title: title.into(),
+            subtitle: None,
+            icon: None,
+        }
     }
 
     pub fn subtitle(mut self, value: impl Into<String>) -> Self {
@@ -398,9 +458,7 @@ impl UiElement {
         I::Item: Into<UiElement>,
     {
         match &mut self {
-            Self::Card { header, .. }
-            | Self::Toast { header, .. }
-            | Self::Modal { header, .. } => {
+            Self::Card { header, .. } | Self::Toast { header, .. } | Self::Modal { header, .. } => {
                 header.extend(children.into_iter().map(Into::into));
             }
             _ => {}
@@ -414,9 +472,7 @@ impl UiElement {
         I::Item: Into<UiElement>,
     {
         match &mut self {
-            Self::Card { body, .. }
-            | Self::Toast { body, .. }
-            | Self::Modal { body, .. } => {
+            Self::Card { body, .. } | Self::Toast { body, .. } | Self::Modal { body, .. } => {
                 body.extend(children.into_iter().map(Into::into));
             }
             _ => {}
@@ -430,9 +486,7 @@ impl UiElement {
         I::Item: Into<UiElement>,
     {
         match &mut self {
-            Self::Card { footer, .. }
-            | Self::Toast { footer, .. }
-            | Self::Modal { footer, .. } => {
+            Self::Card { footer, .. } | Self::Toast { footer, .. } | Self::Modal { footer, .. } => {
                 footer.extend(children.into_iter().map(Into::into));
             }
             _ => {}
@@ -441,7 +495,10 @@ impl UiElement {
     }
 
     pub fn form(value: Form) -> Self {
-        Self::Form { value, children: Vec::new() }
+        Self::Form {
+            value,
+            children: Vec::new(),
+        }
     }
 
     pub fn radio(value: RadioGroupBuilder) -> Self {
@@ -453,18 +510,21 @@ impl UiElement {
     }
 
     pub fn tabs(value: TabsConfig) -> Self {
-        Self::Tabs { config: value, children: Vec::new() }
+        Self::Tabs {
+            config: value,
+            children: Vec::new(),
+        }
     }
 
     pub fn modal(value: Modal, style: ModalStyle, content: BasicModalContent) -> Self {
-           Self::Modal {
-              value,
-              style,
-              content,
-              header: Vec::new(),
-              body: Vec::new(),
-              footer: Vec::new(),
-           }
+        Self::Modal {
+            value,
+            style,
+            content,
+            header: Vec::new(),
+            body: Vec::new(),
+            footer: Vec::new(),
+        }
     }
 
     pub fn search() -> Self {
@@ -472,7 +532,9 @@ impl UiElement {
     }
 
     pub fn searchbox(placeholder: impl Into<String>) -> Self {
-        Self::SearchBox { placeholder: placeholder.into() }
+        Self::SearchBox {
+            placeholder: placeholder.into(),
+        }
     }
 
     pub fn file_input(value: FileInput) -> Self {
@@ -491,10 +553,18 @@ impl UiElement {
         Self::Sidebar { top_offset_px }
     }
 
-    pub fn link(value: Link) -> Self { Self::Link(value) }
-    pub fn tooltip(value: Tooltip) -> Self { Self::Tooltip(value) }
-    pub fn spinner(value: Spinner) -> Self { Self::Spinner(value) }
-    pub fn select(options: Vec<String>) -> Self { Self::Select(Select::new(options)) }
+    pub fn link(value: Link) -> Self {
+        Self::Link(value)
+    }
+    pub fn tooltip(value: Tooltip) -> Self {
+        Self::Tooltip(value)
+    }
+    pub fn spinner(value: Spinner) -> Self {
+        Self::Spinner(value)
+    }
+    pub fn select(options: Vec<String>) -> Self {
+        Self::Select(Select::new(options))
+    }
     pub fn text(mut self, value: impl Into<String>) -> Self {
         match &mut self {
             Self::Text { value: text, .. } => *text = Text::new(value),
@@ -538,6 +608,17 @@ impl UiElement {
             | Self::ContextCustom(_)
             | Self::ButtonCustom(_)
             | Self::Aria { .. } => {}
+            Self::Named { .. } => {}
+            Self::Bound { element, .. } => {
+                let replacement = std::mem::replace(
+                    element,
+                    Box::new(Self::Text {
+                        value: Text::default(),
+                        children: Vec::new(),
+                    }),
+                );
+                **element = replacement.text(value);
+            }
         }
         self
     }
@@ -550,14 +631,21 @@ impl UiElement {
         }
         self
     }
-    pub fn on(mut self, event: &'static str, command: crate::components::button::ButtonCommand) -> Self {
+    pub fn on(
+        mut self,
+        event: &'static str,
+        command: crate::components::button::ButtonCommand,
+    ) -> Self {
         if let Self::Button { value, .. } = &mut self {
             value.handlers.push((
                 crate::components::button::ButtonEventType::parse(event)
                     .unwrap_or_else(|| panic!("unsupported button event type: {event}")),
                 command,
             ));
-            assert_eq!(event, "click", "BeverlyButton currently supports only the click event");
+            assert_eq!(
+                event, "click",
+                "BeverlyButton currently supports only the click event"
+            );
         }
         self
     }
@@ -612,18 +700,30 @@ impl UiElement {
         I::Item: Into<UiElement>,
     {
         match &mut self {
-            Self::Container { children: current, .. } => {
+            Self::Container {
+                children: current, ..
+            } => {
                 current.extend(children.into_iter().map(Into::into));
             }
-            Self::Text { children: current, .. } => {
+            Self::Text {
+                children: current, ..
+            } => {
                 current.extend(children.into_iter().map(Into::into));
             }
-            Self::Button { children: current, .. } => {
+            Self::Button {
+                children: current, ..
+            } => {
                 current.extend(children.into_iter().map(Into::into));
             }
-            Self::Card { children: current, .. }
-            | Self::Form { children: current, .. }
-            | Self::Tabs { children: current, .. } => {
+            Self::Card {
+                children: current, ..
+            }
+            | Self::Form {
+                children: current, ..
+            }
+            | Self::Tabs {
+                children: current, ..
+            } => {
                 current.extend(children.into_iter().map(Into::into));
             }
             Self::Checkbox { .. }
@@ -658,6 +758,8 @@ impl UiElement {
             | Self::ContextCustom(_)
             | Self::ButtonCustom(_)
             | Self::Aria { .. } => {}
+            Self::Named { .. } => {}
+            Self::Bound { .. } => {}
         }
         self
     }
@@ -683,7 +785,10 @@ impl UiElement {
                 });
                 entity.id()
             }
-            Self::Button { mut value, children } => {
+            Self::Button {
+                mut value,
+                children,
+            } => {
                 for child in children {
                     value.children.push(match child {
                         UiElement::Text { value: text, .. } => ButtonChild::Text(text.0),
@@ -705,17 +810,25 @@ impl UiElement {
                         | UiElement::Slider { .. } => continue,
                         UiElement::Avatar(_) | UiElement::Photo(_) => continue,
                         UiElement::Card { .. } | UiElement::ListItem { .. } => continue,
-                        UiElement::Form { .. } | UiElement::Radio(_) | UiElement::Table(_) => continue,
+                        UiElement::Form { .. } | UiElement::Radio(_) | UiElement::Table(_) => {
+                            continue;
+                        }
                         UiElement::Tabs { .. } => continue,
                         UiElement::Modal { .. } => continue,
-                        UiElement::Search | UiElement::SearchBox { .. } | UiElement::FileInput(_) => continue,
-                        UiElement::Navbar { .. } | UiElement::Footer { .. } | UiElement::Sidebar { .. } => continue,
+                        UiElement::Search
+                        | UiElement::SearchBox { .. }
+                        | UiElement::FileInput(_) => continue,
+                        UiElement::Navbar { .. }
+                        | UiElement::Footer { .. }
+                        | UiElement::Sidebar { .. } => continue,
                         UiElement::Link(_)
                         | UiElement::Tooltip(_)
                         | UiElement::Spinner(_)
                         | UiElement::Select(_)
                         | UiElement::Container { .. }
-                        | UiElement::Aria { .. } => continue,
+                        | UiElement::Aria { .. }
+                        | UiElement::Named { .. }
+                        | UiElement::Bound { .. } => continue,
                     });
                 }
                 parent.spawn(value).id()
@@ -752,17 +865,45 @@ impl UiElement {
             Self::Link(_) | Self::Tooltip(_) | Self::Spinner(_) | Self::Select(_) => {
                 panic!("leaf surface requires spawn_in_context")
             }
-            Self::Icon(icon) => {
-                parent.spawn((crate::icons::IconNode::new(crate::icons::Icon::feather(icon)),
-                              Node { width: px(16.0), height: px(16.0), ..default() })).id()
-            }
+            Self::Icon(icon) => parent
+                .spawn((
+                    crate::icons::IconNode::new(crate::icons::Icon::feather(icon)),
+                    Node {
+                        width: px(16.0),
+                        height: px(16.0),
+                        ..default()
+                    },
+                ))
+                .id(),
             Self::Custom(setup) => setup(parent),
             Self::ContextCustom(_) => {
                 panic!("context-aware custom element requires spawn_in_context")
             }
-            Self::Aria { element, description } => {
+            Self::Aria {
+                element,
+                description,
+            } => {
                 let entity = element.spawn(parent);
-                parent.commands().entity(entity).insert(AriaDescription(description));
+                parent
+                    .commands()
+                    .entity(entity)
+                    .insert(AriaDescription(description));
+                entity
+            }
+            Self::Named { element, name } => {
+                let entity = element.spawn(parent);
+                parent
+                    .commands()
+                    .entity(entity)
+                    .insert(crate::components::form::FormFieldName(name));
+                entity
+            }
+            Self::Bound { element, binding } => {
+                let entity = element.spawn(parent);
+                parent.commands().entity(entity).insert((
+                    crate::primitives::binding::BoundField::new(binding),
+                    crate::primitives::binding::BindingErrorState::default(),
+                ));
                 entity
             }
             Self::ButtonCustom(setup) => parent
@@ -777,10 +918,7 @@ impl UiElement {
     pub fn spawn_in_context(self, context: &mut UiBuildContext<'_>) -> Entity {
         match self {
             Self::Container { node, children } => {
-                let entity = context
-                    .world
-                    .spawn((node, ChildOf(context.parent)))
-                    .id();
+                let entity = context.world.spawn((node, ChildOf(context.parent))).id();
                 for child in children {
                     child.spawn_in_context(&mut UiBuildContext {
                         world: context.world,
@@ -799,7 +937,10 @@ impl UiElement {
                 }
                 entity
             }
-            Self::Button { mut value, children } => {
+            Self::Button {
+                mut value,
+                children,
+            } => {
                 for child in children {
                     value.children.push(match child {
                         UiElement::Text { value: text, .. } => ButtonChild::Text(text.0),
@@ -822,11 +963,20 @@ impl UiElement {
                 })
             }
             Self::Alert { value } => context.world.spawn((value, ChildOf(context.parent))).id(),
-            Self::Toast { value, header, body, footer } => context
+            Self::Toast {
+                value,
+                header,
+                body,
+                footer,
+            } => context
                 .world
                 .spawn((
                     value,
-                    ToastSections { header, body, footer },
+                    ToastSections {
+                        header,
+                        body,
+                        footer,
+                    },
                     ChildOf(context.parent),
                 ))
                 .id(),
@@ -839,22 +989,30 @@ impl UiElement {
                     spawn_progress_bar_into(parent, value)
                 })
             }
-            Self::Dropdown(config) => spawn_with_children(context.world, context.parent, |parent| {
-                spawn_dropdown(parent, config)
-            }),
-            Self::Pagination(config) => spawn_with_children(context.world, context.parent, |parent| {
-                spawn_pagination(parent, config)
-            }),
-            Self::Textarea(config) => spawn_with_children(context.world, context.parent, |parent| {
-                spawn_textarea(parent, config)
-            }),
+            Self::Dropdown(config) => {
+                spawn_with_children(context.world, context.parent, |parent| {
+                    spawn_dropdown(parent, config)
+                })
+            }
+            Self::Pagination(config) => {
+                spawn_with_children(context.world, context.parent, |parent| {
+                    spawn_pagination(parent, config)
+                })
+            }
+            Self::Textarea(config) => {
+                spawn_with_children(context.world, context.parent, |parent| {
+                    spawn_textarea(parent, config)
+                })
+            }
             Self::Toggle(config) => {
                 let theme = *context.world.resource::<ThemeResource>();
-                context.world.resource_scope(|world, mut materials: Mut<Assets<ToggleShadowMaterial>>| {
-                    spawn_with_children(world, context.parent, |parent| {
-                        spawn_toggle(parent, config, &theme, &mut materials)
-                    })
-                })
+                context.world.resource_scope(
+                    |world, mut materials: Mut<Assets<ToggleShadowMaterial>>| {
+                        spawn_with_children(world, context.parent, |parent| {
+                            spawn_toggle(parent, config, &theme, &mut materials)
+                        })
+                    },
+                )
             }
             Self::Slider { value, style } => {
                 let theme = *context.world.resource::<ThemeResource>();
@@ -871,7 +1029,13 @@ impl UiElement {
             Self::Photo(photo) => spawn_with_children(context.world, context.parent, |parent| {
                 spawn_photo(parent, photo)
             }),
-            Self::Card { style, children, header, body, footer } => {
+            Self::Card {
+                style,
+                children,
+                header,
+                body,
+                footer,
+            } => {
                 let theme = *context.world.resource::<ThemeResource>();
                 spawn_with_children(context.world, context.parent, |parent| {
                     spawn_card(parent, style, &theme, |content| {
@@ -884,11 +1048,13 @@ impl UiElement {
                     })
                 })
             }
-            Self::ListItem { title, subtitle, icon } => {
-                spawn_with_children(context.world, context.parent, |parent| {
-                    spawn_list_item(parent, title, subtitle, icon)
-                })
-            }
+            Self::ListItem {
+                title,
+                subtitle,
+                icon,
+            } => spawn_with_children(context.world, context.parent, |parent| {
+                spawn_list_item(parent, title, subtitle, icon)
+            }),
             Self::Form { value, children } => {
                 spawn_with_children(context.world, context.parent, |parent| {
                     spawn_form(parent, value, |content| {
@@ -913,7 +1079,14 @@ impl UiElement {
                     })
                 })
             }
-            Self::Modal { value, style, content, header, body, footer } => {
+            Self::Modal {
+                value,
+                style,
+                content,
+                header,
+                body,
+                footer,
+            } => {
                 let theme = *context.world.resource::<ThemeResource>();
                 let mut commands = context.world.commands();
                 let title = content.title.clone();
@@ -947,7 +1120,12 @@ impl UiElement {
             }
             Self::FileInput(value) => context
                 .world
-                .spawn((value, FileInputDragState::default(), ChildOf(context.parent)))
+                .spawn((
+                    value,
+                    FileInputDragState::default(),
+                    FileInputSelectionState::default(),
+                    ChildOf(context.parent),
+                ))
                 .id(),
             Self::Navbar { fixed } => {
                 let mut commands = context.world.commands();
@@ -971,16 +1149,23 @@ impl UiElement {
             }
             Self::Link(value) => {
                 let label = value.text.clone();
-                context.world.spawn((
-                    Button,
-                    value,
-                    Node { padding: UiRect::all(px(8.0)), ..default() },
-                    BackgroundColor(Color::NONE),
-                    Surface::rounded_rect_fill(4.0, Paint::solid(Color::NONE)),
-                    ChildOf(context.parent),
-                )).with_children(|parent| {
-                    parent.spawn((crate::components::link::LinkText, Text::new(label)));
-                }).id()
+                context
+                    .world
+                    .spawn((
+                        Button,
+                        value,
+                        Node {
+                            padding: UiRect::all(px(8.0)),
+                            ..default()
+                        },
+                        BackgroundColor(Color::NONE),
+                        Surface::rounded_rect_fill(4.0, Paint::solid(Color::NONE)),
+                        ChildOf(context.parent),
+                    ))
+                    .with_children(|parent| {
+                        parent.spawn((crate::components::link::LinkText, Text::new(label)));
+                    })
+                    .id()
             }
             Self::Tooltip(value) => context.world.spawn((value, ChildOf(context.parent))).id(),
             Self::Spinner(value) => context.world.spawn((value, ChildOf(context.parent))).id(),
@@ -994,22 +1179,50 @@ impl UiElement {
                 .world
                 .spawn((
                     crate::icons::IconNode::new(crate::icons::Icon::feather(icon)),
-                    Node { width: px(16.0), height: px(16.0), ..default() },
+                    Node {
+                        width: px(16.0),
+                        height: px(16.0),
+                        ..default()
+                    },
                     ChildOf(context.parent),
                 ))
                 .id(),
             Self::Custom(setup) => spawn_with_children(context.world, context.parent, setup),
             Self::ContextCustom(setup) => setup(context),
-            Self::Aria { element, description } => {
+            Self::Aria {
+                element,
+                description,
+            } => {
                 let entity = element.spawn_in_context(context);
-                context.world.entity_mut(entity).insert(AriaDescription(description));
+                context
+                    .world
+                    .entity_mut(entity)
+                    .insert(AriaDescription(description));
                 entity
             }
-            Self::ButtonCustom(setup) => spawn_with_children(context.world, context.parent, |parent| {
-                let mut entity = parent.spawn(Node::default());
-                entity.with_children(|children| setup(children, Color::WHITE));
-                entity.id()
-            }),
+            Self::Named { element, name } => {
+                let entity = element.spawn_in_context(context);
+                context
+                    .world
+                    .entity_mut(entity)
+                    .insert(crate::components::form::FormFieldName(name));
+                entity
+            }
+            Self::Bound { element, binding } => {
+                let entity = element.spawn_in_context(context);
+                context.world.entity_mut(entity).insert((
+                    crate::primitives::binding::BoundField::new(binding),
+                    crate::primitives::binding::BindingErrorState::default(),
+                ));
+                entity
+            }
+            Self::ButtonCustom(setup) => {
+                spawn_with_children(context.world, context.parent, |parent| {
+                    let mut entity = parent.spawn(Node::default());
+                    entity.with_children(|children| setup(children, Color::WHITE));
+                    entity.id()
+                })
+            }
         }
     }
 }
@@ -1049,6 +1262,15 @@ impl From<BeverlyButton> for UiElement {
 mod tests {
     use super::*;
 
+    #[crate::model]
+    struct BindingModel {
+        name: String,
+        enabled: bool,
+        age: u32,
+        rating: f32,
+        files: Vec<crate::components::file_input::SelectedFile>,
+    }
+
     #[test]
     fn text_and_button_are_composable_siblings() {
         let content = vec![
@@ -1072,7 +1294,9 @@ mod tests {
     #[test]
     fn config_components_join_the_same_children_tree() {
         let content = vec![
-            UiElement::input("Email").label("Email address").invalid(true),
+            UiElement::input("Email")
+                .label("Email address")
+                .invalid(true),
             UiElement::checkbox().label("Accept terms").checked(true),
             UiElement::alert(Alert::info("Ready")),
         ];
@@ -1100,9 +1324,9 @@ mod tests {
             UiElement::form(Form::post("/save")),
             UiElement::radio(RadioGroupBuilder::new("mode").option("a", "A")),
             UiElement::table(TableConfig::default()),
-            UiElement::tabs(TabsConfig::new(vec![
-                crate::components::tabs::Tab::new("overview", "Overview"),
-            ])),
+            UiElement::tabs(TabsConfig::new(vec![crate::components::tabs::Tab::new(
+                "overview", "Overview",
+            )])),
             UiElement::modal(
                 Modal::new(),
                 ModalStyle::default(),
@@ -1115,5 +1339,87 @@ mod tests {
         assert!(matches!(content[2], UiElement::Table(_)));
         assert!(matches!(content[3], UiElement::Tabs { .. }));
         assert!(matches!(content[4], UiElement::Modal { .. }));
+    }
+
+    #[test]
+    fn bind_is_available_for_each_form_value_control() {
+        let controls = vec![
+            UiElement::input("Name").bind(BindingModel::name),
+            UiElement::search().bind(BindingModel::name),
+            UiElement::searchbox("Search").bind(BindingModel::name),
+            UiElement::textarea(TextareaConfig::new("Notes")).bind(BindingModel::name),
+            UiElement::checkbox().bind(BindingModel::enabled),
+            UiElement::toggle(crate::components::toggle::ToggleConfig::new())
+                .bind(BindingModel::enabled),
+            UiElement::radio(RadioGroupBuilder::new("plan").option("free", "Free"))
+                .bind(BindingModel::name),
+            UiElement::select(vec!["free".to_owned(), "pro".to_owned()]).bind(BindingModel::name),
+            UiElement::slider(Slider::new(0.0, 100.0)).bind(BindingModel::rating),
+            UiElement::dropdown(DropdownConfig::new("Plan").option("Free", "free"))
+                .bind(BindingModel::name),
+            UiElement::file_input(crate::components::file_input::FileInput::new("Files"))
+                .bind(BindingModel::files),
+        ];
+
+        assert!(
+            controls
+                .iter()
+                .all(|control| matches!(control, UiElement::Bound { .. }))
+        );
+        let _ = BindingModel::age;
+    }
+
+    #[test]
+    fn bound_input_spawn_initializes_from_the_model_resource() {
+        let mut world = World::new();
+        world.insert_resource(BindingModel {
+            name: "Model value".to_owned(),
+            enabled: false,
+            age: 30,
+            rating: 5.0,
+            files: Vec::new(),
+        });
+        let parent = world.spawn_empty().id();
+        let entity = UiElement::input("Name")
+            .label("Name")
+            .bind(BindingModel::name)
+            .spawn_in_context(&mut UiBuildContext {
+                world: &mut world,
+                parent,
+            });
+
+        assert!(
+            world
+                .get::<crate::primitives::binding::BoundField>(entity)
+                .is_some()
+        );
+        crate::primitives::binding::sync_bound_fields(&mut world);
+        assert_eq!(
+            world
+                .get::<crate::components::input::TextInput>(entity)
+                .unwrap()
+                .value,
+            "Model value",
+        );
+    }
+
+    #[test]
+    fn named_input_spawn_attaches_its_form_field_name() {
+        let mut world = World::new();
+        let parent = world.spawn_empty().id();
+        let entity = UiElement::input("Search")
+            .name("q")
+            .spawn_in_context(&mut UiBuildContext {
+                world: &mut world,
+                parent,
+            });
+
+        assert_eq!(
+            world
+                .get::<crate::components::form::FormFieldName>(entity)
+                .unwrap()
+                .0,
+            "q",
+        );
     }
 }

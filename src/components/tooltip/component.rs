@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use crate::rendering::{GradientStop, LinearGradient, Paint, Surface};
-use crate::icons::IconCommands;
 use crate::components::text::{TextRole, ThemedText};
+use crate::icons::IconCommands;
+use crate::rendering::{GradientStop, LinearGradient, Paint, Surface};
 
 /// Adds tooltip behavior to a UI entity.
 ///

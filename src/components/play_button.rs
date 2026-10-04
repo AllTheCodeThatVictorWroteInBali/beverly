@@ -3,12 +3,12 @@
 
 use bevy::{prelude::*, ui::UiSystems};
 
-use crate::rendering::{Backdrop, InnerShadow, LiquidGlass, OuterShadow, Surface};
 use crate::animation::animation::spring::spring_step;
 use crate::icons::{Icon, IconNode};
 use crate::primitives::a11y;
 use crate::primitives::interaction::DisabledInteraction;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
+use crate::rendering::{Backdrop, InnerShadow, LiquidGlass, OuterShadow, Surface};
 use crate::theme::{AccessibilityContrastMode, AccessibilityVisualPolicyResource, ThemeResource};
 
 /// Playback state is independent of pointer state. Disable a control with
@@ -50,10 +50,12 @@ struct PlayButtonEnvironment {
 
 impl Default for PlayButtonEnvironment {
     fn default() -> Self {
-        let enabled = |name| matches!(
-            std::env::var(name).ok().as_deref(),
-            Some("1" | "true" | "TRUE" | "yes" | "on")
-        );
+        let enabled = |name| {
+            matches!(
+                std::env::var(name).ok().as_deref(),
+                Some("1" | "true" | "TRUE" | "yes" | "on")
+            )
+        };
         Self {
             backdrop_disabled: enabled("UI_BACKDROP_DISABLED"),
             reduced_effects: enabled("UI_REDUCED_EFFECTS"),
@@ -64,41 +66,58 @@ impl Default for PlayButtonEnvironment {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::a11y::AccessibilityNode;
     use crate::rendering::{FocusRing, Paint};
     use crate::theme::{dark_theme, light_theme};
+    use bevy::a11y::AccessibilityNode;
     use std::time::Duration;
 
     fn test_app() -> App {
         let mut app = App::new();
         app.init_resource::<Time>()
-            .insert_resource(ThemeResource { current: light_theme() })
+            .insert_resource(ThemeResource {
+                current: light_theme(),
+            })
             .add_plugins(PlayButtonPlugin);
         // Tests are deterministic regardless of the launching process's flags.
         app.world_mut().insert_resource(PlayButtonEnvironment {
             backdrop_disabled: false,
             reduced_effects: false,
         });
-        app.world_mut().resource_mut::<AccessibilityVisualPolicyResource>().current = default();
+        app.world_mut()
+            .resource_mut::<AccessibilityVisualPolicyResource>()
+            .current = default();
         app
     }
 
     fn spawn_control(app: &mut App, size: f32) -> (Entity, Entity, Entity) {
-        let button = app.world_mut().spawn((
-            PlayButton::default(),
-            Node {
-                height: px(36.0),
-                border_radius: BorderRadius::all(px(18.0)),
-                ..default()
-            },
-            BackgroundColor(Color::WHITE),
-        )).id();
-        let icon = app.world_mut().spawn((
-            IconNode::new(Icon::feather("play")).size(size),
-            ChildOf(button),
-            Node { width: px(size), height: px(size), ..default() },
-        )).id();
-        let label = app.world_mut().spawn((Text::new("Play"), TextColor(Color::WHITE), ChildOf(button))).id();
+        let button = app
+            .world_mut()
+            .spawn((
+                PlayButton::default(),
+                Node {
+                    height: px(36.0),
+                    border_radius: BorderRadius::all(px(18.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::WHITE),
+            ))
+            .id();
+        let icon = app
+            .world_mut()
+            .spawn((
+                IconNode::new(Icon::feather("play")).size(size),
+                ChildOf(button),
+                Node {
+                    width: px(size),
+                    height: px(size),
+                    ..default()
+                },
+            ))
+            .id();
+        let label = app
+            .world_mut()
+            .spawn((Text::new("Play"), TextColor(Color::WHITE), ChildOf(button)))
+            .id();
         (button, icon, label)
     }
 
@@ -117,10 +136,16 @@ mod tests {
             assert_eq!(surface.fill, Paint::solid(Color::NONE));
             assert_eq!(world.get::<BackgroundColor>(button).unwrap().0, Color::NONE);
             assert_eq!(world.get::<a11y::TabIndex>(button).unwrap().0, 0);
-            assert_eq!(world.get::<AccessibilityNode>(button).unwrap().0.label(), Some("Play"));
+            assert_eq!(
+                world.get::<AccessibilityNode>(button).unwrap().0.label(),
+                Some("Play")
+            );
             assert_eq!(world.get::<IconNode>(icon).unwrap().size, size);
             assert_eq!(world.get::<Node>(icon).unwrap().width, px(size));
-            assert_eq!(world.get::<IconNode>(icon).unwrap().color, light_theme().colors.text);
+            assert_eq!(
+                world.get::<IconNode>(icon).unwrap().color,
+                light_theme().colors.text
+            );
         }
     }
 
@@ -129,30 +154,76 @@ mod tests {
         let mut app = test_app();
         let (button, icon, label) = spawn_control(&mut app, 14.0);
         app.update();
-        app.world_mut().get_mut::<PlayButton>(button).unwrap().playing = true;
+        app.world_mut()
+            .get_mut::<PlayButton>(button)
+            .unwrap()
+            .playing = true;
         app.world_mut().resource_mut::<ThemeResource>().current = dark_theme();
         app.update();
         assert_eq!(app.world().get::<Text>(label).unwrap().0, "Pause");
-        assert_eq!(app.world().get::<AccessibilityNode>(button).unwrap().0.label(), Some("Pause"));
-        assert_eq!(app.world().get::<SemanticNode>(button).unwrap().label.as_deref(), Some("Pause"));
-        assert_eq!(app.world().get::<IconNode>(icon).unwrap().icon, Icon::feather("pause"));
-        assert_eq!(app.world().get::<IconNode>(icon).unwrap().color, dark_theme().colors.text);
-        app.world_mut().entity_mut(button).insert((DisabledInteraction, Interaction::Pressed));
+        assert_eq!(
+            app.world()
+                .get::<AccessibilityNode>(button)
+                .unwrap()
+                .0
+                .label(),
+            Some("Pause")
+        );
+        assert_eq!(
+            app.world()
+                .get::<SemanticNode>(button)
+                .unwrap()
+                .label
+                .as_deref(),
+            Some("Pause")
+        );
+        assert_eq!(
+            app.world().get::<IconNode>(icon).unwrap().icon,
+            Icon::feather("pause")
+        );
+        assert_eq!(
+            app.world().get::<IconNode>(icon).unwrap().color,
+            dark_theme().colors.text
+        );
+        app.world_mut()
+            .entity_mut(button)
+            .insert((DisabledInteraction, Interaction::Pressed));
         app.update();
-        assert!(app.world().get::<AccessibilityNode>(button).unwrap().0.is_disabled());
+        assert!(
+            app.world()
+                .get::<AccessibilityNode>(button)
+                .unwrap()
+                .0
+                .is_disabled()
+        );
         let state = &app.world().get::<SemanticNode>(button).unwrap().state;
         assert!(state.disabled);
         assert_eq!(state.pressed, Some(true));
         assert_eq!(
-            app.world().get::<AccessibilityNode>(button).unwrap().0.toggled(),
+            app.world()
+                .get::<AccessibilityNode>(button)
+                .unwrap()
+                .0
+                .toggled(),
             Some(accesskit::Toggled::True),
             "aria-pressed must reach the AccessKit node, not just SemanticState",
         );
         assert_eq!(app.world().get::<a11y::TabIndex>(button).unwrap().0, -1);
-        assert_eq!(app.world().get::<PlayButtonSpring>(button).unwrap().amount, 0.0);
-        app.world_mut().entity_mut(button).remove::<DisabledInteraction>();
+        assert_eq!(
+            app.world().get::<PlayButtonSpring>(button).unwrap().amount,
+            0.0
+        );
+        app.world_mut()
+            .entity_mut(button)
+            .remove::<DisabledInteraction>();
         app.update();
-        assert!(!app.world().get::<AccessibilityNode>(button).unwrap().0.is_disabled());
+        assert!(
+            !app.world()
+                .get::<AccessibilityNode>(button)
+                .unwrap()
+                .0
+                .is_disabled()
+        );
         assert_eq!(app.world().get::<a11y::TabIndex>(button).unwrap().0, 0);
     }
 
@@ -162,17 +233,45 @@ mod tests {
             let mut app = test_app();
             let (button, _, _) = spawn_control(&mut app, 17.0);
             match variant {
-                0 => app.world_mut().resource_mut::<AccessibilityVisualPolicyResource>().current.reduced_transparency = true,
-                1 => app.world_mut().resource_mut::<AccessibilityVisualPolicyResource>().current.reduced_effects = true,
-                2 => app.world_mut().resource_mut::<AccessibilityVisualPolicyResource>().current.contrast = AccessibilityContrastMode::High,
-                3 => app.world_mut().resource_mut::<PlayButtonEnvironment>().backdrop_disabled = true,
-                _ => app.world_mut().resource_mut::<PlayButtonEnvironment>().reduced_effects = true,
+                0 => {
+                    app.world_mut()
+                        .resource_mut::<AccessibilityVisualPolicyResource>()
+                        .current
+                        .reduced_transparency = true
+                }
+                1 => {
+                    app.world_mut()
+                        .resource_mut::<AccessibilityVisualPolicyResource>()
+                        .current
+                        .reduced_effects = true
+                }
+                2 => {
+                    app.world_mut()
+                        .resource_mut::<AccessibilityVisualPolicyResource>()
+                        .current
+                        .contrast = AccessibilityContrastMode::High
+                }
+                3 => {
+                    app.world_mut()
+                        .resource_mut::<PlayButtonEnvironment>()
+                        .backdrop_disabled = true
+                }
+                _ => {
+                    app.world_mut()
+                        .resource_mut::<PlayButtonEnvironment>()
+                        .reduced_effects = true
+                }
             }
             app.update();
             let surface = app.world().get::<Surface>(button).unwrap();
             assert!(surface.backdrop.is_none());
-            assert_eq!(surface.fill, Paint::solid(light_theme().colors.surface.with_alpha(1.0)));
-            if variant == 2 { assert!(surface.border.is_some()); }
+            assert_eq!(
+                surface.fill,
+                Paint::solid(light_theme().colors.surface.with_alpha(1.0))
+            );
+            if variant == 2 {
+                assert!(surface.border.is_some());
+            }
         }
     }
 
@@ -181,46 +280,107 @@ mod tests {
         let mut app = test_app();
         let (button, icon, _) = spawn_control(&mut app, 14.0);
         app.update();
-        app.world_mut().resource_mut::<Time>().advance_by(Duration::from_secs_f32(1.0 / 60.0));
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(Duration::from_secs_f32(1.0 / 60.0));
         *app.world_mut().get_mut::<Interaction>(button).unwrap() = Interaction::Pressed;
         app.update();
         let spring = app.world().get::<PlayButtonSpring>(button).unwrap();
         assert!(spring.amount > 0.0 && spring.amount < 1.0);
         assert_eq!(app.world().get::<IconNode>(icon).unwrap().size, 14.0);
-        assert_eq!(app.world().get::<UiTransform>(button).unwrap().scale, Vec2::ONE);
-        app.world_mut().resource_mut::<AccessibilityVisualPolicyResource>().current.reduced_motion = true;
+        assert_eq!(
+            app.world().get::<UiTransform>(button).unwrap().scale,
+            Vec2::ONE
+        );
+        app.world_mut()
+            .resource_mut::<AccessibilityVisualPolicyResource>()
+            .current
+            .reduced_motion = true;
         app.update();
-        assert_eq!(app.world().get::<PlayButtonSpring>(button).unwrap().amount, 1.0);
-        assert_eq!(app.world().get::<PlayButtonSpring>(button).unwrap().velocity, 0.0);
+        assert_eq!(
+            app.world().get::<PlayButtonSpring>(button).unwrap().amount,
+            1.0
+        );
+        assert_eq!(
+            app.world()
+                .get::<PlayButtonSpring>(button)
+                .unwrap()
+                .velocity,
+            0.0
+        );
         *app.world_mut().get_mut::<Interaction>(button).unwrap() = Interaction::None;
         app.update();
-        assert_eq!(app.world().get::<PlayButtonSpring>(button).unwrap().amount, 0.0);
+        assert_eq!(
+            app.world().get::<PlayButtonSpring>(button).unwrap().amount,
+            0.0
+        );
     }
 
     #[test]
     fn play_button_hover_reveal_hides_by_default_and_fades_in_when_visible() {
         let mut app = test_app();
         let (button, icon, _) = spawn_control(&mut app, 14.0);
-        app.world_mut().entity_mut(button).insert(PlayButtonHoverReveal::default());
+        app.world_mut()
+            .entity_mut(button)
+            .insert(PlayButtonHoverReveal::default());
         app.update();
-        assert_eq!(app.world().get::<IconNode>(icon).unwrap().color.alpha(), 0.0);
-        assert_eq!(app.world().get::<Surface>(button).unwrap().backdrop.unwrap().tint_opacity, 0.0);
+        assert_eq!(
+            app.world().get::<IconNode>(icon).unwrap().color.alpha(),
+            0.0
+        );
+        assert_eq!(
+            app.world()
+                .get::<Surface>(button)
+                .unwrap()
+                .backdrop
+                .unwrap()
+                .tint_opacity,
+            0.0
+        );
 
-        app.world_mut().get_mut::<PlayButtonHoverReveal>(button).unwrap().visible = true;
-        app.world_mut().resource_mut::<Time>().advance_by(Duration::from_secs_f32(1.0 / 60.0));
+        app.world_mut()
+            .get_mut::<PlayButtonHoverReveal>(button)
+            .unwrap()
+            .visible = true;
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(Duration::from_secs_f32(1.0 / 60.0));
         app.update();
         let mid_alpha = app.world().get::<IconNode>(icon).unwrap().color.alpha();
         assert!(mid_alpha > 0.0 && mid_alpha < 1.0);
 
-        app.world_mut().resource_mut::<AccessibilityVisualPolicyResource>().current.reduced_motion = true;
+        app.world_mut()
+            .resource_mut::<AccessibilityVisualPolicyResource>()
+            .current
+            .reduced_motion = true;
         app.update();
-        assert_eq!(app.world().get::<IconNode>(icon).unwrap().color.alpha(), 1.0);
-        assert_eq!(app.world().get::<Surface>(button).unwrap().backdrop.unwrap().tint_opacity, 0.10);
+        assert_eq!(
+            app.world().get::<IconNode>(icon).unwrap().color.alpha(),
+            1.0
+        );
+        assert_eq!(
+            app.world()
+                .get::<Surface>(button)
+                .unwrap()
+                .backdrop
+                .unwrap()
+                .tint_opacity,
+            0.10
+        );
 
-        app.world_mut().resource_mut::<AccessibilityVisualPolicyResource>().current.reduced_transparency = true;
-        app.world_mut().get_mut::<PlayButtonHoverReveal>(button).unwrap().visible = false;
+        app.world_mut()
+            .resource_mut::<AccessibilityVisualPolicyResource>()
+            .current
+            .reduced_transparency = true;
+        app.world_mut()
+            .get_mut::<PlayButtonHoverReveal>(button)
+            .unwrap()
+            .visible = false;
         app.update();
-        assert_eq!(app.world().get::<IconNode>(icon).unwrap().color.alpha(), 1.0);
+        assert_eq!(
+            app.world().get::<IconNode>(icon).unwrap().color.alpha(),
+            1.0
+        );
     }
 
     #[derive(Resource, Default)]
@@ -234,23 +394,35 @@ mod tests {
         springs: Query<(), Changed<PlayButtonSpring>>,
         mut count: ResMut<Changes>,
     ) {
-        count.0 = surfaces.iter().count() + icons.iter().count() + labels.iter().count()
-            + semantics.iter().count() + springs.iter().count();
+        count.0 = surfaces.iter().count()
+            + icons.iter().count()
+            + labels.iter().count()
+            + semantics.iter().count()
+            + springs.iter().count();
     }
 
     #[test]
     fn play_button_preserves_focus_decoration_and_does_not_dirty_static_frames() {
         let mut app = test_app();
-        app.init_resource::<Changes>().add_systems(Last, count_changes);
+        app.init_resource::<Changes>()
+            .add_systems(Last, count_changes);
         let (button, _, _) = spawn_control(&mut app, 14.0);
         app.world_mut().entity_mut(button).insert(
             Surface::rounded_rect_fill(18.0, Color::NONE).with_focus_ring(FocusRing::default()),
         );
         app.update();
-        let decorations = app.world().get::<Surface>(button).unwrap().decorations.clone();
+        let decorations = app
+            .world()
+            .get::<Surface>(button)
+            .unwrap()
+            .decorations
+            .clone();
         app.update();
         assert_eq!(app.world().resource::<Changes>().0, 0);
-        assert_eq!(app.world().get::<Surface>(button).unwrap().decorations, decorations);
+        assert_eq!(
+            app.world().get::<Surface>(button).unwrap().decorations,
+            decorations
+        );
     }
 }
 
@@ -342,14 +514,27 @@ fn present_play_buttons(
         || environment.backdrop_disabled
         || environment.reduced_effects;
 
-    for (entity, button, node, interaction, disabled, mut spring, reveal, surface,
-        background, mut tab_index) in &mut buttons
+    for (
+        entity,
+        button,
+        node,
+        interaction,
+        disabled,
+        mut spring,
+        reveal,
+        surface,
+        background,
+        mut tab_index,
+    ) in &mut buttons
     {
         let pressed = !disabled && *interaction == Interaction::Pressed;
         let target = if pressed { 1.0 } else { 0.0 };
         let mut next_spring = *spring;
         if policy.current.reduced_motion || fallback || disabled {
-            next_spring = PlayButtonSpring { amount: target, velocity: 0.0 };
+            next_spring = PlayButtonSpring {
+                amount: target,
+                velocity: 0.0,
+            };
         } else if spring.amount != target || spring.velocity != 0.0 {
             spring_step(
                 &mut next_spring.amount,
@@ -367,7 +552,11 @@ fn present_play_buttons(
         let force_visible = high_contrast || policy.current.reduced_transparency;
         let fade = if let Some(mut reveal) = reveal {
             if force_visible {
-                reveal.set_if_neq(PlayButtonHoverReveal { visible: reveal.visible, amount: 1.0, velocity: 0.0 });
+                reveal.set_if_neq(PlayButtonHoverReveal {
+                    visible: reveal.visible,
+                    amount: 1.0,
+                    velocity: 0.0,
+                });
                 1.0
             } else {
                 let reveal_target = if reveal.visible { 1.0 } else { 0.0 };
@@ -409,18 +598,32 @@ fn present_play_buttons(
                         .with_saturation(1.06)
                         .with_tint(colors.surface)
                         .with_tint_opacity(0.10 * fade)
-                        .with_brightness(if *interaction == Interaction::Hovered { 1.04 } else { 1.0 })
+                        .with_brightness(if *interaction == Interaction::Hovered {
+                            1.04
+                        } else {
+                            1.0
+                        })
                         .with_liquid_glass(LiquidGlass {
-                            press_amount: if policy.current.reduced_motion { 0.0 } else { spring.amount.clamp(0.0, 1.0) },
-                            specular_intensity: if *interaction == Interaction::Hovered { 0.34 } else { 0.28 },
+                            press_amount: if policy.current.reduced_motion {
+                                0.0
+                            } else {
+                                spring.amount.clamp(0.0, 1.0)
+                            },
+                            specular_intensity: if *interaction == Interaction::Hovered {
+                                0.34
+                            } else {
+                                0.28
+                            },
                             ..Default::default()
                         }),
                 )
                 .outer_shadow(OuterShadow::small(Color::BLACK.with_alpha(fade)))
-                .inner_shadow(InnerShadow::new(colors.border_strong)
-                    .with_offset(Vec2::new(0.0, -0.75))
-                    .with_blur(1.0)
-                    .with_opacity(0.18 * fade))
+                .inner_shadow(
+                    InnerShadow::new(colors.border_strong)
+                        .with_offset(Vec2::new(0.0, -0.75))
+                        .with_blur(1.0)
+                        .with_opacity(0.18 * fade),
+                )
         };
         if high_contrast {
             next_surface = next_surface.uniform_border(1.0, colors.text);
@@ -443,13 +646,21 @@ fn present_play_buttons(
         if tab_index.0 != index {
             tab_index.0 = index;
         }
-        let base_foreground = if disabled && !high_contrast { colors.text_disabled } else { colors.text };
+        let base_foreground = if disabled && !high_contrast {
+            colors.text_disabled
+        } else {
+            colors.text
+        };
         let foreground = base_foreground.with_alpha(base_foreground.alpha() * fade);
         let glyph = Icon::feather(if button.playing { "pause" } else { "play" });
         for child in children.iter_descendants(entity) {
-            let Ok((text, color, icon, initialized)) = content.get_mut(child) else { continue };
+            let Ok((text, color, icon, initialized)) = content.get_mut(child) else {
+                continue;
+            };
             if !initialized {
-                commands.entity(child).insert((PlayButtonContent, Pickable::IGNORE));
+                commands
+                    .entity(child)
+                    .insert((PlayButtonContent, Pickable::IGNORE));
             }
             if let Some(mut text) = text {
                 if text.0 != label {

@@ -1,7 +1,9 @@
 # Forms
 
-> **Current status:** The documented `.bind(...)` model-binding API is planned;
-> current components expose their local state and Bevy messages.
+The `.bind(...)` API connects supported form controls to fields on a Bevy
+resource model. User edits call the generated or custom setter; successful
+values are read back so normalization is reflected in the control. Model-side
+changes are synchronized to the control on the next UI update.
 
 A Beverly form is a typed interface that transforms user input into application state.
 
@@ -48,10 +50,12 @@ impl User {
 }
 ```
 
-This is intentionally ordinary Rust. In a real application, getters and setters can become repetitive boilerplate, so Beverly can generate the common case with `#[model]`.
+This is intentionally ordinary Rust. Add `#[model]` to a named-field struct to
+derive Bevy's `Resource` implementation and generate field bindings. Insert the
+model resource before the UI begins updating.
 
 ```rust id="hzh3pl"
-#[model]
+    #[model]
 struct User {
     name: String,
     email: String,
@@ -60,13 +64,14 @@ struct User {
 }
 ```
 
-The macro generates ordinary Rust accessors for the fields.
+The macro generates `get_<field>()` accessors and a typed field binding named
+after each field. Bind it with `.bind(User::field)`.
 
 Conceptually, you get the same thing you would have written yourself:
 
 ```rust id="3annbd"
 impl User {
-    fn email(&self) -> &str {
+    fn get_email(&self) -> &String {
         &self.email
     }
 
@@ -86,7 +91,8 @@ There is no second model language to learn.
 
 Beverly defaults to the obvious behavior.
 
-If a field has no special requirements, Beverly can infer its setter from the field itself:
+If a field has no special requirements, Beverly generates a setter that updates
+the field directly:
 
 ```rust id="i3vsxe"
 input()
@@ -96,7 +102,9 @@ input()
 
 The generated setter simply updates the field.
 
-When a field needs domain-specific behavior, you can explicitly tell Beverly which setter to use:
+When a field needs domain-specific behavior, select a method with
+`#[setter = method_name]`. The method receives the field value and returns
+`Result<(), E>` where `E` implements `Display`:
 
 ```rust id="rehc9s"
 #[model]
@@ -111,7 +119,9 @@ struct User {
 }
 ```
 
-Now changes to `email` go through `validate_email`.
+Now changes to `email` go through `validate_email`. A rejected value remains in
+the control and its error messages are stored in `BindingErrorState`; after a
+successful edit the model value is read back into the control.
 
 ```rust id="oymvvq"
 impl User {

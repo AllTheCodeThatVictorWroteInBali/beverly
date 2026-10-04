@@ -44,7 +44,12 @@ impl ThemedTitle {
 
 fn themed_title_system(
     theme: Res<ThemeResource>,
-    mut query: Query<(&ThemedTitle, &mut TextFont, &mut TextColor, Option<&Typography>)>,
+    mut query: Query<(
+        &ThemedTitle,
+        &mut TextFont,
+        &mut TextColor,
+        Option<&Typography>,
+    )>,
 ) {
     let colors = theme.current.colors;
     let typography = theme.current.typography;
@@ -116,7 +121,12 @@ mod tests {
 
     fn app() -> App {
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), ThemedTextPlugin, TitlePlugin));
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            ThemedTextPlugin,
+            TitlePlugin,
+        ));
         app.init_resource::<ThemeResource>();
         app
     }
@@ -132,7 +142,10 @@ mod tests {
         app.update();
 
         let font = app.world().get::<TextFont>(entity).unwrap();
-        let expected = level_size(TitleLevel::H1, app.world().resource::<ThemeResource>().current.typography);
+        let expected = level_size(
+            TitleLevel::H1,
+            app.world().resource::<ThemeResource>().current.typography,
+        );
         assert_eq!(font.font_size, FontSize::Px(expected));
     }
 

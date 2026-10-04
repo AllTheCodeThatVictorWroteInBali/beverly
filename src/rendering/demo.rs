@@ -386,11 +386,10 @@ pub(super) fn spawn_demo_if_enabled(
                 root,
                 "Gradient border compatibility",
                 Vec2::new(220.0, 62.0),
-                Surface::rounded_rect_fill(14.0, colors.surface)
-                    .border(Border::new(
-                        4.0,
-                        Paint::linear(LinearGradient::angle_degrees(35.0, grad_four.clone())),
-                    )),
+                Surface::rounded_rect_fill(14.0, colors.surface).border(Border::new(
+                    4.0,
+                    Paint::linear(LinearGradient::angle_degrees(35.0, grad_four.clone())),
+                )),
                 None,
                 None,
                 light_bg,
@@ -482,7 +481,8 @@ pub(super) fn spawn_demo_if_enabled(
                 root,
                 "Gradient border type: Linear",
                 Vec2::new(220.0, 70.0),
-                Surface::rounded_rect_fill(16.0, colors.surface).border(Border::new(3.0, border_linear.clone())),
+                Surface::rounded_rect_fill(16.0, colors.surface)
+                    .border(Border::new(3.0, border_linear.clone())),
                 None,
                 None,
                 light_bg,
@@ -493,7 +493,8 @@ pub(super) fn spawn_demo_if_enabled(
                 root,
                 "Gradient border type: Radial",
                 Vec2::new(220.0, 70.0),
-                Surface::rounded_rect_fill(16.0, colors.surface).border(Border::new(3.0, border_radial.clone())),
+                Surface::rounded_rect_fill(16.0, colors.surface)
+                    .border(Border::new(3.0, border_radial.clone())),
                 None,
                 None,
                 light_bg,
@@ -504,7 +505,8 @@ pub(super) fn spawn_demo_if_enabled(
                 root,
                 "Gradient border type: Angular",
                 Vec2::new(220.0, 70.0),
-                Surface::rounded_rect_fill(16.0, colors.surface).border(Border::new(3.0, border_angular.clone())),
+                Surface::rounded_rect_fill(16.0, colors.surface)
+                    .border(Border::new(3.0, border_angular.clone())),
                 None,
                 None,
                 light_bg,
@@ -516,7 +518,8 @@ pub(super) fn spawn_demo_if_enabled(
                     root,
                     &format!("Gradient border width {:.0}px", width),
                     Vec2::new(220.0, 72.0),
-                    Surface::rounded_rect_fill(18.0, colors.surface).border(Border::new(width, border_linear.clone())),
+                    Surface::rounded_rect_fill(18.0, colors.surface)
+                        .border(Border::new(width, border_linear.clone())),
                     None,
                     None,
                     light_bg,
@@ -589,7 +592,8 @@ pub(super) fn spawn_demo_if_enabled(
                 root,
                 "State: normal",
                 Vec2::new(220.0, 64.0),
-                Surface::rounded_rect_fill(14.0, colors.surface).border(Border::new(2.0, border_linear.clone())),
+                Surface::rounded_rect_fill(14.0, colors.surface)
+                    .border(Border::new(2.0, border_linear.clone())),
                 None,
                 None,
                 light_bg,
@@ -618,16 +622,18 @@ pub(super) fn spawn_demo_if_enabled(
                 root,
                 "State: pressed",
                 Vec2::new(220.0, 64.0),
-                Surface::rounded_rect_fill(14.0, Color::srgba(0.09, 0.12, 0.20, 1.0)).border(Border::new(
-                    2.0,
-                    Paint::linear(LinearGradient::angle_degrees(
-                        32.0,
-                        vec![
-                            GradientStop::new(0.0, Color::srgba(0.14, 0.42, 0.78, 1.0)),
-                            GradientStop::new(1.0, Color::srgba(0.48, 0.20, 0.72, 1.0)),
-                        ],
-                    )),
-                )),
+                Surface::rounded_rect_fill(14.0, Color::srgba(0.09, 0.12, 0.20, 1.0)).border(
+                    Border::new(
+                        2.0,
+                        Paint::linear(LinearGradient::angle_degrees(
+                            32.0,
+                            vec![
+                                GradientStop::new(0.0, Color::srgba(0.14, 0.42, 0.78, 1.0)),
+                                GradientStop::new(1.0, Color::srgba(0.48, 0.20, 0.72, 1.0)),
+                            ],
+                        )),
+                    ),
+                ),
                 None,
                 None,
                 light_bg,
@@ -640,17 +646,13 @@ pub(super) fn spawn_demo_if_enabled(
                 Surface::rounded_rect_fill(14.0, colors.surface)
                     .border(Border::new(2.0, border_linear.clone()))
                     .with_focus_ring(
-                        crate::rendering::FocusRing::outside(
-                            2.0,
-                            2.0,
-                            Paint::solid(colors.focus),
-                        )
-                        .with_secondary(crate::rendering::FocusRingLayer::new(
-                            3.0,
-                            0.0,
-                            Paint::solid(Color::WHITE),
-                        ))
-                        .with_glow(colors.focus_outer_glow()),
+                        crate::rendering::FocusRing::outside(2.0, 2.0, Paint::solid(colors.focus))
+                            .with_secondary(crate::rendering::FocusRingLayer::new(
+                                3.0,
+                                0.0,
+                                Paint::solid(Color::WHITE),
+                            ))
+                            .with_glow(colors.focus_outer_glow()),
                     ),
                 None,
                 None,
@@ -661,7 +663,8 @@ pub(super) fn spawn_demo_if_enabled(
                 root,
                 "State: selected",
                 Vec2::new(220.0, 64.0),
-                Surface::rounded_rect_fill(14.0, Color::srgba(0.10, 0.14, 0.28, 0.95)).border(Border::new(3.0, border_angular.clone())),
+                Surface::rounded_rect_fill(14.0, Color::srgba(0.10, 0.14, 0.28, 0.95))
+                    .border(Border::new(3.0, border_angular.clone())),
                 None,
                 None,
                 light_bg,
@@ -671,13 +674,15 @@ pub(super) fn spawn_demo_if_enabled(
                 root,
                 "State: disabled",
                 Vec2::new(220.0, 64.0),
-                Surface::rounded_rect_fill(14.0, Color::srgba(0.32, 0.35, 0.40, 0.75)).border(Border::new(
-                    2.0,
-                    Paint::linear(LinearGradient::horizontal(vec![
-                        GradientStop::new(0.0, Color::srgba(0.58, 0.60, 0.64, 0.65)),
-                        GradientStop::new(1.0, Color::srgba(0.46, 0.48, 0.52, 0.65)),
-                    ])),
-                )),
+                Surface::rounded_rect_fill(14.0, Color::srgba(0.32, 0.35, 0.40, 0.75)).border(
+                    Border::new(
+                        2.0,
+                        Paint::linear(LinearGradient::horizontal(vec![
+                            GradientStop::new(0.0, Color::srgba(0.58, 0.60, 0.64, 0.65)),
+                            GradientStop::new(1.0, Color::srgba(0.46, 0.48, 0.52, 0.65)),
+                        ])),
+                    ),
+                ),
                 None,
                 None,
                 light_bg,
@@ -688,21 +693,23 @@ pub(super) fn spawn_demo_if_enabled(
                 root,
                 "Animated gradient border",
                 Vec2::new(260.0, 84.0),
-                Surface::rounded_rect_fill(20.0, Color::srgba(0.06, 0.09, 0.15, 0.92)).border(Border::new(
-                    3.0,
-                    Paint::angular(AngularGradient::angle_degrees(
-                        Vec2::new(0.5, 0.5),
-                        0.0,
-                        vec![
-                            GradientStop::new(0.0, Color::srgba(1.0, 0.24, 0.22, 1.0)),
-                            GradientStop::new(0.2, Color::srgba(1.0, 0.78, 0.20, 1.0)),
-                            GradientStop::new(0.4, Color::srgba(0.24, 0.94, 0.44, 1.0)),
-                            GradientStop::new(0.6, Color::srgba(0.20, 0.66, 1.0, 1.0)),
-                            GradientStop::new(0.8, Color::srgba(0.72, 0.40, 1.0, 1.0)),
-                            GradientStop::new(1.0, Color::srgba(1.0, 0.24, 0.22, 1.0)),
-                        ],
-                    )),
-                )),
+                Surface::rounded_rect_fill(20.0, Color::srgba(0.06, 0.09, 0.15, 0.92)).border(
+                    Border::new(
+                        3.0,
+                        Paint::angular(AngularGradient::angle_degrees(
+                            Vec2::new(0.5, 0.5),
+                            0.0,
+                            vec![
+                                GradientStop::new(0.0, Color::srgba(1.0, 0.24, 0.22, 1.0)),
+                                GradientStop::new(0.2, Color::srgba(1.0, 0.78, 0.20, 1.0)),
+                                GradientStop::new(0.4, Color::srgba(0.24, 0.94, 0.44, 1.0)),
+                                GradientStop::new(0.6, Color::srgba(0.20, 0.66, 1.0, 1.0)),
+                                GradientStop::new(0.8, Color::srgba(0.72, 0.40, 1.0, 1.0)),
+                                GradientStop::new(1.0, Color::srgba(1.0, 0.24, 0.22, 1.0)),
+                            ],
+                        )),
+                    ),
+                ),
                 None,
                 None,
                 light_bg,
@@ -1705,13 +1712,12 @@ pub(super) fn spawn_demo_if_enabled(
                 root,
                 "Animation: static grain (speed 0)",
                 Vec2::new(240.0, 72.0),
-                Surface::rounded_rect_fill(16.0, Color::srgba(0.92, 0.94, 0.98, 1.0))
-                    .with_noise(
-                        Noise::grain(18.0, 0.025)
-                            .with_seed(11.0)
-                            .with_animated(true)
-                            .with_speed(0.0),
-                    ),
+                Surface::rounded_rect_fill(16.0, Color::srgba(0.92, 0.94, 0.98, 1.0)).with_noise(
+                    Noise::grain(18.0, 0.025)
+                        .with_seed(11.0)
+                        .with_animated(true)
+                        .with_speed(0.0),
+                ),
                 None,
                 None,
                 light_bg,
@@ -1722,13 +1728,12 @@ pub(super) fn spawn_demo_if_enabled(
                 root,
                 "Animation: slow grain",
                 Vec2::new(240.0, 72.0),
-                Surface::rounded_rect_fill(16.0, Color::srgba(0.92, 0.94, 0.98, 1.0))
-                    .with_noise(
-                        Noise::grain(18.0, 0.025)
-                            .with_seed(12.0)
-                            .with_animated(true)
-                            .with_speed(0.35),
-                    ),
+                Surface::rounded_rect_fill(16.0, Color::srgba(0.92, 0.94, 0.98, 1.0)).with_noise(
+                    Noise::grain(18.0, 0.025)
+                        .with_seed(12.0)
+                        .with_animated(true)
+                        .with_speed(0.35),
+                ),
                 None,
                 None,
                 light_bg,

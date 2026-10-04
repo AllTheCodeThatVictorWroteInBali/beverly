@@ -157,9 +157,7 @@ mod tests {
 
     #[test]
     fn clamps_extreme_values() {
-        let noise = Noise::grain(100_000.0, 10.0)
-            .with_speed(9999.0)
-            .sanitized();
+        let noise = Noise::grain(100_000.0, 10.0).with_speed(9999.0).sanitized();
 
         assert_eq!(noise.scale, 4096.0);
         assert_eq!(noise.strength, 1.0);

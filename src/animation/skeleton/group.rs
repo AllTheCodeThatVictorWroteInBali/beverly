@@ -13,15 +13,25 @@ pub struct SkeletonGroup {
 
 impl SkeletonGroup {
     pub fn new(label: impl Into<String>) -> Self {
-        Self { label: label.into(), busy: true }
+        Self {
+            label: label.into(),
+            busy: true,
+        }
     }
 
     /// Clear busy when replacing a region's children with real content.
-    pub fn busy(mut self, busy: bool) -> Self { self.busy = busy; self }
+    pub fn busy(mut self, busy: bool) -> Self {
+        self.busy = busy;
+        self
+    }
 }
 
 fn default_group_node() -> Node {
-    Node { flex_direction: FlexDirection::Column, row_gap: Val::Px(8.0), ..default() }
+    Node {
+        flex_direction: FlexDirection::Column,
+        row_gap: Val::Px(8.0),
+        ..default()
+    }
 }
 
 /// Spawn configuration, not another render component or animation owner.
@@ -45,14 +55,32 @@ impl SkeletonTextLines {
         }
     }
 
-    pub fn label(mut self, label: impl Into<String>) -> Self { self.group.label = label.into(); self }
+    pub fn label(mut self, label: impl Into<String>) -> Self {
+        self.group.label = label.into();
+        self
+    }
     /// Replace the entire group layout explicitly; it is not modified at sync time.
-    pub fn node(mut self, node: Node) -> Self { self.node = node; self }
-    pub fn width(mut self, width: Val) -> Self { self.node.width = width; self }
-    pub fn gap(mut self, gap: f32) -> Self { self.node.row_gap = Val::Px(finite_nonnegative(gap, 8.0)); self }
-    pub fn final_width(mut self, width: Val) -> Self { self.final_width = Some(width); self }
+    pub fn node(mut self, node: Node) -> Self {
+        self.node = node;
+        self
+    }
+    pub fn width(mut self, width: Val) -> Self {
+        self.node.width = width;
+        self
+    }
+    pub fn gap(mut self, gap: f32) -> Self {
+        self.node.row_gap = Val::Px(finite_nonnegative(gap, 8.0));
+        self
+    }
+    pub fn final_width(mut self, width: Val) -> Self {
+        self.final_width = Some(width);
+        self
+    }
     /// Shared leaf styling (e.g. shimmer direction, phase, or explicit height).
-    pub fn line(mut self, line: Skeleton) -> Self { self.line = line; self }
+    pub fn line(mut self, line: Skeleton) -> Self {
+        self.line = line;
+        self
+    }
 
     /// Spawn a group, optionally attaching the returned Entity to an existing parent.
     pub fn spawn(self, commands: &mut Commands) -> Entity {
@@ -61,7 +89,9 @@ impl SkeletonTextLines {
             for index in 0..self.count {
                 let mut line = self.line.clone();
                 if index + 1 == self.count {
-                    if let Some(width) = self.final_width { line = line.width(width); }
+                    if let Some(width) = self.final_width {
+                        line = line.width(width);
+                    }
                 }
                 parent.spawn(line);
             }

@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
-use crate::rendering::{Paint, Surface};
-use crate::icons::{Icon, IconNode};
 use crate::components::input::{TextInputConfig, TextInputKind, spawn_text_input};
-use crate::theme::ThemeResource;
+use crate::icons::{Icon, IconNode};
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
+use crate::rendering::{Paint, Surface};
+use crate::theme::ThemeResource;
 
 #[derive(Component)]
 pub struct SearchBox;
@@ -57,9 +57,16 @@ pub fn spawn_searchbox(
                     BorderColor::all(Color::NONE),
                     Surface::rounded_rect_fill(
                         12.0,
-                        Paint::solid(colors.surface_elevated.with_alpha(if is_dark { 0.92 } else { 0.96 })),
+                        Paint::solid(colors.surface_elevated.with_alpha(if is_dark {
+                            0.92
+                        } else {
+                            0.96
+                        })),
                     )
-                    .uniform_border(1.0, Paint::solid(colors.border.with_alpha(if is_dark { 0.84 } else { 0.70 }))),
+                    .uniform_border(
+                        1.0,
+                        Paint::solid(colors.border.with_alpha(if is_dark { 0.84 } else { 0.70 })),
+                    ),
                 ))
                 .with_children(|button| {
                     button.spawn((

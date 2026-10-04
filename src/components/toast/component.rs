@@ -1,13 +1,13 @@
-use crate::icons::{Icon, IconCommands};
 use crate::components::text::{TextRole, ThemedText};
 use crate::components::title::{ThemedTitle, TitleLevel};
+use crate::icons::{Icon, IconCommands};
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use bevy::prelude::*;
 use std::time::Duration;
 
+use crate::primitives::semantic::AnnouncementPriority;
 use crate::rendering::{Paint, Surface};
 use crate::theme::{ThemeColors, ThemeResource};
-use crate::primitives::semantic::AnnouncementPriority;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ToastKind {
@@ -241,7 +241,12 @@ fn spawn_toast_ui(
 
         let mut root = commands.entity(entity);
         let mut semantic = SemanticNode::new(SemanticRole::Status)
-            .label(toast.title.clone().unwrap_or_else(|| "Notification".to_string()))
+            .label(
+                toast
+                    .title
+                    .clone()
+                    .unwrap_or_else(|| "Notification".to_string()),
+            )
             .description(toast.message.clone());
         semantic.live = Some(AnnouncementPriority::Polite);
 
@@ -293,18 +298,20 @@ fn spawn_toast_ui(
             ))
             .with_children(|card| {
                 // Icon
-                card.spawn((
-                    Node {
-                        width: Val::Px(20.0),
-                        height: Val::Px(20.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
-                ))
-                .with_children(|icon| {
-                    icon.spawn_icon_colored(Icon::feather(toast.kind.feather_name()), 20.0, accent);
-                });
+                card.spawn((Node {
+                    width: Val::Px(20.0),
+                    height: Val::Px(20.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },))
+                    .with_children(|icon| {
+                        icon.spawn_icon_colored(
+                            Icon::feather(toast.kind.feather_name()),
+                            20.0,
+                            accent,
+                        );
+                    });
 
                 // Content
                 card.spawn(Node {
@@ -419,10 +426,7 @@ fn update_toast_timers(
 
 fn dismiss_toasts(
     mut commands: Commands,
-    interactions: Query<
-        (&Interaction, &ChildOf),
-        (Changed<Interaction>, With<ToastDismissButton>),
-    >,
+    interactions: Query<(&Interaction, &ChildOf), (Changed<Interaction>, With<ToastDismissButton>)>,
     cards: Query<&ChildOf, With<ToastCard>>,
 ) {
     for (interaction, card_parent) in &interactions {

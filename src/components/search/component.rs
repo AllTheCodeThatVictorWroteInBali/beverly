@@ -1,8 +1,8 @@
 use crate::components::input::{TextInputConfig, TextInputKind, spawn_text_input};
-use crate::rendering::Surface;
 use crate::components::search::events::update_search_visuals;
-use crate::theme::ThemeResource;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
+use crate::rendering::Surface;
+use crate::theme::ThemeResource;
 use bevy::prelude::*;
 use std::collections::HashMap;
 

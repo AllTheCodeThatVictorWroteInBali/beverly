@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
-use crate::rendering::{Paint, Surface};
+use crate::components::text::{TextRole, ThemedText};
+use crate::icons::{Icon, IconNode};
 use crate::primitives::a11y;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
-use crate::icons::{Icon, IconNode};
-use crate::components::text::{TextRole, ThemedText};
+use crate::rendering::{Paint, Surface};
 use crate::theme::{ThemeColors, ThemeResource, dark_theme};
 
 // ============================================================

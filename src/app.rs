@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use crate::theme::{Theme, ThemeResource, light_theme};
 use crate::primitives::composition::{UiBuildContext, UiElement};
 use crate::primitives::routing::{Page, RouteRegistry};
+use crate::theme::{Theme, ThemeResource, light_theme};
 
 /// Fluent configuration for a Beverly application.
 pub struct BeverlyApp {
@@ -72,25 +72,28 @@ impl BeverlyApp {
             .add_plugins(crate::BeverlyPlugin)
             .insert_resource(ThemeResource { current: theme })
             .add_systems(Startup, move |world: &mut World| {
-                let root = world.spawn((
-                    Node {
-                        width: percent(100),
-                        height: percent(100),
-                        flex_direction: FlexDirection::Column,
-                        ..default()
-                    },
-                    crate::primitives::root::AppRootSurface,
-                )).id();
+                let root = world
+                    .spawn((
+                        Node {
+                            width: percent(100),
+                            height: percent(100),
+                            flex_direction: FlexDirection::Column,
+                            ..default()
+                        },
+                        crate::primitives::root::AppRootSurface,
+                    ))
+                    .id();
 
                 for child in &children {
-                    child.clone().spawn_in_context(&mut UiBuildContext { world, parent: root });
+                    child.clone().spawn_in_context(&mut UiBuildContext {
+                        world,
+                        parent: root,
+                    });
                 }
 
                 if let Some(path) = &font_path {
                     let font = world.resource::<AssetServer>().load(path.clone());
-                    world.insert_resource(crate::primitives::root::UiFonts {
-                        text: font,
-                    });
+                    world.insert_resource(crate::primitives::root::UiFonts { text: font });
                 }
             })
             .run();
@@ -259,9 +262,10 @@ impl BeverlyAppExt for App {
 
                 if pages.is_empty() {
                     for child in &children {
-                        child
-                            .clone()
-                            .spawn_in_context(&mut UiBuildContext { world, parent: root });
+                        child.clone().spawn_in_context(&mut UiBuildContext {
+                            world,
+                            parent: root,
+                        });
                     }
                 }
             });

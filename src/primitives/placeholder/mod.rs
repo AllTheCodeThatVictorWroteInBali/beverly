@@ -7,15 +7,17 @@ mod effects;
 mod material;
 mod systems;
 
+pub use crate::animation::skeleton::{Skeleton, SkeletonGroup};
 pub use component::*;
 pub use effects::*;
 pub use material::*;
 pub use systems::*;
-pub use crate::animation::skeleton::{Skeleton, SkeletonGroup};
 
 use bevy::prelude::*;
 
-#[deprecated(note = "Use ui::skeleton::SkeletonPlugin for new loading UI; retained for legacy Placeholder entities")]
+#[deprecated(
+    note = "Use ui::skeleton::SkeletonPlugin for new loading UI; retained for legacy Placeholder entities"
+)]
 pub struct PlaceholderPlugin;
 
 #[allow(deprecated)]

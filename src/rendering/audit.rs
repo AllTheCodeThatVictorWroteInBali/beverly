@@ -25,10 +25,18 @@ impl Plugin for UiFrameworkAuditPlugin {
         #[cfg(not(target_arch = "wasm32"))]
         match AuditConfig::parse(|key| std::env::var(key).ok()) {
             Ok(Some(config)) => {
-                info!("UI audit enabled: frames={} warmup={} measured={} nodes={} style={:?} screenshot={:?}; counting starts at Ready + UI camera",
-                    config.frames, config.warmup, config.frames - config.warmup,
-                    config.nodes, config.style, config.screenshot);
-                info!("UI audit: Last-to-Last wall-clock intervals include scheduling, vsync/pacing and audit overhead; NOT GPU timing or draw calls. Stress is an overlay; media app remains active.");
+                info!(
+                    "UI audit enabled: frames={} warmup={} measured={} nodes={} style={:?} screenshot={:?}; counting starts at Ready + UI camera",
+                    config.frames,
+                    config.warmup,
+                    config.frames - config.warmup,
+                    config.nodes,
+                    config.style,
+                    config.screenshot
+                );
+                info!(
+                    "UI audit: Last-to-Last wall-clock intervals include scheduling, vsync/pacing and audit overhead; NOT GPU timing or draw calls. Stress is an overlay; media app remains active."
+                );
                 app.insert_resource(AuditState::new(config))
                     .add_systems(PreStartup, initialize_audit_theme)
                     .add_systems(Last, audit_tick);
@@ -242,67 +250,92 @@ fn audit_tick(world: &mut World) {
 fn spawn_fixture(world: &mut World, camera: Entity, config: &AuditConfig) {
     let columns = (config.nodes as f32).sqrt().ceil() as u16;
     let rows = config.nodes.div_ceil(columns as usize) as u16;
-    world.spawn((
-        Name::new("ui-audit-stress-grid"),
-        UiTargetCamera(camera),
-        GlobalZIndex(100_000),
-        Pickable::IGNORE,
-        Node {
-            position_type: PositionType::Absolute,
-            width: percent(100),
-            height: percent(100),
-            display: Display::Grid,
-            grid_template_columns: RepeatedGridTrack::flex(columns, 1.0),
-            grid_template_rows: RepeatedGridTrack::flex(rows, 1.0),
-            padding: UiRect::all(px(8)),
-            row_gap: px(1),
-            column_gap: px(1),
-            ..default()
-        },
-        BackgroundColor(Color::srgb(0.035, 0.045, 0.065)),
-    )).with_children(|parent| {
-        for index in 0..config.nodes {
-            let color = Color::srgb(0.15 + (index % 7) as f32 * 0.06, 0.4, 0.75);
-            let plain = Surface::rounded_rect_fill(2.0, color);
-            let surface = match config.style {
-                AuditStyle::Plain => plain,
-                AuditStyle::Border => plain.uniform_border(1.0, Color::WHITE),
-                AuditStyle::Gradient => plain.fill(Paint::linear(LinearGradient::horizontal(vec![
-                    GradientStop::at(0.0, color),
-                    GradientStop::at(1.0, Color::srgb(0.7, 0.2, 0.55)),
-                ]))),
-                AuditStyle::Effects => plain.outer_shadow(
-                    OuterShadow::new(Color::BLACK)
-                        .with_offset(Vec2::new(1.0, 1.0))
-                        .with_blur(2.0)
-                        .with_opacity(0.65),
-                ),
-            };
-            parent.spawn((
-                AuditCell,
-                Node {
-                    min_width: px(0),
-                    min_height: px(0),
-                    ..default()
-                },
-                surface,
-                Pickable::IGNORE,
-            ));
-        }
-    });
-    info!("UI audit: stress fixture spawned: {} surfaces, {}x{} grid, style={:?}", config.nodes, columns, rows, config.style);
+    world
+        .spawn((
+            Name::new("ui-audit-stress-grid"),
+            UiTargetCamera(camera),
+            GlobalZIndex(100_000),
+            Pickable::IGNORE,
+            Node {
+                position_type: PositionType::Absolute,
+                width: percent(100),
+                height: percent(100),
+                display: Display::Grid,
+                grid_template_columns: RepeatedGridTrack::flex(columns, 1.0),
+                grid_template_rows: RepeatedGridTrack::flex(rows, 1.0),
+                padding: UiRect::all(px(8)),
+                row_gap: px(1),
+                column_gap: px(1),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.035, 0.045, 0.065)),
+        ))
+        .with_children(|parent| {
+            for index in 0..config.nodes {
+                let color = Color::srgb(0.15 + (index % 7) as f32 * 0.06, 0.4, 0.75);
+                let plain = Surface::rounded_rect_fill(2.0, color);
+                let surface = match config.style {
+                    AuditStyle::Plain => plain,
+                    AuditStyle::Border => plain.uniform_border(1.0, Color::WHITE),
+                    AuditStyle::Gradient => {
+                        plain.fill(Paint::linear(LinearGradient::horizontal(vec![
+                            GradientStop::at(0.0, color),
+                            GradientStop::at(1.0, Color::srgb(0.7, 0.2, 0.55)),
+                        ])))
+                    }
+                    AuditStyle::Effects => plain.outer_shadow(
+                        OuterShadow::new(Color::BLACK)
+                            .with_offset(Vec2::new(1.0, 1.0))
+                            .with_blur(2.0)
+                            .with_opacity(0.65),
+                    ),
+                };
+                parent.spawn((
+                    AuditCell,
+                    Node {
+                        min_width: px(0),
+                        min_height: px(0),
+                        ..default()
+                    },
+                    surface,
+                    Pickable::IGNORE,
+                ));
+            }
+        });
+    info!(
+        "UI audit: stress fixture spawned: {} surfaces, {}x{} grid, style={:?}",
+        config.nodes, columns, rows, config.style
+    );
 }
 
 fn log_counts(world: &mut World, phase: &str) {
     let entities = world.query::<Entity>().iter(world).count();
-    let nodes = world.query_filtered::<Entity, With<Node>>().iter(world).count();
-    let surfaces = world.query_filtered::<Entity, With<Surface>>().iter(world).count();
-    let cells = world.query_filtered::<Entity, With<AuditCell>>().iter(world).count();
-    let material_nodes = world.query_filtered::<Entity, With<MaterialNode<UiShapeMaterial>>>().iter(world).count();
-    let shape_assets = world.get_resource::<Assets<UiShapeMaterial>>().map(Assets::len);
-    let toggle_assets = world.get_resource::<Assets<ToggleShadowMaterial>>().map(Assets::len);
+    let nodes = world
+        .query_filtered::<Entity, With<Node>>()
+        .iter(world)
+        .count();
+    let surfaces = world
+        .query_filtered::<Entity, With<Surface>>()
+        .iter(world)
+        .count();
+    let cells = world
+        .query_filtered::<Entity, With<AuditCell>>()
+        .iter(world)
+        .count();
+    let material_nodes = world
+        .query_filtered::<Entity, With<MaterialNode<UiShapeMaterial>>>()
+        .iter(world)
+        .count();
+    let shape_assets = world
+        .get_resource::<Assets<UiShapeMaterial>>()
+        .map(Assets::len);
+    let toggle_assets = world
+        .get_resource::<Assets<ToggleShadowMaterial>>()
+        .map(Assets::len);
     let images = world.get_resource::<Assets<Image>>().map(Assets::len);
-    info!("UI audit counts [{phase}] main-world: entities={entities} ui_nodes={nodes} surfaces={surfaces} audit_cells={cells} shape_material_nodes={material_nodes} shape_material_assets={shape_assets:?} toggle_material_assets={toggle_assets:?} image_assets={images:?}; asset counts are CPU registry entries, NOT GPU allocations; material counts cover named types only");
+    info!(
+        "UI audit counts [{phase}] main-world: entities={entities} ui_nodes={nodes} surfaces={surfaces} audit_cells={cells} shape_material_nodes={material_nodes} shape_material_assets={shape_assets:?} toggle_material_assets={toggle_assets:?} image_assets={images:?}; asset counts are CPU registry entries, NOT GPU allocations; material counts cover named types only"
+    );
 }
 
 fn log_distribution(phase: &str, samples: &[f64]) {
@@ -314,8 +347,15 @@ fn log_distribution(phase: &str, samples: &[f64]) {
     sorted.sort_by(f64::total_cmp);
     let percentile = |p: f64| sorted[((sorted.len() as f64 * p).ceil() as usize).saturating_sub(1)];
     let mean = sorted.iter().sum::<f64>() / sorted.len() as f64;
-    info!("UI audit frame_ms [{phase}]: samples={} min={:.3} mean={mean:.3} p50={:.3} p95={:.3} p99={:.3} max={:.3} (nearest-rank percentiles)",
-        sorted.len(), sorted[0], percentile(0.5), percentile(0.95), percentile(0.99), sorted[sorted.len() - 1]);
+    info!(
+        "UI audit frame_ms [{phase}]: samples={} min={:.3} mean={mean:.3} p50={:.3} p95={:.3} p99={:.3} max={:.3} (nearest-rank percentiles)",
+        sorted.len(),
+        sorted[0],
+        percentile(0.5),
+        percentile(0.95),
+        percentile(0.99),
+        sorted[sorted.len() - 1]
+    );
 }
 
 fn log_process_memory() {
@@ -325,21 +365,29 @@ fn log_process_memory() {
     #[cfg(target_os = "macos")]
     let rss_kib = std::process::Command::new("/bin/ps")
         .args(["-o", "rss=", "-p", &std::process::id().to_string()])
-        .output().ok()
+        .output()
+        .ok()
         .filter(|output| output.status.success())
         .and_then(|output| String::from_utf8(output.stdout).ok())
         .and_then(|output| output.trim().parse::<u64>().ok());
     #[cfg(target_os = "linux")]
-    let rss_kib = std::fs::read_to_string("/proc/self/status").ok().and_then(|status| {
-        let mut fields = status.lines().find(|line| line.starts_with("VmRSS:"))?.split_whitespace();
-        fields.next()?;
-        let value = fields.next()?.parse::<u64>().ok()?;
-        (fields.next()? == "kB").then_some(value)
-    });
+    let rss_kib = std::fs::read_to_string("/proc/self/status")
+        .ok()
+        .and_then(|status| {
+            let mut fields = status
+                .lines()
+                .find(|line| line.starts_with("VmRSS:"))?
+                .split_whitespace();
+            fields.next()?;
+            let value = fields.next()?.parse::<u64>().ok()?;
+            (fields.next()? == "kB").then_some(value)
+        });
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     let rss_kib: Option<u64> = None;
     match rss_kib.filter(|value| *value > 0) {
-        Some(value) => info!("UI audit CPU/process memory: OS-reported current RSS={value} KiB; not peak, heap-only, or GPU memory"),
+        Some(value) => info!(
+            "UI audit CPU/process memory: OS-reported current RSS={value} KiB; not peak, heap-only, or GPU memory"
+        ),
         None => info!("UI audit CPU/process memory: unavailable (no trustworthy RSS sample)"),
     }
 }
@@ -360,7 +408,11 @@ mod tests {
     #[test]
     fn disabled_ignores_secondary_options() {
         assert!(config(&[("UI_AUDIT_STYLE", "invalid")]).unwrap().is_none());
-        assert!(config(&[("UI_AUDIT_FRAMES", "0"), ("UI_AUDIT_NODES", "bad")]).unwrap().is_none());
+        assert!(
+            config(&[("UI_AUDIT_FRAMES", "0"), ("UI_AUDIT_NODES", "bad")])
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
@@ -395,10 +447,23 @@ mod tests {
 
     #[test]
     fn rejects_bad_numbers_and_options() {
-        for value in ["", "-1", "+2", "1.5", "abc", "999999999999999999999999999999999999"] {
+        for value in [
+            "",
+            "-1",
+            "+2",
+            "1.5",
+            "abc",
+            "999999999999999999999999999999999999",
+        ] {
             assert!(config(&[("UI_AUDIT_FRAMES", value)]).is_err());
         }
-        for (key, value) in [("UI_AUDIT_WARMUP", "20"), ("UI_AUDIT_WARMUP", "21"), ("UI_AUDIT_NODES", "99"), ("UI_AUDIT_STYLE", "unknown"), ("UI_AUDIT_THEME", "unknown")] {
+        for (key, value) in [
+            ("UI_AUDIT_WARMUP", "20"),
+            ("UI_AUDIT_WARMUP", "21"),
+            ("UI_AUDIT_NODES", "99"),
+            ("UI_AUDIT_STYLE", "unknown"),
+            ("UI_AUDIT_THEME", "unknown"),
+        ] {
             assert!(config(&[("UI_AUDIT_FRAMES", "20"), (key, value)]).is_err());
         }
     }
@@ -423,9 +488,12 @@ mod tests {
             app.insert_resource(AuditState::new(config(&values).unwrap().unwrap()))
                 .add_message::<ThemeChanged>()
                 .add_systems(PreStartup, initialize_audit_theme)
-                .add_systems(Startup, |mut commands: Commands, theme: Res<ThemeResource>| {
-                    commands.insert_resource(MountedTheme(theme.current.mode));
-                })
+                .add_systems(
+                    Startup,
+                    |mut commands: Commands, theme: Res<ThemeResource>| {
+                        commands.insert_resource(MountedTheme(theme.current.mode));
+                    },
+                )
                 // Match main: explicit default insertion AFTER audit registration.
                 .insert_resource(ThemeResource {
                     current: match initial {
@@ -440,7 +508,10 @@ mod tests {
             // Initialization must not overwrite subsequent user theme changes.
             app.world_mut().resource_mut::<ThemeResource>().current = light_theme();
             app.update();
-            assert_eq!(app.world().resource::<ThemeResource>().current.mode, ThemeMode::Light);
+            assert_eq!(
+                app.world().resource::<ThemeResource>().current.mode,
+                ThemeMode::Light
+            );
         }
     }
 
@@ -466,7 +537,10 @@ mod tests {
         assert!(world.resource::<Messages<AppExit>>().is_empty());
         world.resource_mut::<AuditState>().screenshot_result = Some(true);
         audit_tick(&mut world);
-        assert!(matches!(world.resource_mut::<Messages<AppExit>>().drain().next(), Some(AppExit::Success)));
+        assert!(matches!(
+            world.resource_mut::<Messages<AppExit>>().drain().next(),
+            Some(AppExit::Success)
+        ));
     }
 
     #[test]
@@ -476,12 +550,18 @@ mod tests {
         audit_tick(&mut world);
         assert!(world.resource::<Messages<AppExit>>().is_empty());
         audit_tick(&mut world);
-        assert!(matches!(world.resource_mut::<Messages<AppExit>>().drain().next(), Some(AppExit::Error(_))));
+        assert!(matches!(
+            world.resource_mut::<Messages<AppExit>>().drain().next(),
+            Some(AppExit::Error(_))
+        ));
 
         let mut world = draining_world();
         world.resource_mut::<AuditState>().drain_frames = 239;
         audit_tick(&mut world);
-        assert!(matches!(world.resource_mut::<Messages<AppExit>>().drain().next(), Some(AppExit::Error(_))));
+        assert!(matches!(
+            world.resource_mut::<Messages<AppExit>>().drain().next(),
+            Some(AppExit::Error(_))
+        ));
     }
 
     #[test]
@@ -489,9 +569,19 @@ mod tests {
         let mut world = World::new();
         let camera = world.spawn_empty().id();
         let config = config(&[("UI_AUDIT_FRAMES", "10"), ("UI_AUDIT_NODES", "100")])
-            .unwrap().unwrap();
+            .unwrap()
+            .unwrap();
         spawn_fixture(&mut world, camera, &config);
-        assert_eq!(world.query_filtered::<Entity, (With<AuditCell>, With<Surface>, With<Pickable>)>().iter(&world).count(), 100);
-        assert_eq!(world.query::<&UiTargetCamera>().single(&world).unwrap().0, camera);
+        assert_eq!(
+            world
+                .query_filtered::<Entity, (With<AuditCell>, With<Surface>, With<Pickable>)>()
+                .iter(&world)
+                .count(),
+            100
+        );
+        assert_eq!(
+            world.query::<&UiTargetCamera>().single(&world).unwrap().0,
+            camera
+        );
     }
 }

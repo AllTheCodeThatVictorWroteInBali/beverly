@@ -11,8 +11,8 @@ use super::{
 };
 use crate::primitives::a11y::{FocusGained, FocusLost};
 use crate::primitives::clipboard::Clipboard;
-use crate::theme::ThemeResource;
 use crate::rendering::Paint;
+use crate::theme::ThemeResource;
 
 /// Bridges keyboard (Tab) focus into `Textarea::focused`, so tabbing to a
 /// textarea lets you type immediately, the same as clicking into it.

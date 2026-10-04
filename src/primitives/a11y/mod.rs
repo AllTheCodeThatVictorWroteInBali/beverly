@@ -28,15 +28,13 @@ use bevy::prelude::*;
 pub use bevy::input_focus::tab_navigation::{TabGroup, TabIndex};
 pub use bevy::input_focus::{AutoFocus, FocusCause, FocusGained, FocusLost, FocusedInput};
 
+use crate::animation::animation::{
+    SurfaceTransitionTarget, should_animate_target, themed_transition,
+};
 use crate::rendering::{Paint, Surface};
-use crate::animation::animation::{SurfaceTransitionTarget, should_animate_target, themed_transition};
 use crate::theme::{
-    AccessibilityVisualPolicyResource,
-    FocusStyleRequest,
-    FocusVisibilityPolicy,
-    SurfaceContext,
-    SurfaceTone,
-    ThemeResource,
+    AccessibilityVisualPolicyResource, FocusStyleRequest, FocusVisibilityPolicy, SurfaceContext,
+    SurfaceTone, ThemeResource,
 };
 
 /// Installs Tab-key navigation plus this library's focus ring semantics on
@@ -256,7 +254,10 @@ fn sync_focus_ring(
                 let mut next_surface = (*surface).clone();
                 next_surface.decorations.focus_ring = None;
 
-                if should_animate_target(&current_target.map(|value| value.target.clone()), &next_surface) {
+                if should_animate_target(
+                    &current_target.map(|value| value.target.clone()),
+                    &next_surface,
+                ) {
                     commands.entity(entity).insert(SurfaceTransitionTarget::new(
                         next_surface,
                         themed_transition(&theme, |tokens| tokens.focus),
@@ -278,9 +279,9 @@ fn sync_focus_ring(
             let dark_background = match &surface.fill {
                 Paint::Solid(color) => color.to_linear().luminance() < 0.5,
                 Paint::Shimmer(shimmer) => shimmer.base_color.to_linear().luminance() < 0.5,
-                Paint::LinearGradient(_)
-                | Paint::RadialGradient(_)
-                | Paint::AngularGradient(_) => theme.current.mode == crate::theme::ThemeMode::Dark,
+                Paint::LinearGradient(_) | Paint::RadialGradient(_) | Paint::AngularGradient(_) => {
+                    theme.current.mode == crate::theme::ThemeMode::Dark
+                }
             };
 
             let context = SurfaceContext {
@@ -298,7 +299,10 @@ fn sync_focus_ring(
                 policy.current,
             );
 
-            if should_animate_target(&current_target.map(|value| value.target.clone()), &next_surface) {
+            if should_animate_target(
+                &current_target.map(|value| value.target.clone()),
+                &next_surface,
+            ) {
                 commands.entity(entity).insert(SurfaceTransitionTarget::new(
                     next_surface,
                     themed_transition(&theme, |tokens| tokens.focus),

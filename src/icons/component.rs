@@ -1,7 +1,7 @@
 use crate::components::spinner::{Spinner, SpinnerAnchor};
-use crate::theme::ThemeResource;
 use crate::components::{footer::Footer, navbar::Navbar, sidebar::Sidebar};
 use crate::primitives::root::ContentRoot;
+use crate::theme::ThemeResource;
 use bevy::camera::Viewport;
 use bevy::camera::visibility::RenderLayers;
 use bevy::mesh::Mesh;
@@ -207,7 +207,10 @@ impl Plugin for FeatherIconsPlugin {
         app.configure_sets(Update, UiIconSyncSet::Theme.before(UiIconSyncSet::Sync));
         app.add_systems(
             Startup,
-            (spawn_ui_icon_proxy_camera, spawn_ui_icon_content_proxy_camera),
+            (
+                spawn_ui_icon_proxy_camera,
+                spawn_ui_icon_content_proxy_camera,
+            ),
         );
         app.add_systems(
             Update,
@@ -368,8 +371,14 @@ fn update_ui_icon_content_camera_viewport(
     let scale_factor = window.scale_factor();
     let physical_pos_x = (left * scale_factor).round().max(0.0) as u32;
     let physical_pos_y = (top * scale_factor).round().max(0.0) as u32;
-    let max_width = window.physical_width().saturating_sub(physical_pos_x).max(1);
-    let max_height = window.physical_height().saturating_sub(physical_pos_y).max(1);
+    let max_width = window
+        .physical_width()
+        .saturating_sub(physical_pos_x)
+        .max(1);
+    let max_height = window
+        .physical_height()
+        .saturating_sub(physical_pos_y)
+        .max(1);
     let physical_size_x = (((right - left) * scale_factor).round().max(1.0) as u32).min(max_width);
     let physical_size_y = (((bottom - top) * scale_factor).round().max(1.0) as u32).min(max_height);
 
@@ -413,7 +422,10 @@ fn spawn_ui_svg_icon_proxies(
 
         let proxy_entity = commands
             .spawn((
-                UiIconProxy { owner, content: is_content },
+                UiIconProxy {
+                    owner,
+                    content: is_content,
+                },
                 Svg2d(handle),
                 Transform::default(),
                 GlobalTransform::default(),

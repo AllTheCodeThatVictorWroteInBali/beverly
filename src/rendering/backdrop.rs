@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use super::liquid_glass::LiquidGlass;
+use bevy::prelude::*;
 
 const MAX_BACKDROP_BLUR: f32 = 128.0;
 const MIN_COLOR_FACTOR: f32 = 0.0;

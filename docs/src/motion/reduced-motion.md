@@ -43,7 +43,15 @@ These cues can remain clear without requiring elaborate animation. In many cases
 
 `BeverlyPlugin` initializes `AccessibilityVisualPolicyResource`. Its `current.reduced_motion` value defaults to `false` and can be initialized from `UI_REDUCED_MOTION` (`1`, `true`, `TRUE`, `yes`, or `on` enables it). The application can also update this resource at runtime, for example in response to its own settings or platform-preference integration.
 
-The policy is not yet applied uniformly to every motion feature. Beverly's `Transition` property animations collapse decorative duration and delay to zero when reduced motion is enabled; semantic transitions keep their timing. `UiMotion` enter/exit presets and component-specific motion such as loading indicators do not currently all consult this policy. Review each feature's documentation and supply a static alternative where needed. Beverly does not automatically detect an operating-system reduced-motion preference.
+The shared policy is applied to Beverly's `Transition` property animations and
+`UiMotion` enter/exit presets: decorative property transitions collapse their
+duration and delay, entering `UiMotion` elements settle immediately, and
+requested exits are removed immediately. Decorative spinner rotation also
+stops while reduced motion is enabled; the loading task itself continues so
+progress and completion semantics are preserved. Other component-specific
+motion should be audited as it is added. Beverly does not automatically detect
+an operating-system reduced-motion preference; applications must initialize or
+update the policy from their platform settings.
 
 ```rust
 use bevy::prelude::*;

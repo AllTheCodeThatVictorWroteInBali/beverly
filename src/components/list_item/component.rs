@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use crate::rendering::{GradientStop, LinearGradient as UiLinearGradient, Paint, Surface};
-use crate::icons::{Icon, IconCommands};
 use crate::components::text::HighlightableText;
+use crate::icons::{Icon, IconCommands};
+use crate::rendering::{GradientStop, LinearGradient as UiLinearGradient, Paint, Surface};
 use crate::theme::ThemeResource;
 
 #[derive(Component)]
@@ -130,10 +130,7 @@ pub fn spawn_list_item(
 
 fn list_item_visual_system(
     theme: Res<ThemeResource>,
-    mut item_query: Query<
-        (&Interaction, &mut Surface),
-        (With<ListItem>, With<Button>),
-    >,
+    mut item_query: Query<(&Interaction, &mut Surface), (With<ListItem>, With<Button>)>,
     mut text_query: Query<
         (
             &mut TextColor,

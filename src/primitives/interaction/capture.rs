@@ -95,7 +95,10 @@ mod tests {
         let target = Entity::from_raw_u32(12).expect("valid entity id");
         map.capture(PointerId(1), target);
         map.capture(PointerId(2), target);
-        map.capture(PointerId(3), Entity::from_raw_u32(99).expect("valid entity id"));
+        map.capture(
+            PointerId(3),
+            Entity::from_raw_u32(99).expect("valid entity id"),
+        );
 
         map.release_for_entity(target);
         assert_eq!(map.captured_entity(PointerId(1)), None);

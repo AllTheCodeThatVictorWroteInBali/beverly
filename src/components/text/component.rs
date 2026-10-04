@@ -4,22 +4,16 @@ use bevy::picking::{
 };
 use bevy::prelude::*;
 use bevy::text::{ComputedTextBlock, FontCx};
-use bevy::ui::{ui_surface::UiSurface, ComputedUiRenderTargetInfo, UiScale};
+use bevy::ui::{ComputedUiRenderTargetInfo, UiScale, ui_surface::UiSurface};
 use parley::editing::Selection;
 
 use super::{
-    TextRenderItemPlugin,
-    Typography,
-    TypographyDebugPlugin,
-    TypographyFontManagerPlugin,
-    TypographyGlyphAtlasPlugin,
-    TypographyLayoutPlugin,
-    TypographyPlugin,
-    TypographyShapingPlugin,
+    TextRenderItemPlugin, Typography, TypographyDebugPlugin, TypographyFontManagerPlugin,
+    TypographyGlyphAtlasPlugin, TypographyLayoutPlugin, TypographyPlugin, TypographyShapingPlugin,
 };
 use crate::components::title::ThemedTitle;
-use crate::theme::{ThemeColors, ThemeResource};
 use crate::primitives::composition::UiElement;
+use crate::theme::{ThemeColors, ThemeResource};
 
 #[derive(Component, Clone, Debug, Default)]
 #[require(TextSelectionOverlays)]
@@ -79,7 +73,12 @@ impl ThemedText {
 
 fn themed_text_system(
     theme: Option<Res<ThemeResource>>,
-    mut query: Query<(&ThemedText, &mut TextFont, &mut TextColor, Option<&Typography>)>,
+    mut query: Query<(
+        &ThemedText,
+        &mut TextFont,
+        &mut TextColor,
+        Option<&Typography>,
+    )>,
 ) {
     let Some(theme) = theme else {
         return;
@@ -145,10 +144,7 @@ fn bootstrap_typography_from_text_system(
 }
 
 fn apply_typography_to_text_system(
-    mut query: Query<
-        (&Typography, &mut Text, &mut TextFont, &mut TextColor),
-        Changed<Typography>,
-    >,
+    mut query: Query<(&Typography, &mut Text, &mut TextFont, &mut TextColor), Changed<Typography>>,
 ) {
     for (typography, mut text, mut font, mut color) in &mut query {
         if !typography.sync_to_bevy {
@@ -174,7 +170,12 @@ fn apply_typography_to_text_system(
 
 fn mirror_text_into_typography_system(
     mut query: Query<
-        (&mut Typography, Option<&TextFont>, Option<&TextColor>, Option<&Text>),
+        (
+            &mut Typography,
+            Option<&TextFont>,
+            Option<&TextColor>,
+            Option<&Text>,
+        ),
         (
             Or<(Changed<TextFont>, Changed<TextColor>, Changed<Text>)>,
             Without<ThemedText>,

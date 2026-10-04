@@ -17,6 +17,10 @@
 //! }
 //! ```
 
+extern crate self as beverly;
+
+pub use beverly_macros::model;
+
 pub mod animation;
 pub mod app;
 pub mod components;
@@ -25,9 +29,9 @@ mod plugin;
 pub mod prelude;
 pub mod primitives;
 pub mod rendering;
-pub mod theme;
 #[cfg(any(test, feature = "test-support"))]
 pub mod test_support;
+pub mod theme;
 
 pub use plugin::BeverlyPlugin;
 
@@ -105,54 +109,58 @@ macro_rules! controller {
 
 #[cfg(test)]
 mod event_macro_tests {
-	#![allow(dead_code)]
-	event! {
-		TestCommand::Run {
-			value: u32,
-		}
-		TestFact::Finished
-	}
+    #![allow(dead_code)]
+    event! {
+        TestCommand::Run {
+            value: u32,
+        }
+        TestFact::Finished
+    }
 
-	#[test]
-	fn event_macro_generates_message_types() {
-		let mut app = bevy::app::App::new();
-		app.add_message::<TestCommand::Run>();
-		app.add_message::<TestFact::Finished>();
-		app.world_mut().write_message(TestCommand::Run { value: 7 });
-		app.world_mut().write_message(TestFact::Finished);
-		assert_eq!(app.world().resource::<bevy::ecs::message::Messages<TestCommand::Run>>().len(), 1);
-	}
+    #[test]
+    fn event_macro_generates_message_types() {
+        let mut app = bevy::app::App::new();
+        app.add_message::<TestCommand::Run>();
+        app.add_message::<TestFact::Finished>();
+        app.world_mut().write_message(TestCommand::Run { value: 7 });
+        app.world_mut().write_message(TestFact::Finished);
+        assert_eq!(
+            app.world()
+                .resource::<bevy::ecs::message::Messages<TestCommand::Run>>()
+                .len(),
+            1
+        );
+    }
 }
 #[cfg(test)]
 mod controller_macro_tests {
-	use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
-	use bevy::prelude::*;
+    use bevy::prelude::*;
 
-	event! { ControllerTest::Ping { value: u32 } }
+    event! { ControllerTest::Ping { value: u32 } }
 
-	static CALLS: AtomicUsize = AtomicUsize::new(0);
+    static CALLS: AtomicUsize = AtomicUsize::new(0);
 
-	fn handle_ping(message: &ControllerTest::Ping) {
-		CALLS.fetch_add(message.value as usize, Ordering::SeqCst);
-	}
+    fn handle_ping(message: &ControllerTest::Ping) {
+        CALLS.fetch_add(message.value as usize, Ordering::SeqCst);
+    }
 
-	controller! {
-		ControllerTestPlugin {
-			ControllerTest::Ping => handle_ping,
-		}
-	}
+    controller! {
+        ControllerTestPlugin {
+            ControllerTest::Ping => handle_ping,
+        }
+    }
 
-	#[test]
-	fn controller_macro_routes_messages_to_handlers() {
-		CALLS.store(0, Ordering::SeqCst);
-		let mut app = App::new();
-		app.add_message::<ControllerTest::Ping>()
-			.add_plugins(ControllerTestPlugin);
-		app.world_mut()
-			.write_message(ControllerTest::Ping { value: 3 });
-		app.update();
-		assert_eq!(CALLS.load(Ordering::SeqCst), 3);
-	}
+    #[test]
+    fn controller_macro_routes_messages_to_handlers() {
+        CALLS.store(0, Ordering::SeqCst);
+        let mut app = App::new();
+        app.add_message::<ControllerTest::Ping>()
+            .add_plugins(ControllerTestPlugin);
+        app.world_mut()
+            .write_message(ControllerTest::Ping { value: 3 });
+        app.update();
+        assert_eq!(CALLS.load(Ordering::SeqCst), 3);
+    }
 }
-

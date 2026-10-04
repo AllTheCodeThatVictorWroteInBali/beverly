@@ -59,3 +59,9 @@ each question below with a source reference or a test name:
 - Add a real-window smoke check for focus and pointer routing.
 - Test at least one screen reader manually before calling platform behavior
   complete.
+
+The repository's headless tests verify semantic projection and deterministic
+file-drop target ordering. They do not verify native focus behavior, pointer
+routing in a real window, or what a platform screen reader announces. Those
+rows remain **Partial** or **Manual** until the real-window and assistive
+technology checks above are completed on supported operating systems.

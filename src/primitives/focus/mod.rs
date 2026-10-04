@@ -331,8 +331,10 @@ fn rebuild_focus_order_cache(
         Option<&DisabledInteraction>,
     )>,
 ) {
-    let mut tab_sequence: HashMap<Option<Entity>, Vec<(i32, i32, u64, Entity)>> = HashMap::default();
-    let mut all_focusable: HashMap<Option<Entity>, Vec<(i32, i32, u64, Entity)>> = HashMap::default();
+    let mut tab_sequence: HashMap<Option<Entity>, Vec<(i32, i32, u64, Entity)>> =
+        HashMap::default();
+    let mut all_focusable: HashMap<Option<Entity>, Vec<(i32, i32, u64, Entity)>> =
+        HashMap::default();
 
     for (entity, focusable, tab_index, visibility, disabled) in &query {
         if disabled.is_some() {
@@ -343,7 +345,8 @@ fn rebuild_focus_order_cache(
             continue;
         }
 
-        let (can_focus, tab_stop, explicit_order, order_index) = focusability_traits(focusable, tab_index);
+        let (can_focus, tab_stop, explicit_order, order_index) =
+            focusability_traits(focusable, tab_index);
         if !can_focus {
             continue;
         }
@@ -369,18 +372,20 @@ fn rebuild_focus_order_cache(
         values.sort_by_key(|(explicit_order, tab_index, entity_index, _)| {
             (*explicit_order, *tab_index, *entity_index)
         });
-        cache
-            .all_focusable
-            .insert(scope, values.into_iter().map(|(_, _, _, entity)| entity).collect());
+        cache.all_focusable.insert(
+            scope,
+            values.into_iter().map(|(_, _, _, entity)| entity).collect(),
+        );
     }
 
     for (scope, mut values) in tab_sequence {
         values.sort_by_key(|(explicit_order, tab_index, entity_index, _)| {
             (*explicit_order, *tab_index, *entity_index)
         });
-        cache
-            .tab_sequence
-            .insert(scope, values.into_iter().map(|(_, _, _, entity)| entity).collect());
+        cache.tab_sequence.insert(
+            scope,
+            values.into_iter().map(|(_, _, _, entity)| entity).collect(),
+        );
     }
 }
 
@@ -406,7 +411,8 @@ fn sync_focus_state(
     let current = focus.get();
     let previous = owner.current;
     let origin = pending_origin.0.take().unwrap_or(last_input_origin.0);
-    let active_scope = current.and_then(|entity| nearest_scope(entity, &parent_query, &scope_query));
+    let active_scope =
+        current.and_then(|entity| nearest_scope(entity, &parent_query, &scope_query));
 
     owner.previous = previous;
     owner.current = current;
@@ -452,19 +458,14 @@ fn collect_focus_debug_trace(
     for change in changes.read() {
         trace.changes.push_back(format!(
             "focus {:?} -> {:?} origin={:?} scope={:?}",
-            change.previous,
-            change.current,
-            change.origin,
-            change.active_scope
+            change.previous, change.current, change.origin, change.active_scope
         ));
     }
 
     for rejection in rejections.read() {
         trace.rejections.push_back(format!(
             "reject target={:?} origin={:?} reason={:?}",
-            rejection.target,
-            rejection.origin,
-            rejection.reason
+            rejection.target, rejection.origin, rejection.reason
         ));
     }
 
@@ -511,7 +512,11 @@ fn validate_focus_target(
         return Some(FocusRejectReason::Disabled);
     }
 
-    if visibility_query.get(target).map(|value| !value.get()).unwrap_or(false) {
+    if visibility_query
+        .get(target)
+        .map(|value| !value.get())
+        .unwrap_or(false)
+    {
         return Some(FocusRejectReason::Hidden);
     }
 
@@ -595,7 +600,10 @@ fn is_descendant_or_self(
     false
 }
 
-fn neighbor_nodes(current: Option<Entity>, sequence: &[Entity]) -> (Option<Entity>, Option<Entity>) {
+fn neighbor_nodes(
+    current: Option<Entity>,
+    sequence: &[Entity],
+) -> (Option<Entity>, Option<Entity>) {
     let Some(current) = current else {
         return (sequence.first().copied(), sequence.last().copied());
     };

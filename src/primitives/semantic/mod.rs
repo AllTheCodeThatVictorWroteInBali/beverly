@@ -1,24 +1,24 @@
 use std::collections::HashMap;
 
+use accesskit::{
+    Action as AccessKitAction, Invalid, Live, Node as AccessKitNode, NodeId as AccessKitNodeId,
+    Role as AccessKitRole, Toggled,
+};
 use bevy::a11y::AccessibilityNode;
-use accesskit::{Action as AccessKitAction, Invalid, Live, Node as AccessKitNode, NodeId as AccessKitNodeId, Role as AccessKitRole, Toggled};
 use bevy::prelude::*;
 use bevy::ui::UiSystems;
 
-use crate::components::checkbox::{CheckboxEvent, CheckboxState};
 use crate::components::button::BeverlyButton;
+use crate::components::checkbox::{CheckboxEvent, CheckboxState};
 use crate::components::input::{TextInput, TextInputKind};
+use crate::components::slider::{Slider, SliderChanged};
 use crate::components::textarea::Textarea;
+use crate::components::toggle::{Toggle, ToggleEvent};
 use crate::primitives::focus::{FocusChanged, FocusDebugSnapshot, FocusDebugTrace, FocusSystems};
 use crate::primitives::interaction::{
-    InteractionAction,
-    InteractionActionEvent,
-    InteractionActionSource,
-    UiActionSystems,
+    InteractionAction, InteractionActionEvent, InteractionActionSource, UiActionSystems,
 };
 use crate::primitives::keyboard::KeyboardDebugTrace;
-use crate::components::slider::{Slider, SliderChanged};
-use crate::components::toggle::{Toggle, ToggleEvent};
 use crate::primitives::root::AppRootSurface;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -323,24 +323,24 @@ pub(crate) struct SemanticAccessibilitySystems;
 impl Plugin for SemanticAccessibilityPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-                PostUpdate,
+            PostUpdate,
             sync_accesskit_from_semantics.in_set(SemanticAccessibilitySystems),
-            )
-            .configure_sets(
-                PostUpdate,
-                // `SemanticNode` is the canonical source of truth, so its
-                // projection must be the LAST writer to `AccessibilityNode`
-                // each frame - after bevy_ui's own built-in accessibility
-                // sync (`UiSystems::PostLayout`, which unconditionally
-                // stamps a generic `Role::Button`/child-text label onto any
-                // entity with bevy's `Button`/`ImageNode`, independent of
-                // Beverly), but still before the tree is handed to the OS
-                // (`AccessibilitySystems::Update`, e.g. bevy_winit).
-                SemanticAccessibilitySystems
-                    .after(crate::animation::skeleton::SkeletonSystems)
-                    .after(UiSystems::PostLayout)
-                    .before(bevy::a11y::AccessibilitySystems::Update),
-            );
+        )
+        .configure_sets(
+            PostUpdate,
+            // `SemanticNode` is the canonical source of truth, so its
+            // projection must be the LAST writer to `AccessibilityNode`
+            // each frame - after bevy_ui's own built-in accessibility
+            // sync (`UiSystems::PostLayout`, which unconditionally
+            // stamps a generic `Role::Button`/child-text label onto any
+            // entity with bevy's `Button`/`ImageNode`, independent of
+            // Beverly), but still before the tree is handed to the OS
+            // (`AccessibilitySystems::Update`, e.g. bevy_winit).
+            SemanticAccessibilitySystems
+                .after(crate::animation::skeleton::SkeletonSystems)
+                .after(UiSystems::PostLayout)
+                .before(bevy::a11y::AccessibilitySystems::Update),
+        );
     }
 }
 
@@ -385,11 +385,7 @@ impl Plugin for SemanticPlugin {
             )
             .add_systems(
                 Update,
-                (
-                    ensure_semantic_debug_overlay,
-                    update_semantic_debug_overlay,
-                )
-                    .chain(),
+                (ensure_semantic_debug_overlay, update_semantic_debug_overlay).chain(),
             );
     }
 }
@@ -429,11 +425,28 @@ fn sync_accesskit_from_semantics(
         )>,
     >,
 ) {
-    for (entity, semantic, checkbox, toggle, slider, button, input, textarea, aria_description, accessibility) in
-        &mut nodes
+    for (
+        entity,
+        semantic,
+        checkbox,
+        toggle,
+        slider,
+        button,
+        input,
+        textarea,
+        aria_description,
+        accessibility,
+    ) in &mut nodes
     {
         let derived = derive_component_semantics(
-            semantic, checkbox, toggle, slider, button, input, textarea, aria_description,
+            semantic,
+            checkbox,
+            toggle,
+            slider,
+            button,
+            input,
+            textarea,
+            aria_description,
         );
         let projected = project_semantic_node(&derived);
         if let Some(mut accessibility) = accessibility {
@@ -503,7 +516,10 @@ fn derive_component_semantics(
         // floating label). The placeholder is a supplementary hint only and
         // must never silently become the accessible name - see
         // `TextInputConfig::label`.
-        derived.label = input.accessible_label.clone().or_else(|| input.floating_label.clone());
+        derived.label = input
+            .accessible_label
+            .clone()
+            .or_else(|| input.floating_label.clone());
         derived.state.disabled = input.disabled;
         derived.state.read_only = input.read_only;
         derived.state.required = input.required;
@@ -543,7 +559,12 @@ fn project_semantic_node(semantic: &SemanticNode) -> AccessKitNode {
                 node.set_max_numeric_value(*max);
             }
         }
-        SemanticValue::Range { value, min, max, step } => {
+        SemanticValue::Range {
+            value,
+            min,
+            max,
+            step,
+        } => {
             node.set_numeric_value(*value);
             node.set_min_numeric_value(*min);
             node.set_max_numeric_value(*max);
@@ -602,7 +623,9 @@ fn project_semantic_node(semantic: &SemanticNode) -> AccessKitNode {
             InteractionAction::Activate | InteractionAction::Select | InteractionAction::Toggle => {
                 Some(AccessKitAction::Click)
             }
-            InteractionAction::Dismiss | InteractionAction::Close => Some(AccessKitAction::Collapse),
+            InteractionAction::Dismiss | InteractionAction::Close => {
+                Some(AccessKitAction::Collapse)
+            }
             InteractionAction::Open => Some(AccessKitAction::Expand),
             InteractionAction::Increment => Some(AccessKitAction::Increment),
             InteractionAction::Decrement => Some(AccessKitAction::Decrement),
@@ -628,7 +651,12 @@ fn project_relationships(node: &mut AccessKitNode, relationships: &SemanticRelat
     }
     if !relationships.described_by.is_empty() {
         node.set_described_by(
-            relationships.described_by.iter().copied().map(accesskit_node_id).collect::<Vec<_>>(),
+            relationships
+                .described_by
+                .iter()
+                .copied()
+                .map(accesskit_node_id)
+                .collect::<Vec<_>>(),
         );
     }
     if let Some(error_message) = relationships.error_message {
@@ -636,11 +664,23 @@ fn project_relationships(node: &mut AccessKitNode, relationships: &SemanticRelat
     }
     if !relationships.controls.is_empty() {
         node.set_controls(
-            relationships.controls.iter().copied().map(accesskit_node_id).collect::<Vec<_>>(),
+            relationships
+                .controls
+                .iter()
+                .copied()
+                .map(accesskit_node_id)
+                .collect::<Vec<_>>(),
         );
     }
     if !relationships.owns.is_empty() {
-        node.set_owns(relationships.owns.iter().copied().map(accesskit_node_id).collect::<Vec<_>>());
+        node.set_owns(
+            relationships
+                .owns
+                .iter()
+                .copied()
+                .map(accesskit_node_id)
+                .collect::<Vec<_>>(),
+        );
     }
     if let Some(active_descendant) = relationships.active_descendant {
         node.set_active_descendant(accesskit_node_id(active_descendant));
@@ -751,7 +791,10 @@ fn bootstrap_semantic_nodes(
         semantic.value = accessibility.0.value().map(str::to_owned);
         semantic.state.disabled = accessibility.0.is_disabled();
         semantic.state.selected = accessibility.0.is_selected().unwrap_or(false);
-        semantic.state.checked = accessibility.0.toggled().map(|toggled| toggled == Toggled::True);
+        semantic.state.checked = accessibility
+            .0
+            .toggled()
+            .map(|toggled| toggled == Toggled::True);
         semantic.state.indeterminate = accessibility.0.toggled() == Some(Toggled::Mixed);
         semantic.state.expanded = accessibility.0.is_expanded();
         semantic.state.busy = accessibility.0.is_busy();
@@ -797,10 +840,14 @@ fn semantic_role(role: AccessKitRole) -> (SemanticRole, Option<TextInputHint>) {
     match role {
         AccessKitRole::Button | AccessKitRole::DefaultButton => (SemanticRole::Button, None),
         AccessKitRole::Link => (SemanticRole::Link, None),
-        AccessKitRole::TextRun | AccessKitRole::Label | AccessKitRole::Paragraph => (SemanticRole::Text, None),
+        AccessKitRole::TextRun | AccessKitRole::Label | AccessKitRole::Paragraph => {
+            (SemanticRole::Text, None)
+        }
         AccessKitRole::Heading => (SemanticRole::Heading, None),
         AccessKitRole::Image => (SemanticRole::Image, None),
-        AccessKitRole::MultilineTextInput => (SemanticRole::TextInput, Some(TextInputHint::Multiline)),
+        AccessKitRole::MultilineTextInput => {
+            (SemanticRole::TextInput, Some(TextInputHint::Multiline))
+        }
         AccessKitRole::PasswordInput => (SemanticRole::TextInput, Some(TextInputHint::Password)),
         AccessKitRole::NumberInput => (SemanticRole::TextInput, Some(TextInputHint::Number)),
         AccessKitRole::EmailInput => (SemanticRole::TextInput, Some(TextInputHint::Email)),
@@ -870,7 +917,10 @@ fn apply_semantic_actions(
         // as another Pressed edge on release. Non-pointer actions still bridge
         // into the legacy widget handlers until those handlers are migrated.
         if action_event.source == InteractionActionSource::Pointer
-            && matches!(action_event.action, InteractionAction::Activate | InteractionAction::Toggle)
+            && matches!(
+                action_event.action,
+                InteractionAction::Activate | InteractionAction::Toggle
+            )
             && interactions.contains(target)
         {
             continue;
@@ -989,7 +1039,13 @@ fn sync_focus_state_into_semantics(
 
 fn mark_semantic_tree_dirty(
     mut dirty: ResMut<SemanticTreeDirty>,
-    changed_semantic: Query<Entity, (With<SemanticNode>, Or<(Added<SemanticNode>, Changed<SemanticNode>)>)>,
+    changed_semantic: Query<
+        Entity,
+        (
+            With<SemanticNode>,
+            Or<(Added<SemanticNode>, Changed<SemanticNode>)>,
+        ),
+    >,
     changed_hierarchy: Query<Entity, (With<SemanticNode>, Changed<ChildOf>)>,
     changed_component_state: Query<
         Entity,
@@ -1046,11 +1102,28 @@ fn rebuild_semantic_tree(
     tree.generation = tree.generation.saturating_add(1);
     tree.nodes.clear();
 
-    for (entity, node, parent, checkbox, toggle, slider, button, input, textarea, aria_description) in
-        &semantic_nodes
+    for (
+        entity,
+        node,
+        parent,
+        checkbox,
+        toggle,
+        slider,
+        button,
+        input,
+        textarea,
+        aria_description,
+    ) in &semantic_nodes
     {
         let node = derive_component_semantics(
-            node, checkbox, toggle, slider, button, input, textarea, aria_description,
+            node,
+            checkbox,
+            toggle,
+            slider,
+            button,
+            input,
+            textarea,
+            aria_description,
         );
         if node.decorative || node.accessibility_hidden {
             continue;
@@ -1061,12 +1134,12 @@ fn rebuild_semantic_tree(
             SemanticSnapshotNode {
                 role: node.role,
                 label: node.label.clone(),
-                    description: node.description.clone(),
+                description: node.description.clone(),
                 value: node.value.clone(),
-                    semantic_value: node.semantic_value.clone(),
+                semantic_value: node.semantic_value.clone(),
                 state: node.state.clone(),
                 actions: node.actions.clone(),
-                    relationships: node.relationships.clone(),
+                relationships: node.relationships.clone(),
                 live: node.live,
                 semantic_id: node.semantic_id.clone(),
                 parent: parent.map(ChildOf::parent),
@@ -1155,15 +1228,11 @@ fn update_semantic_debug_overlay(
     lines.push("Semantic + Focus Inspector".to_string());
     lines.push(format!(
         "focus current={:?} previous={:?} origin={:?} scope={:?}",
-        focus_debug.current,
-        focus_debug.previous,
-        focus_debug.origin,
-        focus_debug.active_scope
+        focus_debug.current, focus_debug.previous, focus_debug.origin, focus_debug.active_scope
     ));
     lines.push(format!(
         "focus next={:?} previous_in_order={:?}",
-        focus_debug.next,
-        focus_debug.previous_in_order
+        focus_debug.next, focus_debug.previous_in_order
     ));
 
     lines.push("recent focus changes:".to_string());
@@ -1249,16 +1318,16 @@ fn update_semantic_debug_overlay(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::input::ButtonState;
-    use bevy::input::keyboard::{Key, KeyboardInput};
-    use bevy::input_focus::InputFocus;
     use crate::components::checkbox::{CheckboxConfig, CheckboxPlugin, spawn_checkbox};
+    use crate::components::slider::component::SliderPlugin;
     use crate::primitives::focus::FocusPlugin;
     use crate::primitives::interaction::*;
     use crate::primitives::keyboard::KeyboardPlugin;
-    use crate::components::slider::component::SliderPlugin;
     use crate::theme::ThemeResource;
     use accesskit::{Action as AccessKitAction, Invalid, Role as AccessKitRole, Toggled};
+    use bevy::input::ButtonState;
+    use bevy::input::keyboard::{Key, KeyboardInput};
+    use bevy::input_focus::InputFocus;
 
     fn snapshot_app() -> App {
         let mut app = App::new();
@@ -1304,7 +1373,10 @@ mod tests {
         assert_eq!(node.state.checked, Some(false));
         let generation = tree.generation;
 
-        app.world_mut().get_mut::<CheckboxState>(entity).unwrap().checked = true;
+        app.world_mut()
+            .get_mut::<CheckboxState>(entity)
+            .unwrap()
+            .checked = true;
         app.update();
 
         let tree = app.world().resource::<SemanticTreeSnapshot>();
@@ -1338,14 +1410,20 @@ mod tests {
 
         assert_eq!(projected.role(), AccessKitRole::Button);
         assert_eq!(projected.label(), Some("Delete"));
-        assert_eq!(projected.description(), Some("Permanently removes the document"));
+        assert_eq!(
+            projected.description(),
+            Some("Permanently removes the document")
+        );
         assert!(projected.is_disabled());
     }
 
     #[test]
     fn semantic_projection_covers_range_values_and_invalid_state() {
         let semantic = SemanticNode::new(SemanticRole::Slider);
-        let slider = Slider::new(0.0, 100.0).value(42.0).step(1.0).disabled(false);
+        let slider = Slider::new(0.0, 100.0)
+            .value(42.0)
+            .step(1.0)
+            .disabled(false);
         let mut derived = derive_component_semantics(
             &semantic,
             None,
@@ -1376,8 +1454,14 @@ mod tests {
 
         let projected = project_semantic_node(&semantic);
 
-        assert_eq!(projected.labelled_by(), &[AccessKitNodeId(labelled.to_bits())]);
-        assert_eq!(projected.described_by(), &[AccessKitNodeId(described.to_bits())]);
+        assert_eq!(
+            projected.labelled_by(),
+            &[AccessKitNodeId(labelled.to_bits())]
+        );
+        assert_eq!(
+            projected.described_by(),
+            &[AccessKitNodeId(described.to_bits())]
+        );
         assert_eq!(projected.controls(), &[AccessKitNodeId(controls.to_bits())]);
     }
 
@@ -1386,12 +1470,19 @@ mod tests {
         let mut app = snapshot_app();
         let parent = app.world_mut().spawn_empty().id();
         let children: Vec<_> = (0..3)
-            .map(|_| app.world_mut().spawn((SemanticNode::new(SemanticRole::Button), ChildOf(parent))).id())
+            .map(|_| {
+                app.world_mut()
+                    .spawn((SemanticNode::new(SemanticRole::Button), ChildOf(parent)))
+                    .id()
+            })
             .collect();
         app.update();
         let generation = app.world().resource::<SemanticTreeSnapshot>().generation;
         for &child in &children {
-            assert_eq!(app.world().resource::<SemanticTreeSnapshot>().nodes[&child].parent, Some(parent));
+            assert_eq!(
+                app.world().resource::<SemanticTreeSnapshot>().nodes[&child].parent,
+                Some(parent)
+            );
             app.world_mut().entity_mut(child).remove::<ChildOf>();
         }
 
@@ -1407,10 +1498,16 @@ mod tests {
     #[test]
     fn snapshot_reparent_preserves_direct_nonsemantic_parent() {
         let mut app = snapshot_app();
-        let ancestor = app.world_mut().spawn(SemanticNode::new(SemanticRole::List)).id();
+        let ancestor = app
+            .world_mut()
+            .spawn(SemanticNode::new(SemanticRole::List))
+            .id();
         let first = app.world_mut().spawn(ChildOf(ancestor)).id();
         let second = app.world_mut().spawn(ChildOf(ancestor)).id();
-        let child = app.world_mut().spawn((SemanticNode::new(SemanticRole::ListItem), ChildOf(first))).id();
+        let child = app
+            .world_mut()
+            .spawn((SemanticNode::new(SemanticRole::ListItem), ChildOf(first)))
+            .id();
         app.update();
         let tree = app.world().resource::<SemanticTreeSnapshot>();
         let generation = tree.generation;
@@ -1429,10 +1526,22 @@ mod tests {
     #[test]
     fn snapshot_despawn_removes_subtree_and_drains_all_semantic_removals() {
         let mut app = snapshot_app();
-        let parent = app.world_mut().spawn(SemanticNode::new(SemanticRole::List)).id();
-        let child = app.world_mut().spawn((SemanticNode::new(SemanticRole::ListItem), ChildOf(parent))).id();
-        let grandchild = app.world_mut().spawn((SemanticNode::new(SemanticRole::Text), ChildOf(child))).id();
-        let survivor = app.world_mut().spawn(SemanticNode::new(SemanticRole::Button)).id();
+        let parent = app
+            .world_mut()
+            .spawn(SemanticNode::new(SemanticRole::List))
+            .id();
+        let child = app
+            .world_mut()
+            .spawn((SemanticNode::new(SemanticRole::ListItem), ChildOf(parent)))
+            .id();
+        let grandchild = app
+            .world_mut()
+            .spawn((SemanticNode::new(SemanticRole::Text), ChildOf(child)))
+            .id();
+        let survivor = app
+            .world_mut()
+            .spawn(SemanticNode::new(SemanticRole::Button))
+            .id();
         app.update();
         let generation = app.world().resource::<SemanticTreeSnapshot>().generation;
 
@@ -1454,17 +1563,30 @@ mod tests {
             let mut app = snapshot_app();
             let first = app.world_mut().spawn_empty().id();
             let second = app.world_mut().spawn_empty().id();
-            let changed = app.world_mut().spawn((SemanticNode::new(SemanticRole::Button), ChildOf(first))).id();
-            let detached = app.world_mut().spawn((SemanticNode::new(SemanticRole::Text), ChildOf(first))).id();
+            let changed = app
+                .world_mut()
+                .spawn((SemanticNode::new(SemanticRole::Button), ChildOf(first)))
+                .id();
+            let detached = app
+                .world_mut()
+                .spawn((SemanticNode::new(SemanticRole::Text), ChildOf(first)))
+                .id();
             let removed: Vec<_> = (0..3)
-                .map(|_| app.world_mut().spawn(SemanticNode::new(SemanticRole::Text)).id())
+                .map(|_| {
+                    app.world_mut()
+                        .spawn(SemanticNode::new(SemanticRole::Text))
+                        .id()
+                })
                 .collect();
             app.update();
             let generation = app.world().resource::<SemanticTreeSnapshot>().generation;
 
             match dirty_source {
                 "semantic" => {
-                    app.world_mut().get_mut::<SemanticNode>(changed).unwrap().label = Some("Updated".into());
+                    app.world_mut()
+                        .get_mut::<SemanticNode>(changed)
+                        .unwrap()
+                        .label = Some("Updated".into());
                 }
                 "hierarchy" => {
                     app.world_mut().entity_mut(changed).insert(ChildOf(second));
@@ -1479,7 +1601,11 @@ mod tests {
 
             app.update();
             let tree = app.world().resource::<SemanticTreeSnapshot>();
-            assert_eq!(tree.generation, generation + 1, "dirty source: {dirty_source}");
+            assert_eq!(
+                tree.generation,
+                generation + 1,
+                "dirty source: {dirty_source}"
+            );
             assert_eq!(tree.nodes[&detached].parent, None);
             for entity in removed {
                 assert!(!tree.nodes.contains_key(&entity));
@@ -1492,9 +1618,15 @@ mod tests {
     fn snapshot_idle_and_nonsemantic_hierarchy_changes_keep_generation_stable() {
         let mut app = snapshot_app();
         assert_idle_generation(&mut app, 0);
-        let ancestor = app.world_mut().spawn(SemanticNode::new(SemanticRole::List)).id();
+        let ancestor = app
+            .world_mut()
+            .spawn(SemanticNode::new(SemanticRole::List))
+            .id();
         let wrapper = app.world_mut().spawn(ChildOf(ancestor)).id();
-        let child = app.world_mut().spawn((SemanticNode::new(SemanticRole::ListItem), ChildOf(wrapper))).id();
+        let child = app
+            .world_mut()
+            .spawn((SemanticNode::new(SemanticRole::ListItem), ChildOf(wrapper)))
+            .id();
         app.update();
         let generation = app.world().resource::<SemanticTreeSnapshot>().generation;
         assert_eq!(generation, 1);
@@ -1503,7 +1635,10 @@ mod tests {
         // The snapshot stores the direct parent, not the nearest semantic ancestor.
         app.world_mut().entity_mut(wrapper).remove::<ChildOf>();
         assert_idle_generation(&mut app, generation);
-        assert_eq!(app.world().resource::<SemanticTreeSnapshot>().nodes[&child].parent, Some(wrapper));
+        assert_eq!(
+            app.world().resource::<SemanticTreeSnapshot>().nodes[&child].parent,
+            Some(wrapper)
+        );
     }
 
     #[test]
@@ -1547,16 +1682,19 @@ mod tests {
 
         let mut app = App::new();
         app.add_systems(Update, sync_accesskit_from_semantics);
-        let entity = app.world_mut().spawn((
-            semantic,
-            AccessibilityNode(AccessKitNode::new(AccessKitRole::Unknown)),
-            crate::components::checkbox::Checkbox,
-            CheckboxState {
-                checked: true,
-                disabled: false,
-                indeterminate: true,
-            },
-        )).id();
+        let entity = app
+            .world_mut()
+            .spawn((
+                semantic,
+                AccessibilityNode(AccessKitNode::new(AccessKitRole::Unknown)),
+                crate::components::checkbox::Checkbox,
+                CheckboxState {
+                    checked: true,
+                    disabled: false,
+                    indeterminate: true,
+                },
+            ))
+            .id();
         app.update();
         let projected = &app.world().get::<AccessibilityNode>(entity).unwrap().0;
         assert_eq!(projected.role(), AccessKitRole::CheckBox);
@@ -1573,22 +1711,25 @@ mod tests {
     fn text_input_component_state_projects_value_and_constraints() {
         let mut app = App::new();
         app.add_systems(Update, sync_accesskit_from_semantics);
-        let entity = app.world_mut().spawn((
-            SemanticNode::new(SemanticRole::Text),
-            TextInput {
-                value: "secret".into(),
-                placeholder: "name@company.com".into(),
-                floating_label: None,
-                accessible_label: Some("Email address".into()),
-                kind: TextInputKind::Email,
-                max_length: None,
-                cursor: 6,
-                disabled: true,
-                read_only: true,
-                required: true,
-                invalid: true,
-            },
-        )).id();
+        let entity = app
+            .world_mut()
+            .spawn((
+                SemanticNode::new(SemanticRole::Text),
+                TextInput {
+                    value: "secret".into(),
+                    placeholder: "name@company.com".into(),
+                    floating_label: None,
+                    accessible_label: Some("Email address".into()),
+                    kind: TextInputKind::Email,
+                    max_length: None,
+                    cursor: 6,
+                    disabled: true,
+                    read_only: true,
+                    required: true,
+                    invalid: true,
+                },
+            ))
+            .id();
 
         app.update();
 
@@ -1606,22 +1747,25 @@ mod tests {
     fn text_input_placeholder_never_becomes_the_accessible_name() {
         let mut app = App::new();
         app.add_systems(Update, sync_accesskit_from_semantics);
-        let entity = app.world_mut().spawn((
-            SemanticNode::new(SemanticRole::Text),
-            TextInput {
-                value: String::new(),
-                placeholder: "name@company.com".into(),
-                floating_label: None,
-                accessible_label: None,
-                kind: TextInputKind::Email,
-                max_length: None,
-                cursor: 0,
-                disabled: false,
-                read_only: false,
-                required: false,
-                invalid: false,
-            },
-        )).id();
+        let entity = app
+            .world_mut()
+            .spawn((
+                SemanticNode::new(SemanticRole::Text),
+                TextInput {
+                    value: String::new(),
+                    placeholder: "name@company.com".into(),
+                    floating_label: None,
+                    accessible_label: None,
+                    kind: TextInputKind::Email,
+                    max_length: None,
+                    cursor: 0,
+                    disabled: false,
+                    read_only: false,
+                    required: false,
+                    invalid: false,
+                },
+            ))
+            .id();
 
         app.update();
 
@@ -1650,15 +1794,20 @@ mod tests {
                 crate::primitives::interaction::InteractionPlugin,
                 bevy::input::InputPlugin,
             ));
-        app.world_mut().resource_mut::<SemanticDebugSettings>().enabled = false;
+        app.world_mut()
+            .resource_mut::<SemanticDebugSettings>()
+            .enabled = false;
         app
     }
 
     fn checkbox(app: &mut App) -> Entity {
         let mut entity = None;
-        app.world_mut().commands().spawn(Node::default()).with_children(|parent| {
-            entity = Some(spawn_checkbox(parent, CheckboxConfig::default()));
-        });
+        app.world_mut()
+            .commands()
+            .spawn(Node::default())
+            .with_children(|parent| {
+                entity = Some(spawn_checkbox(parent, CheckboxConfig::default()));
+            });
         app.world_mut().flush();
         entity.unwrap()
     }
@@ -1695,7 +1844,10 @@ mod tests {
     }
 
     fn checkbox_changes(app: &mut App) -> usize {
-        app.world_mut().resource_mut::<Messages<CheckboxEvent>>().drain().count()
+        app.world_mut()
+            .resource_mut::<Messages<CheckboxEvent>>()
+            .drain()
+            .count()
     }
 
     #[test]
@@ -1704,7 +1856,9 @@ mod tests {
             let mut app = action_app();
             let target = checkbox(&mut app);
             app.update();
-            app.world_mut().entity_mut(target).insert(ActionBinding { action });
+            app.world_mut()
+                .entity_mut(target)
+                .insert(ActionBinding { action });
 
             pointer(&mut app, target, InteractionEventType::PointerDown, 1.0);
             app.update();
@@ -1713,19 +1867,40 @@ mod tests {
 
             for _ in 0..3 {
                 app.update();
-                assert_eq!(*app.world().get::<Interaction>(target).unwrap(), Interaction::Pressed);
+                assert_eq!(
+                    *app.world().get::<Interaction>(target).unwrap(),
+                    Interaction::Pressed
+                );
                 assert!(app.world().get::<CheckboxState>(target).unwrap().checked);
-                assert_eq!(checkbox_changes(&mut app), 0, "a held press must not retrigger");
+                assert_eq!(
+                    checkbox_changes(&mut app),
+                    0,
+                    "a held press must not retrigger"
+                );
             }
 
             pointer(&mut app, target, InteractionEventType::PointerUp, 1.1);
             app.update();
-            assert_ne!(*app.world().get::<Interaction>(target).unwrap(), Interaction::Pressed);
+            assert_ne!(
+                *app.world().get::<Interaction>(target).unwrap(),
+                Interaction::Pressed
+            );
             assert!(app.world().get::<CheckboxState>(target).unwrap().checked);
-            assert_eq!(checkbox_changes(&mut app), 0, "tap release must not replay pointer-down");
-            let actions: Vec<_> = app.world_mut()
-                .resource_mut::<Messages<InteractionActionEvent>>().drain().collect();
-            assert_eq!(actions.len(), 1, "tap remains available to independent action readers");
+            assert_eq!(
+                checkbox_changes(&mut app),
+                0,
+                "tap release must not replay pointer-down"
+            );
+            let actions: Vec<_> = app
+                .world_mut()
+                .resource_mut::<Messages<InteractionActionEvent>>()
+                .drain()
+                .collect();
+            assert_eq!(
+                actions.len(),
+                1,
+                "tap remains available to independent action readers"
+            );
             assert_eq!(actions[0].action, action);
             assert_eq!(actions[0].source, InteractionActionSource::Pointer);
         }
@@ -1735,10 +1910,17 @@ mod tests {
     fn keyboard_toggle_reaches_legacy_consumer_once_in_same_frame() {
         let mut app = action_app();
         let target = checkbox(&mut app);
-        app.world_mut().insert_resource(InputFocus::from_entity(target));
+        app.world_mut()
+            .insert_resource(InputFocus::from_entity(target));
         app.update();
 
-        key(&mut app, target, KeyCode::Space, ButtonState::Pressed, false);
+        key(
+            &mut app,
+            target,
+            KeyCode::Space,
+            ButtonState::Pressed,
+            false,
+        );
         app.update();
         assert!(app.world().get::<CheckboxState>(target).unwrap().checked);
         assert_eq!(checkbox_changes(&mut app), 1);
@@ -1749,10 +1931,22 @@ mod tests {
         key(&mut app, target, KeyCode::Space, ButtonState::Pressed, true);
         app.update();
         assert_eq!(checkbox_changes(&mut app), 0);
-        key(&mut app, target, KeyCode::Space, ButtonState::Released, false);
+        key(
+            &mut app,
+            target,
+            KeyCode::Space,
+            ButtonState::Released,
+            false,
+        );
         app.update();
         assert_eq!(checkbox_changes(&mut app), 0);
-        key(&mut app, target, KeyCode::Space, ButtonState::Pressed, false);
+        key(
+            &mut app,
+            target,
+            KeyCode::Space,
+            ButtonState::Pressed,
+            false,
+        );
         app.update();
         assert!(!app.world().get::<CheckboxState>(target).unwrap().checked);
         assert_eq!(checkbox_changes(&mut app), 1);
@@ -1761,8 +1955,12 @@ mod tests {
     #[test]
     fn keyboard_slider_changes_once_and_preserves_home_end() {
         let mut app = action_app();
-        let target = app.world_mut().spawn((Button, Slider::new(0.0, 100.0).value(10.0).step(2.0))).id();
-        app.world_mut().insert_resource(InputFocus::from_entity(target));
+        let target = app
+            .world_mut()
+            .spawn((Button, Slider::new(0.0, 100.0).value(10.0).step(2.0)))
+            .id();
+        app.world_mut()
+            .insert_resource(InputFocus::from_entity(target));
         app.update();
 
         for (code, expected) in [
@@ -1781,7 +1979,11 @@ mod tests {
             key(&mut app, target, code, ButtonState::Pressed, false);
             app.update();
             assert_eq!(app.world().get::<Slider>(target).unwrap().value, expected);
-            let changes: Vec<_> = app.world_mut().resource_mut::<Messages<SliderChanged>>().drain().collect();
+            let changes: Vec<_> = app
+                .world_mut()
+                .resource_mut::<Messages<SliderChanged>>()
+                .drain()
+                .collect();
             assert_eq!(changes.len(), usize::from(previous != expected));
             for change in changes {
                 assert_eq!(change.entity, target);
@@ -1791,7 +1993,13 @@ mod tests {
             key(&mut app, target, code, ButtonState::Pressed, true);
             app.update();
             assert_eq!(app.world().get::<Slider>(target).unwrap().value, expected);
-            assert_eq!(app.world_mut().resource_mut::<Messages<SliderChanged>>().drain().count(), 0);
+            assert_eq!(
+                app.world_mut()
+                    .resource_mut::<Messages<SliderChanged>>()
+                    .drain()
+                    .count(),
+                0
+            );
             key(&mut app, target, code, ButtonState::Released, false);
             app.update();
         }
@@ -1804,15 +2012,35 @@ mod tests {
         let second = checkbox(&mut app);
         app.update();
 
-        app.world_mut().insert_resource(InputFocus::from_entity(first));
+        app.world_mut()
+            .insert_resource(InputFocus::from_entity(first));
         app.update();
-        assert!(app.world().get::<SemanticNode>(first).unwrap().state.focused);
+        assert!(
+            app.world()
+                .get::<SemanticNode>(first)
+                .unwrap()
+                .state
+                .focused
+        );
         assert!(app.world().resource::<SemanticTreeSnapshot>().nodes[&first].focused);
 
-        app.world_mut().insert_resource(InputFocus::from_entity(second));
+        app.world_mut()
+            .insert_resource(InputFocus::from_entity(second));
         app.update();
-        assert!(!app.world().get::<SemanticNode>(first).unwrap().state.focused);
-        assert!(app.world().get::<SemanticNode>(second).unwrap().state.focused);
+        assert!(
+            !app.world()
+                .get::<SemanticNode>(first)
+                .unwrap()
+                .state
+                .focused
+        );
+        assert!(
+            app.world()
+                .get::<SemanticNode>(second)
+                .unwrap()
+                .state
+                .focused
+        );
         let tree = app.world().resource::<SemanticTreeSnapshot>();
         assert!(!tree.nodes[&first].focused);
         assert!(tree.nodes[&second].focused);
@@ -1837,7 +2065,10 @@ mod tests {
         }
 
         let mut app = action_app();
-        app.add_systems(PostUpdate, stomp_button_roles_like_bevy_ui.in_set(UiSystems::PostLayout));
+        app.add_systems(
+            PostUpdate,
+            stomp_button_roles_like_bevy_ui.in_set(UiSystems::PostLayout),
+        );
         let entity = checkbox(&mut app);
         app.update();
 
@@ -1870,8 +2101,16 @@ mod tests {
         // from `InputFocus` by the windowing backend, not this projection.
         let cases: Vec<(&str, fn(&mut SemanticNode), fn(&AccessKitNode) -> bool)> = vec![
             ("disabled", |n| n.state.disabled = true, |a| a.is_disabled()),
-            ("selected", |n| n.state.selected = true, |a| a.is_selected() == Some(true)),
-            ("checked", |n| n.state.checked = Some(true), |a| a.toggled() == Some(Toggled::True)),
+            (
+                "selected",
+                |n| n.state.selected = true,
+                |a| a.is_selected() == Some(true),
+            ),
+            (
+                "checked",
+                |n| n.state.checked = Some(true),
+                |a| a.toggled() == Some(Toggled::True),
+            ),
             (
                 "indeterminate",
                 |n| {
@@ -1880,12 +2119,28 @@ mod tests {
                 },
                 |a| a.toggled() == Some(Toggled::Mixed),
             ),
-            ("expanded", |n| n.state.expanded = Some(true), |a| a.is_expanded() == Some(true)),
-            ("pressed", |n| n.state.pressed = Some(true), |a| a.toggled() == Some(Toggled::True)),
+            (
+                "expanded",
+                |n| n.state.expanded = Some(true),
+                |a| a.is_expanded() == Some(true),
+            ),
+            (
+                "pressed",
+                |n| n.state.pressed = Some(true),
+                |a| a.toggled() == Some(Toggled::True),
+            ),
             ("busy", |n| n.state.busy = true, |a| a.is_busy()),
-            ("read_only", |n| n.state.read_only = true, |a| a.is_read_only()),
+            (
+                "read_only",
+                |n| n.state.read_only = true,
+                |a| a.is_read_only(),
+            ),
             ("required", |n| n.state.required = true, |a| a.is_required()),
-            ("invalid", |n| n.state.invalid = true, |a| a.invalid() == Some(Invalid::True)),
+            (
+                "invalid",
+                |n| n.state.invalid = true,
+                |a| a.invalid() == Some(Invalid::True),
+            ),
             ("hidden", |n| n.state.hidden = true, |a| a.is_hidden()),
             ("modal", |n| n.state.modal = true, |a| a.is_modal()),
         ];
@@ -1894,7 +2149,10 @@ mod tests {
             let mut node = SemanticNode::new(SemanticRole::Button);
             setup(&mut node);
             let projected = project_semantic_node(&node);
-            assert!(check(&projected), "SemanticState::{name} did not reach the AccessKit node");
+            assert!(
+                check(&projected),
+                "SemanticState::{name} did not reach the AccessKit node"
+            );
         }
     }
 
@@ -1919,9 +2177,15 @@ mod tests {
         let projected = project_semantic_node(&node);
         assert_eq!(projected.labelled_by(), &[accesskit_node_id(labelled_by)]);
         assert_eq!(projected.described_by(), &[accesskit_node_id(described_by)]);
-        assert_eq!(projected.error_message(), Some(accesskit_node_id(error_message)));
+        assert_eq!(
+            projected.error_message(),
+            Some(accesskit_node_id(error_message))
+        );
         assert_eq!(projected.controls(), &[accesskit_node_id(controls)]);
         assert_eq!(projected.owns(), &[accesskit_node_id(owns)]);
-        assert_eq!(projected.active_descendant(), Some(accesskit_node_id(active_descendant)));
+        assert_eq!(
+            projected.active_descendant(),
+            Some(accesskit_node_id(active_descendant))
+        );
     }
 }

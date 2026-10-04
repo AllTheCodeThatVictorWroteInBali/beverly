@@ -249,19 +249,25 @@ mod tests {
     #[test]
     fn normalizers_bound_non_finite_and_extreme_inputs_before_arithmetic() {
         let values = [
-            f32::NAN, f32::INFINITY, f32::NEG_INFINITY, f32::MAX, f32::MIN,
-            0.0, f32::from_bits(1), 1.0, 100.0, super::MAX_GEOMETRY_EXTENT,
+            f32::NAN,
+            f32::INFINITY,
+            f32::NEG_INFINITY,
+            f32::MAX,
+            f32::MIN,
+            0.0,
+            f32::from_bits(1),
+            1.0,
+            100.0,
+            super::MAX_GEOMETRY_EXTENT,
         ];
         for width in values {
             for height in values {
                 for value in values {
                     let size = Vec2::new(width, height);
-                    let radii = normalize_corner_radii(
-                        CornerRadii::corners(value, 8.0, value, 0.0), size,
-                    );
-                    let borders = normalize_border_widths(
-                        BorderWidths::sides(value, 8.0, value, 0.0), size,
-                    );
+                    let radii =
+                        normalize_corner_radii(CornerRadii::corners(value, 8.0, value, 0.0), size);
+                    let borders =
+                        normalize_border_widths(BorderWidths::sides(value, 8.0, value, 0.0), size);
                     for out in [radii.as_vec4(), borders.as_vec4()] {
                         assert!(out.is_finite(), "size={size:?}, value={value}, out={out:?}");
                         assert!(out.cmpge(Vec4::ZERO).all());

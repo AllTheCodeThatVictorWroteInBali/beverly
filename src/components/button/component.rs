@@ -2,12 +2,12 @@ use bevy::{color::Mix, prelude::*};
 
 use crate::icons::{Icon, IconCommands, IconNode};
 use crate::primitives::a11y;
+use crate::primitives::composition::UiElement;
 use crate::primitives::interaction::DisabledInteraction;
+use crate::primitives::interaction::{InteractionEventType, UiPointerEvent};
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::rendering::{Paint, Surface};
 use crate::theme::{ThemeColors, ThemeResource};
-use crate::primitives::interaction::{InteractionEventType, UiPointerEvent};
-use crate::primitives::composition::UiElement;
 
 /// Application callback invoked when a button is activated.
 pub type ButtonCommand = fn(&mut Commands, Entity);
@@ -54,7 +54,8 @@ impl ButtonEventType {
     }
 
     fn matches(self, event: InteractionEventType) -> bool {
-        matches!((self, event),
+        matches!(
+            (self, event),
             (Self::Click, InteractionEventType::Click)
                 | (Self::ClickDown, InteractionEventType::PointerDown)
                 | (Self::ClickUp, InteractionEventType::PointerUp)
@@ -67,7 +68,8 @@ impl ButtonEventType {
                 | (Self::DragEnd, InteractionEventType::DragEnd)
                 | (Self::DragCancel, InteractionEventType::DragCancel)
                 | (Self::LongPress, InteractionEventType::LongPress)
-                | (Self::Scroll, InteractionEventType::Scroll))
+                | (Self::Scroll, InteractionEventType::Scroll)
+        )
     }
 }
 
@@ -397,7 +399,11 @@ fn spawn_button_ui(
                 padding: UiRect::axes(Val::Px(16.0), Val::Px(10.0)),
                 border: UiRect::all(Val::Px(1.0)),
                 border_radius: BorderRadius::all(Val::Px(8.0)),
-                width: if button.block { Val::Percent(100.0) } else { Val::Auto },
+                width: if button.block {
+                    Val::Percent(100.0)
+                } else {
+                    Val::Auto
+                },
                 ..default()
             },
             BackgroundColor(Color::NONE),
@@ -428,8 +434,12 @@ fn spawn_button_ui(
             for child in children {
                 match child {
                     ButtonChild::Icon(icon) => {
-                        let icon_entity = parent.spawn_icon_colored(Icon::feather(icon), 16.0, foreground);
-                        parent.commands().entity(icon_entity).insert(ButtonIcon { owner: entity });
+                        let icon_entity =
+                            parent.spawn_icon_colored(Icon::feather(icon), 16.0, foreground);
+                        parent
+                            .commands()
+                            .entity(icon_entity)
+                            .insert(ButtonIcon { owner: entity });
                     }
                     ButtonChild::Text(value) => {
                         parent.spawn((
@@ -489,7 +499,11 @@ fn button_visual_system(
         if let Some(border_style) = surface.border.as_mut() {
             border_style.paint = Paint::solid(border);
         }
-        node.width = if button.block { Val::Percent(100.0) } else { Val::Auto };
+        node.width = if button.block {
+            Val::Percent(100.0)
+        } else {
+            Val::Auto
+        };
     }
 
     for (label, mut text_color) in &mut labels {
@@ -581,13 +595,15 @@ fn readable_foreground(fill: Color) -> Color {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::a11y::AccessibilityNode;
     use crate::theme::light_theme;
+    use bevy::a11y::AccessibilityNode;
 
     fn test_app() -> App {
         let mut app = App::new();
-        app.insert_resource(ThemeResource { current: light_theme() })
-            .add_plugins(ButtonPlugin);
+        app.insert_resource(ThemeResource {
+            current: light_theme(),
+        })
+        .add_plugins(ButtonPlugin);
         app
     }
 
@@ -618,7 +634,13 @@ mod tests {
 
         let world = app.world();
         assert_eq!(world.get::<a11y::TabIndex>(entity).unwrap().0, -1);
-        assert!(world.get::<AccessibilityNode>(entity).unwrap().0.is_disabled());
+        assert!(
+            world
+                .get::<AccessibilityNode>(entity)
+                .unwrap()
+                .0
+                .is_disabled()
+        );
         assert!(world.get::<DisabledInteraction>(entity).is_some());
     }
 
@@ -629,12 +651,18 @@ mod tests {
         app.update();
         assert!(app.world().get::<DisabledInteraction>(entity).is_none());
 
-        app.world_mut().get_mut::<BeverlyButton>(entity).unwrap().disabled = true;
+        app.world_mut()
+            .get_mut::<BeverlyButton>(entity)
+            .unwrap()
+            .disabled = true;
         app.update();
         assert!(app.world().get::<DisabledInteraction>(entity).is_some());
         assert_eq!(app.world().get::<a11y::TabIndex>(entity).unwrap().0, -1);
 
-        app.world_mut().get_mut::<BeverlyButton>(entity).unwrap().disabled = false;
+        app.world_mut()
+            .get_mut::<BeverlyButton>(entity)
+            .unwrap()
+            .disabled = false;
         app.update();
         assert!(app.world().get::<DisabledInteraction>(entity).is_none());
         assert_eq!(app.world().get::<a11y::TabIndex>(entity).unwrap().0, 0);
@@ -648,13 +676,19 @@ mod tests {
             .spawn(BeverlyButton::secondary("Continue").block(true))
             .id();
         app.update();
-        assert_eq!(app.world().get::<Node>(entity).unwrap().width, Val::Percent(100.0));
+        assert_eq!(
+            app.world().get::<Node>(entity).unwrap().width,
+            Val::Percent(100.0)
+        );
     }
 
     #[test]
     fn non_block_button_keeps_auto_width() {
         let mut app = test_app();
-        let entity = app.world_mut().spawn(BeverlyButton::secondary("Continue")).id();
+        let entity = app
+            .world_mut()
+            .spawn(BeverlyButton::secondary("Continue"))
+            .id();
         app.update();
         assert_eq!(app.world().get::<Node>(entity).unwrap().width, Val::Auto);
     }
@@ -672,7 +706,8 @@ mod tests {
     fn outline_variant_is_transparent_at_rest_and_tinted_on_hover() {
         let colors = light_theme().colors;
         let button = BeverlyButton::danger("Delete").outline(true);
-        let (rest_fill, border, foreground) = resolve_button_colors(&button, colors, Interaction::None);
+        let (rest_fill, border, foreground) =
+            resolve_button_colors(&button, colors, Interaction::None);
         assert_eq!(rest_fill, Color::NONE);
         assert_eq!(border, colors.error);
         assert_eq!(foreground, colors.error);
@@ -709,7 +744,8 @@ mod tests {
     fn disabled_buttons_use_neutral_muted_colors_regardless_of_variant() {
         let colors = light_theme().colors;
         let button = BeverlyButton::success("Save").disabled(true);
-        let (fill, border, foreground) = resolve_button_colors(&button, colors, Interaction::Hovered);
+        let (fill, border, foreground) =
+            resolve_button_colors(&button, colors, Interaction::Hovered);
         assert_eq!(fill, colors.border);
         assert_eq!(border, colors.border);
         assert_eq!(foreground, colors.text_disabled);

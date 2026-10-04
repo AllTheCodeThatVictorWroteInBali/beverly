@@ -6,8 +6,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::components::text::{TextRole, ThemedText};
-use crate::theme::ThemeResource;
 use crate::rendering::prelude::*;
+use crate::theme::ThemeResource;
 
 #[derive(Component, Clone, Copy)]
 pub struct Card {
@@ -218,7 +218,8 @@ fn spawn_card_internal(
         CardSizeModel::new(style.width, style.height),
         BackgroundColor(Color::NONE),
         BorderColor::all(Color::NONE),
-        Surface::rounded_rect_fill(style.border_radius, fill).uniform_border(1.0, colors.border_paint()),
+        Surface::rounded_rect_fill(style.border_radius, fill)
+            .uniform_border(1.0, colors.border_paint()),
     ));
 
     if let Some(persistent_id) = persistent_id {

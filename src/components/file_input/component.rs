@@ -1,6 +1,7 @@
-use bevy::prelude::*;
 use crate::primitives::a11y;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
+use bevy::prelude::*;
+use bevy::ui::{CalculatedClip, ComputedStackIndex};
 #[cfg(feature = "file_dialog")]
 use rfd::FileDialog;
 #[cfg(feature = "file_dialog")]
@@ -160,6 +161,9 @@ pub struct FileInputDragState {
 
     /// Whether the currently dragged files are accepted.
     pub accepted: bool,
+
+    /// Window currently carrying this file drag.
+    pub window: Option<Entity>,
 }
 
 // ============================================================================
@@ -203,10 +207,15 @@ pub struct FilesDropped {
 // Selected File
 // ============================================================================
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SelectedFile {
     pub path: PathBuf,
     pub file_type: Option<FileType>,
+}
+
+#[derive(Component, Debug, Clone, Default, PartialEq, Eq)]
+pub struct FileInputSelectionState {
+    pub files: Vec<SelectedFile>,
 }
 
 impl SelectedFile {
@@ -303,6 +312,7 @@ pub fn spawn_file_input(commands: &mut Commands, input: FileInput) -> Entity {
         .spawn((
             input,
             FileInputDragState::default(),
+            FileInputSelectionState::default(),
             Button,
             a11y::TabIndex(0),
             SemanticNode::new(SemanticRole::Button).label(label.clone()),
@@ -315,7 +325,10 @@ pub fn spawn_file_input(commands: &mut Commands, input: FileInput) -> Entity {
                 ..default()
             },
             BackgroundColor(Color::NONE),
-            crate::rendering::Surface::rounded_rect_fill(8.0, crate::rendering::Paint::solid(Color::NONE)),
+            crate::rendering::Surface::rounded_rect_fill(
+                8.0,
+                crate::rendering::Paint::solid(Color::NONE),
+            ),
         ))
         .with_children(|parent| {
             parent.spawn(Text::new(label));
@@ -407,6 +420,7 @@ fn process_file_picker_requests(channels: Res<FilePickerChannels>) {
 fn process_file_picker_results(
     channels: Res<FilePickerChannels>,
     inputs: Query<&FileInput>,
+    mut selections: Query<&mut FileInputSelectionState>,
     mut selected_events: MessageWriter<FilesSelected>,
     mut cancelled_events: MessageWriter<FileInputCancelled>,
 ) {
@@ -431,6 +445,9 @@ fn process_file_picker_results(
                     .collect::<Vec<_>>();
 
                 if !files.is_empty() {
+                    if let Ok(mut selection) = selections.get_mut(result.entity) {
+                        selection.files = files.clone();
+                    }
                     selected_events.write(FilesSelected {
                         entity: result.entity,
                         files,
@@ -452,10 +469,20 @@ fn process_file_picker_results(
 // ============================================================================
 
 fn process_os_drag_and_drop(
-    mut commands: Commands,
     mut drop_events: MessageReader<FileDragAndDrop>,
     inputs: Query<(Entity, &FileInput)>,
+    windows: Query<&Window>,
+    drop_targets: Query<(
+        Entity,
+        &FileInput,
+        &ComputedNode,
+        &UiGlobalTransform,
+        &ComputedStackIndex,
+        &InheritedVisibility,
+        Option<&CalculatedClip>,
+    )>,
     mut drag_states: Query<&mut FileInputDragState>,
+    mut selections: Query<&mut FileInputSelectionState>,
     mut selected_events: MessageWriter<FilesSelected>,
     mut dropped_events: MessageWriter<FilesDropped>,
     mut entered_events: MessageWriter<FilesDragEntered>,
@@ -466,30 +493,33 @@ fn process_os_drag_and_drop(
             // ------------------------------------------------------------
             // Files entered the Bevy window
             // ------------------------------------------------------------
-            FileDragAndDrop::DroppedFile {
-                window: _,
-                path_buf,
-            } => {
+            FileDragAndDrop::DroppedFile { window, path_buf } => {
+                let target =
+                    file_input_drop_target_for_window(*window, path_buf, &windows, &drop_targets);
                 handle_dropped_file(
-                    &mut commands,
                     path_buf.clone(),
+                    *window,
+                    target,
                     &inputs,
                     &mut drag_states,
+                    &mut selections,
                     &mut selected_events,
                     &mut dropped_events,
+                    &mut exited_events,
                 );
             }
 
             // ------------------------------------------------------------
             // File drag ended
             // ------------------------------------------------------------
-            FileDragAndDrop::HoveredFileCanceled { window: _ } => {
+            FileDragAndDrop::HoveredFileCanceled { window } => {
                 for (entity, _) in &inputs {
                     if let Ok(mut state) = drag_states.get_mut(entity) {
-                        if state.dragging {
+                        if state.dragging && state.window == Some(*window) {
                             state.dragging = false;
                             state.file_count = 0;
                             state.accepted = false;
+                            state.window = None;
 
                             exited_events.write(FilesDragExited { entity });
                         }
@@ -500,29 +530,32 @@ fn process_os_drag_and_drop(
             // ------------------------------------------------------------
             // File is hovering over the window
             // ------------------------------------------------------------
-            FileDragAndDrop::HoveredFile {
-                window: _,
-                path_buf,
-            } => {
+            FileDragAndDrop::HoveredFile { window, path_buf } => {
+                let target =
+                    file_input_drop_target_for_window(*window, path_buf, &windows, &drop_targets);
                 for (entity, input) in &inputs {
-                    if !input.drag_and_drop {
-                        continue;
-                    }
-
-                    let accepted = input.accepts(path_buf);
-
                     if let Ok(mut state) = drag_states.get_mut(entity) {
-                        let was_dragging = state.dragging;
-
-                        state.dragging = true;
-                        state.file_count = 1;
-                        state.accepted = accepted;
-
-                        if !was_dragging {
-                            entered_events.write(FilesDragEntered {
-                                entity,
-                                file_count: 1,
-                            });
+                        let is_target = target == Some(entity)
+                            && input.drag_and_drop
+                            && input.accepts(path_buf);
+                        if is_target {
+                            let was_target = state.dragging && state.window == Some(*window);
+                            state.dragging = true;
+                            state.file_count = 1;
+                            state.accepted = true;
+                            state.window = Some(*window);
+                            if !was_target {
+                                entered_events.write(FilesDragEntered {
+                                    entity,
+                                    file_count: 1,
+                                });
+                            }
+                        } else if state.dragging && state.window == Some(*window) {
+                            state.dragging = false;
+                            state.file_count = 0;
+                            state.accepted = false;
+                            state.window = None;
+                            exited_events.write(FilesDragExited { entity });
                         }
                     }
                 }
@@ -531,49 +564,114 @@ fn process_os_drag_and_drop(
     }
 }
 
+fn file_input_drop_target_for_window(
+    window_entity: Entity,
+    path: &PathBuf,
+    windows: &Query<&Window>,
+    targets: &Query<(
+        Entity,
+        &FileInput,
+        &ComputedNode,
+        &UiGlobalTransform,
+        &ComputedStackIndex,
+        &InheritedVisibility,
+        Option<&CalculatedClip>,
+    )>,
+) -> Option<Entity> {
+    let window = windows.get(window_entity).ok()?;
+    let pointer = window.cursor_position()? * window.scale_factor();
+    if !pointer.is_finite() {
+        return None;
+    }
+
+    let candidates = targets
+        .iter()
+        .filter(|(_, input, node, transform, _, visibility, clip)| {
+            input.drag_and_drop
+                && input.accepts(path)
+                && visibility.get()
+                && !node.is_empty()
+                && clip.is_none_or(|clip| !clip.clip.is_empty() && clip.clip.contains(pointer))
+                && node.contains_point(**transform, pointer)
+        })
+        .map(|(entity, _, _, _, stack, _, _)| (entity, stack.0))
+        .collect::<Vec<_>>();
+    choose_topmost_file_input(candidates)
+}
+
+fn choose_topmost_file_input(
+    candidates: impl IntoIterator<Item = (Entity, u32)>,
+) -> Option<Entity> {
+    candidates
+        .into_iter()
+        .max_by(|(left_entity, left_stack), (right_entity, right_stack)| {
+            left_stack
+                .cmp(right_stack)
+                .then_with(|| left_entity.to_bits().cmp(&right_entity.to_bits()))
+        })
+        .map(|(entity, _)| entity)
+}
+
 // ============================================================================
 // Handle Dropped File
 // ============================================================================
 
 fn handle_dropped_file(
-    _commands: &mut Commands,
     path: PathBuf,
+    window: Entity,
+    target: Option<Entity>,
     inputs: &Query<(Entity, &FileInput)>,
     drag_states: &mut Query<&mut FileInputDragState>,
+    selections: &mut Query<&mut FileInputSelectionState>,
     selected_events: &mut MessageWriter<FilesSelected>,
     dropped_events: &mut MessageWriter<FilesDropped>,
+    exited_events: &mut MessageWriter<FilesDragExited>,
 ) {
-    for (entity, input) in inputs.iter() {
-        if !input.drag_and_drop {
-            continue;
-        }
-
-        let accepted = input.accepts(&path);
-
+    for (entity, _) in inputs.iter() {
         if let Ok(mut state) = drag_states.get_mut(entity) {
-            state.dragging = false;
-            state.file_count = 0;
-            state.accepted = false;
+            if state.window == Some(window) {
+                if state.dragging {
+                    exited_events.write(FilesDragExited { entity });
+                }
+                state.dragging = false;
+                state.file_count = 0;
+                state.accepted = false;
+                state.window = None;
+            }
         }
-
-        if !accepted {
-            continue;
-        }
-
-        let file = SelectedFile {
-            file_type: detect_file_type(&path),
-            path: path.clone(),
-        };
-
-        let files = vec![file];
-
-        selected_events.write(FilesSelected {
-            entity,
-            files: files.clone(),
-        });
-
-        dropped_events.write(FilesDropped { entity, files });
     }
+
+    let Some(entity) = target else {
+        return;
+    };
+    let Ok((_, input)) = inputs.get(entity) else {
+        return;
+    };
+    if !input.drag_and_drop || !input.accepts(&path) {
+        return;
+    }
+
+    let file = SelectedFile {
+        file_type: detect_file_type(&path),
+        path,
+    };
+
+    let files = vec![file];
+
+    if let Ok(mut selection) = selections.get_mut(entity) {
+        if input.multiple {
+            selection.files.push(files[0].clone());
+        } else {
+            selection.files = files.clone();
+        }
+    }
+
+    selected_events.write(FilesSelected {
+        entity,
+        files: files.clone(),
+    });
+
+    dropped_events.write(FilesDropped { entity, files });
 }
 
 // ============================================================================
@@ -612,8 +710,35 @@ mod tests {
 
     #[test]
     fn file_type_detection_rejects_unknown_and_missing_extensions() {
-        assert_eq!(detect_file_type(&PathBuf::from("photo.PNG")), Some(FileType::Image));
+        assert_eq!(
+            detect_file_type(&PathBuf::from("photo.PNG")),
+            Some(FileType::Image)
+        );
         assert_eq!(detect_file_type(&PathBuf::from("archive.zip")), None);
         assert_eq!(detect_file_type(&PathBuf::from("README")), None);
+    }
+
+    #[test]
+    fn overlapping_file_inputs_choose_only_the_topmost_accepting_target() {
+        let lower = Entity::from_bits(10);
+        let upper = Entity::from_bits(20);
+
+        assert_eq!(
+            choose_topmost_file_input([(lower, 1), (upper, 2)]),
+            Some(upper)
+        );
+        assert_eq!(choose_topmost_file_input([(lower, 1)]), Some(lower));
+        assert_eq!(choose_topmost_file_input([]), None);
+    }
+
+    #[test]
+    fn equal_stack_candidates_have_stable_entity_tiebreaking() {
+        let low_id = Entity::from_bits(10);
+        let high_id = Entity::from_bits(20);
+
+        assert_eq!(
+            choose_topmost_file_input([(high_id, 4), (low_id, 4)]),
+            Some(high_id),
+        );
     }
 }

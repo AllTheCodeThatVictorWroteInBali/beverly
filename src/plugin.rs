@@ -10,14 +10,14 @@ pub struct BeverlyPlugin;
 
 impl Plugin for BeverlyPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(PostStartup, ensure_default_ui_camera)
+        app.add_systems(PostStartup, ensure_default_ui_camera)
             // Rendering / theme foundation.
             .add_plugins(crate::rendering::UiRenderingPlugin)
             .add_plugins(crate::rendering::UiFrameworkAuditPlugin)
             .add_plugins(crate::theme::ThemePlugin)
             // Cross-cutting primitives.
             .add_plugins(crate::primitives::a11y::A11yPlugin)
+            .add_plugins(crate::primitives::binding::BindingPlugin)
             .add_plugins(crate::primitives::clipboard::ClipboardPlugin)
             .add_plugins(crate::primitives::focus::FocusPlugin)
             .add_plugins(crate::primitives::interaction::InteractionPlugin)
@@ -40,6 +40,7 @@ impl Plugin for BeverlyPlugin {
             .add_plugins(crate::components::divider::DividerPlugin)
             .add_plugins(crate::components::dropdown::DropdownPlugin)
             .add_plugins(crate::components::file_input::FileInputPlugin)
+            .add_plugins(crate::components::form::FormPlugin)
             .add_plugins(crate::components::footer::FooterPlugin)
             .add_plugins(crate::components::input::TextInputPlugin)
             .add_plugins(crate::components::link::LinkPlugin)
@@ -68,10 +69,7 @@ impl Plugin for BeverlyPlugin {
     }
 }
 
-fn ensure_default_ui_camera(
-    mut commands: Commands,
-    cameras: Query<(), With<Camera2d>>,
-) {
+fn ensure_default_ui_camera(mut commands: Commands, cameras: Query<(), With<Camera2d>>) {
     if cameras.is_empty() {
         commands.spawn((Camera2d, bevy::ui::IsDefaultUiCamera));
     }

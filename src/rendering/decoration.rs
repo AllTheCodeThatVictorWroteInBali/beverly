@@ -194,11 +194,7 @@ fn shadow_falloff_extent(blur: f32, falloff: super::effect::ShadowFalloff) -> f3
 }
 
 fn sanitize_finite(value: f32, fallback: f32) -> f32 {
-    if value.is_nan() {
-        fallback
-    } else {
-        value
-    }
+    if value.is_nan() { fallback } else { value }
 }
 
 fn sanitize_non_negative(value: f32, fallback: f32) -> f32 {
@@ -228,8 +224,10 @@ mod tests {
     #[test]
     fn focus_ring_extent_respects_placement() {
         let outside = FocusRing::outside(2.0, 3.0, Color::WHITE);
-        let center = FocusRing::outside(2.0, 3.0, Color::WHITE).with_placement(FocusRingPlacement::Center);
-        let inside = FocusRing::outside(2.0, 3.0, Color::WHITE).with_placement(FocusRingPlacement::Inside);
+        let center =
+            FocusRing::outside(2.0, 3.0, Color::WHITE).with_placement(FocusRingPlacement::Center);
+        let inside =
+            FocusRing::outside(2.0, 3.0, Color::WHITE).with_placement(FocusRingPlacement::Inside);
 
         assert_eq!(outside.max_outer_extent(), 5.0);
         assert_eq!(center.max_outer_extent(), 4.0);

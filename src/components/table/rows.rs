@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use crate::rendering::{Paint, Surface};
 use crate::components::text::{TextRole, ThemedText};
+use crate::rendering::{Paint, Surface};
 
 use super::component::{TableCellLabel, TableCellNode, TableConfig, TableRow, TableRowNode};
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
