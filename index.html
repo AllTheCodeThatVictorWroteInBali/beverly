@@ -816,6 +816,130 @@
       }
 
       /* =========================================================
+     DOWNLOAD
+     ========================================================= */
+
+      .hero-download-link {
+        margin-top: 22px;
+      }
+
+      .hero-download-link a {
+        color: #94a3b8;
+
+        font-size: 0.9rem;
+
+        text-decoration: underline;
+        text-underline-offset: 4px;
+
+        transition: color 0.25s ease;
+      }
+
+      .hero-download-link a:hover {
+        color: #f8fafc;
+      }
+
+      .download-section {
+        padding: 150px 24px;
+
+        text-align: center;
+
+        background: #08090e;
+
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .download-container {
+        max-width: 760px;
+        margin: 0 auto;
+      }
+
+      .download-container h2 {
+        font-size: clamp(2.4rem, 5vw, 4rem);
+
+        line-height: 1;
+
+        letter-spacing: -0.05em;
+      }
+
+      .download-copy {
+        max-width: 600px;
+
+        margin: 24px auto 0;
+
+        color: #64748b;
+
+        font-size: 1.05rem;
+
+        line-height: 1.7;
+      }
+
+      .download-actions {
+        justify-content: center;
+      }
+
+      .download-steps {
+        margin-top: 56px;
+        padding: 28px 32px;
+
+        text-align: left;
+
+        border-radius: 16px;
+
+        border: 1px solid rgba(255, 255, 255, 0.07);
+
+        background: rgba(255, 255, 255, 0.025);
+      }
+
+      .download-steps h3 {
+        color: #f8fafc;
+
+        font-size: 1rem;
+      }
+
+      .download-steps ol {
+        margin: 16px 0 0;
+        padding-left: 22px;
+
+        color: #94a3b8;
+
+        font-size: 0.95rem;
+
+        line-height: 1.7;
+      }
+
+      .download-steps li + li {
+        margin-top: 8px;
+      }
+
+      .download-steps strong {
+        color: #e2e8f0;
+      }
+
+      .download-steps p {
+        margin-top: 16px;
+
+        color: #64748b;
+
+        font-size: 0.85rem;
+
+        line-height: 1.7;
+      }
+
+      .download-steps code {
+        padding: 2px 6px;
+
+        border-radius: 6px;
+
+        background: rgba(255, 255, 255, 0.06);
+
+        color: #cbd5e1;
+
+        font-size: 0.8rem;
+
+        word-break: break-all;
+      }
+
+      /* =========================================================
      FOOTER
      ========================================================= */
 
@@ -1100,14 +1224,11 @@
           <a href="/docs" class="btn btn-secondary" target="_blank">
             View Components
           </a>
-
-          <a
-            href="https://github.com/AllTheCodeThatVictorWroteInBali/beverly/releases/download/bev-test-v0.1.0/BevTest-0.1.0-macos-arm64.dmg"
-            class="btn btn-secondary"
-          >
-            Download Demo for macOS
-          </a>
         </div>
+
+        <p class="hero-download-link">
+          <a href="#download"> Download the macOS demo &rarr; </a>
+        </p>
       </div>
     </section>
 
@@ -1345,6 +1466,56 @@
     </section>
 
     <!-- =======================================================
+     DOWNLOAD
+     ======================================================= -->
+
+    <section id="download" class="download-section">
+      <div class="download-container">
+        <span class="section-label"> Try It Locally </span>
+
+        <h2>Bev Test for macOS</h2>
+
+        <p class="download-copy">
+          A local-LLM chat demo built with Beverly. It runs fully on your
+          machine; model weights download from Hugging Face on first use.
+          Requires macOS on Apple Silicon.
+        </p>
+
+        <div class="jumbotron-actions download-actions">
+          <a
+            href="https://github.com/AllTheCodeThatVictorWroteInBali/beverly/releases/download/bev-test-v0.1.0/BevTest-0.1.0-macos-arm64.dmg"
+            class="btn btn-primary"
+          >
+            Download for macOS (.dmg)
+          </a>
+        </div>
+
+        <div class="download-steps">
+          <h3>Install</h3>
+          <ol>
+            <li>Open the downloaded DMG and drag Bev Test to Applications.</li>
+            <li>
+              Open Bev Test. macOS will say it could not verify the app is free
+              of malware, because it is not yet notarized by Apple. Click
+              <strong>Done</strong>.
+            </li>
+            <li>
+              Open <strong>System Settings &rarr; Privacy &amp; Security</strong
+              >, scroll to Security, click <strong>Open Anyway</strong> next to
+              BevTest, and confirm.
+            </li>
+          </ol>
+          <p>
+            On macOS 14 or earlier, right-click the app, choose Open, then Open
+            again. You can also run
+            <code>xattr -dr com.apple.quarantine /Applications/BevTest.app</code>
+            in Terminal.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================
      CTA
      ======================================================= -->
 
@@ -1435,11 +1606,7 @@
               </li>
 
               <li>
-                <a
-                  href="https://github.com/AllTheCodeThatVictorWroteInBali/beverly/releases/download/bev-test-v0.1.0/BevTest-0.1.0-macos-arm64.dmg"
-                >
-                  Download Demo (macOS)
-                </a>
+                <a href="#download"> Download Demo (macOS) </a>
               </li>
 
               <li>
