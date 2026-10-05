@@ -7,6 +7,7 @@ pub mod card;
 pub mod checkbox;
 pub mod container;
 pub mod divider;
+pub mod dots;
 pub mod dropdown;
 pub mod file_input;
 pub mod footer;

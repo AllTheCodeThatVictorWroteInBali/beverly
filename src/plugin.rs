@@ -38,6 +38,7 @@ impl Plugin for BeverlyPlugin {
             .add_plugins(crate::components::card::CardPlugin)
             .add_plugins(crate::components::checkbox::CheckboxPlugin)
             .add_plugins(crate::components::divider::DividerPlugin)
+            .add_plugins(crate::components::dots::DotsPlugin)
             .add_plugins(crate::components::dropdown::DropdownPlugin)
             .add_plugins(crate::components::file_input::FileInputPlugin)
             .add_plugins(crate::components::form::FormPlugin)

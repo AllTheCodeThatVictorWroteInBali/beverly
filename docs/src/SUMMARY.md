@@ -30,6 +30,7 @@
   - [Typography](./components/typography/overview.md)
     - [Text](./components/typography/text.md)
     - [Title](./components/typography/title.md)
+    - [Dots](./components/typography/dots.md)
   - [Forms](./components/forms/overview.md)
     - [Form](./components/forms/form.md)
     - [Input](./components/forms/input.md)

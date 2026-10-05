@@ -64,6 +64,7 @@ pub use crate::components::card::{Card, CardPlugin};
 pub use crate::components::checkbox::{Checkbox, CheckboxPlugin};
 pub use crate::components::container::Container;
 pub use crate::components::divider::{Divider, DividerPlugin};
+pub use crate::components::dots::{Dots, DotsPlugin};
 pub use crate::components::dropdown::{Dropdown, DropdownPlugin};
 pub use crate::components::file_input::{
     FileInput, FileInputPlugin, FileInputSelectionState, FileType, SelectedFile,

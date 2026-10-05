@@ -14,6 +14,8 @@ Typography
 │   └── Mark the hierarchy of screens and sections
 ├── Text roles
 │   └── Describe body, label, caption, and status content
+├── Dots
+│   └── Animate trailing periods to signal ongoing work
 └── Theme
 	└── Supplies shared family, size, and color defaults
 ```
