@@ -10,6 +10,11 @@ Beverly is currently in early development, so version numbers and release conven
 
 ### Added
 
+- `Surface::animated_border(SpinningGradient)`: a GPU-animated spinning gradient border that takes
+  an optional custom gradient and freezes under reduced motion. Gradient paints now accept up to
+  five stops (previously four).
+- `Textarea::busy`: set it while work is in progress and the textarea draws the spinning border
+  itself.
 - `BeverlyButton` component: a real, themed, accessible push button (previously an unused,
   unwired data struct). Nine color variants (`primary`, `secondary`, `success`, `danger`,
   `warning`, `info`, `light`, `dark`, `text`), an `outline` style, a `disabled` state that

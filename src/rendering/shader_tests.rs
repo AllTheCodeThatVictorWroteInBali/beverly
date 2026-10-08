@@ -440,6 +440,76 @@ fn shimmer_color(x: f32, time: f32, paint: &super::PaintUniform) -> Vec4 {
 }
 
 #[test]
+fn spinning_paint_is_kind5_driven_by_the_gpu_clock_and_dispatched_before_shimmer() {
+    let body = SHADER
+        .split("fn evaluate_spinning(")
+        .nth(1)
+        .unwrap()
+        .split("fn evaluate_shimmer(")
+        .next()
+        .unwrap();
+    assert!(body.contains(
+        "if paint.kind_and_flags.w > 0.5 {\n        spin = spinning_angle(globals.time);"
+    ));
+    assert!(body.contains("sample_gradient_stops(paint,"));
+    let curve = SHADER
+        .split("fn spinning_angle(")
+        .nth(1)
+        .unwrap()
+        .split('}')
+        .next()
+        .unwrap();
+    assert!(curve.contains("3.0 * time + 0.7 * (1.0 - cos(2.0 * time))"));
+    let dispatch = SHADER
+        .split("fn evaluate_paint(")
+        .nth(1)
+        .unwrap()
+        .split("fn dither_noise(")
+        .next()
+        .unwrap();
+    assert!(dispatch.contains("if kind > 4.5 {\n        return evaluate_spinning(uv, paint);"));
+    assert!(
+        dispatch.find("evaluate_spinning").unwrap() < dispatch.find("evaluate_shimmer").unwrap()
+    );
+}
+
+#[test]
+fn spinning_paint_encodes_kind5_stops_and_enable_flag_in_existing_lanes() {
+    use crate::rendering::{Paint, SpinningGradient};
+    let gradient = SpinningGradient::default();
+    let paint = super::encode_paint(&Paint::spinning(gradient.clone()));
+    assert_eq!(paint.kind_and_flags.x, 5.0);
+    assert_eq!(paint.kind_and_flags.y, super::MAX_GRADIENT_STOPS as f32);
+    assert_eq!(paint.kind_and_flags.w, 1.0);
+    assert_eq!(paint.stops[0].position_and_pad.x, 0.60);
+    assert_eq!(paint.angular_center_angle.xy(), Vec2::splat(0.5));
+
+    let disabled = super::encode_paint(&Paint::spinning(SpinningGradient {
+        enabled: false,
+        ..gradient
+    }));
+    assert_eq!(disabled.kind_and_flags.w, 0.0);
+}
+
+#[test]
+fn animated_border_keeps_existing_width_and_defaults_to_one_pixel() {
+    use crate::rendering::{Paint, SpinningGradient, Surface};
+    let widths = Surface::rounded_rect_fill(4.0, Color::WHITE)
+        .uniform_border(3.0, Color::BLACK)
+        .animated_border(SpinningGradient::default())
+        .border
+        .unwrap();
+    assert_eq!(widths.width, crate::rendering::BorderWidths::all(3.0));
+    assert!(matches!(widths.paint, Paint::Spinning(_)));
+
+    let fresh = Surface::rounded_rect_fill(4.0, Color::WHITE)
+        .animated_border(SpinningGradient::default())
+        .border
+        .unwrap();
+    assert_eq!(fresh.width, crate::rendering::BorderWidths::all(1.0));
+}
+
+#[test]
 fn shimmer_wgsl_source_binds_packed_kind4_timing_bounds_and_premul_math() {
     let body = SHADER
         .split("fn evaluate_shimmer(")

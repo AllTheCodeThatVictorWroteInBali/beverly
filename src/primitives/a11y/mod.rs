@@ -279,9 +279,10 @@ fn sync_focus_ring(
             let dark_background = match &surface.fill {
                 Paint::Solid(color) => color.to_linear().luminance() < 0.5,
                 Paint::Shimmer(shimmer) => shimmer.base_color.to_linear().luminance() < 0.5,
-                Paint::LinearGradient(_) | Paint::RadialGradient(_) | Paint::AngularGradient(_) => {
-                    theme.current.mode == crate::theme::ThemeMode::Dark
-                }
+                Paint::LinearGradient(_)
+                | Paint::RadialGradient(_)
+                | Paint::AngularGradient(_)
+                | Paint::Spinning(_) => theme.current.mode == crate::theme::ThemeMode::Dark,
             };
 
             let context = SurfaceContext {

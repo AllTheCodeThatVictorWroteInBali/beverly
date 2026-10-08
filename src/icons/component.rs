@@ -458,6 +458,7 @@ fn sync_ui_svg_icon_proxies(
         &IconNode,
         &ComputedNode,
         &UiGlobalTransform,
+        Option<&InheritedVisibility>,
         Option<&ComputedStackIndex>,
         &UiIconProxyEntity,
     )>,
@@ -494,12 +495,23 @@ fn sync_ui_svg_icon_proxies(
         .unwrap_or(window_center);
 
     for (proxy_entity, proxy, mut svg2d, mut transform, mut visibility, anchor) in &mut proxies {
-        let Ok((icon_node, computed, ui_transform, stack_index, linked_proxy)) =
-            ui_icons.get(proxy.owner)
+        let Ok((
+            icon_node,
+            computed,
+            ui_transform,
+            inherited_visibility,
+            stack_index,
+            linked_proxy,
+        )) = ui_icons.get(proxy.owner)
         else {
             *visibility = Visibility::Hidden;
             continue;
         };
+
+        if inherited_visibility.is_some_and(|visibility| !visibility.get()) {
+            *visibility = Visibility::Hidden;
+            continue;
+        }
 
         if linked_proxy.0 != proxy_entity {
             *visibility = Visibility::Hidden;

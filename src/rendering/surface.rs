@@ -9,6 +9,7 @@ use super::{
     noise::Noise,
     paint::Paint,
     shape::Shape,
+    spinning::SpinningGradient,
 };
 
 /// Visual description of a UI surface.
@@ -190,6 +191,18 @@ impl Surface {
 
     pub fn uniform_border(mut self, width: f32, paint: impl Into<Paint>) -> Self {
         self.border = Some(Border::new(width, paint.into()));
+        self
+    }
+
+    /// Paints the border with a gradient that spins around the surface. Keeps an
+    /// existing border width, or uses 1px if the surface has no border yet.
+    pub fn animated_border(mut self, gradient: SpinningGradient) -> Self {
+        let width = self.border.as_ref().map(|border| border.width);
+        let paint = Paint::spinning(gradient);
+        self.border = Some(match width {
+            Some(width) => Border::per_side(width, paint),
+            None => Border::new(1.0, paint),
+        });
         self
     }
 }

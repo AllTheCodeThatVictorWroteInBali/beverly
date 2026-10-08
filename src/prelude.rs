@@ -19,7 +19,7 @@ pub use crate::icons::{FeatherIconsPlugin, Icon, IconNode};
 // Rendering / styling primitives.
 pub use crate::rendering::{
     Backdrop, BackdropQuality, Border, BorderWidths, GradientStop, InnerShadow, LinearGradient,
-    LiquidGlass, Mask, OuterGlow, OuterShadow, Paint, Shimmer, Surface,
+    LiquidGlass, Mask, OuterGlow, OuterShadow, Paint, Shimmer, SpinningGradient, Surface,
 };
 
 // Cross-cutting primitives.

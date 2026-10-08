@@ -9,7 +9,7 @@ var<uniform> view: View;
 @group(0) @binding(1)
 var<uniform> globals: Globals;
 
-const MAX_GRADIENT_STOPS: u32 = 4u;
+const MAX_GRADIENT_STOPS: u32 = 5u;
 const SHADOW_FALLOFF_LINEAR: f32 = 0.0;
 const SHADOW_FALLOFF_SMOOTH: f32 = 1.0;
 const SHADOW_FALLOFF_GAUSSIAN: f32 = 2.0;
@@ -256,6 +256,22 @@ fn angular_gradient_t(uv: vec2<f32>, paint: PaintUniform) -> f32 {
     return fract(angle / tau);
 }
 
+// Steady spin plus a slow pulse, so the highlight speeds up and eases off.
+fn spinning_angle(time: f32) -> f32 {
+    return 3.0 * time + 0.7 * (1.0 - cos(2.0 * time));
+}
+
+// Kind 5: an angular gradient whose angle follows the GPU clock. w = 0 freezes it.
+fn evaluate_spinning(uv: vec2<f32>, paint: PaintUniform) -> vec4<f32> {
+    var spin = 0.0;
+    if paint.kind_and_flags.w > 0.5 {
+        spin = spinning_angle(globals.time);
+    }
+    let delta = uv - paint.angular_center_angle.xy;
+    let tau = 6.283185307179586;
+    return sample_gradient_stops(paint, fract((atan2(delta.y, delta.x) - spin) / tau));
+}
+
 // Shimmer reuses the gradient descriptor as a tagged union: base in solid_color,
 // highlight in angular_center_angle, timing/direction/phase/width in linear_points,
 // softness/intensity in radial_center_radius. No additional buffers or passes.
@@ -276,6 +292,10 @@ fn evaluate_shimmer(uv: vec2<f32>, paint: PaintUniform) -> vec4<f32> {
 
 fn evaluate_paint(uv: vec2<f32>, paint: PaintUniform) -> vec4<f32> {
     let kind = paint.kind_and_flags.x;
+
+    if kind > 4.5 {
+        return evaluate_spinning(uv, paint);
+    }
 
     if kind > 3.5 {
         return evaluate_shimmer(uv, paint);

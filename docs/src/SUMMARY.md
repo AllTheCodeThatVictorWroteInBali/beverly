@@ -8,7 +8,7 @@
   - [Events](./architecture/event.md)
   - [Controller](./architecture/controller.md)
   - [Localize](./architecture/localize.md)
-  - [Workers & Channels](./architecture/workers.md)
+  - [Workers & Channels](./architecture/workers.mds)
 - [Components](./components/overview.md)
   - [Button](./components/button.md)
   - [Content](./components/content/overview.md)

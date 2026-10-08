@@ -32,6 +32,28 @@ fn build_gradient_panel(mut commands: Commands) {
 
 This is a good example of a gradient used as a controlled surface treatment. It adds visual richness while leaving the content hierarchy intact and the interaction model clear.
 
+## Animated borders
+
+`Surface::animated_border` paints the border with a gradient that spins around the surface. It is added like any other surface treatment, and the animation runs on the GPU clock, so it needs no system of your own:
+
+```rust
+Surface::rounded_rect_fill(8.0, Color::WHITE)
+    .uniform_border(1.0, Color::NONE)
+    .animated_border(SpinningGradient::default());
+```
+
+The default is a neutral line with a blue and near-white highlight chasing around it. Pass your own stops to change the colors. The speed is fixed, and up to five stops are used:
+
+```rust
+Surface::rounded_rect_fill(8.0, Color::WHITE).animated_border(SpinningGradient::new([
+    GradientStop::new(0.0, Color::srgb(0.9, 0.2, 0.4)),
+    GradientStop::new(0.5, Color::srgb(1.0, 0.8, 0.2)),
+    GradientStop::new(1.0, Color::srgb(0.9, 0.2, 0.4)),
+]));
+```
+
+Stops are positions around one full turn. Keep the first and last colors equal so the loop has no seam. An existing border width is kept; otherwise the border is 1px. The spin stops when the user prefers reduced motion.
+
 ## Guidance
 
 - use gradients to direct attention, not as a replacement for strong hierarchy

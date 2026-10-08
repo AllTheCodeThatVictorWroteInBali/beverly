@@ -30,6 +30,7 @@ const PAINT_KIND_SOLID: f32 = 0.0;
 const PAINT_KIND_LINEAR: f32 = 1.0;
 const PAINT_KIND_RADIAL: f32 = 2.0;
 const PAINT_KIND_ANGULAR: f32 = 3.0;
+const PAINT_KIND_SPINNING: f32 = 5.0;
 const PAINT_FLAG_DITHERING: f32 = 1.0;
 const SHADOW_FALLOFF_LINEAR: f32 = 0.0;
 const SHADOW_FALLOFF_SMOOTH: f32 = 1.0;
@@ -957,6 +958,21 @@ fn encode_paint(paint: &Paint) -> PaintUniform {
         Paint::LinearGradient(gradient) => encode_linear_gradient(gradient),
         Paint::RadialGradient(gradient) => encode_radial_gradient(gradient),
         Paint::AngularGradient(gradient) => encode_angular_gradient(gradient),
+        Paint::Spinning(gradient) => {
+            let (stops, stop_count) = encode_stops(&gradient.normalized_stops());
+            PaintUniform {
+                // w = 0 freezes the spin (reduced motion), as with shimmer.
+                kind_and_flags: Vec4::new(
+                    PAINT_KIND_SPINNING,
+                    stop_count,
+                    PAINT_FLAG_DITHERING,
+                    if gradient.enabled { 1.0 } else { 0.0 },
+                ),
+                angular_center_angle: Vec4::new(0.5, 0.5, 0.0, 0.0),
+                stops,
+                ..PaintUniform::default()
+            }
+        }
         Paint::Shimmer(shimmer) => {
             let shimmer = shimmer.sanitized();
             // Tagged union: reuse unused gradient lanes; no uniform ABI growth.
@@ -1865,6 +1881,7 @@ mod tests {
             GradientStop::new(0.25, Color::srgb(1.0, 1.0, 0.0)),
             GradientStop::new(0.5, Color::srgb(0.0, 1.0, 0.0)),
             GradientStop::new(0.75, Color::srgb(0.0, 1.0, 1.0)),
+            GradientStop::new(0.9, Color::srgb(0.5, 0.0, 1.0)),
             GradientStop::new(1.0, Color::srgb(0.0, 0.0, 1.0)),
         ]);
         let surface = Surface::new(Shape::rounded_rect(8.0), Paint::linear(gradient));
@@ -1878,7 +1895,10 @@ mod tests {
             BackdropDebugView::Final,
         );
         assert_eq!(uniforms.fill_paint.kind_and_flags.x, 1.0);
-        assert_eq!(uniforms.fill_paint.kind_and_flags.y, 4.0);
+        assert_eq!(
+            uniforms.fill_paint.kind_and_flags.y,
+            super::MAX_GRADIENT_STOPS as f32
+        );
         assert_eq!(uniforms.fill_paint.kind_and_flags.z, 1.0);
     }
 

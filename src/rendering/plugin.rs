@@ -371,12 +371,18 @@ fn sync_surface_materials(
                         policy.current.reduced_motion || policy.current.reduced_effects
                     })
                 {
-                    // Apply to ANY Surface authoring shimmer, not just Skeleton.
-                    if matches!(&surface.fill, super::paint::Paint::Shimmer(_)) {
+                    // Apply to ANY Surface authoring shimmer or a spinning gradient.
+                    if matches!(
+                        &surface.fill,
+                        super::paint::Paint::Shimmer(_) | super::paint::Paint::Spinning(_)
+                    ) {
                         uniforms.fill_paint.kind_and_flags.w = 0.0;
                     }
                     if surface.border.as_ref().is_some_and(|border| {
-                        matches!(&border.paint, super::paint::Paint::Shimmer(_))
+                        matches!(
+                            &border.paint,
+                            super::paint::Paint::Shimmer(_) | super::paint::Paint::Spinning(_)
+                        )
                     }) {
                         uniforms.border_paint.kind_and_flags.w = 0.0;
                     }
@@ -1071,6 +1077,31 @@ mod tests {
             assert!(!assets.contains(old_id), "{removal}");
             assert_eq!(assets.len(), usize::from(removal == "marker"), "{removal}");
         }
+    }
+
+    #[test]
+    fn spinning_border_freezes_under_reduced_motion_without_changing_authoring() {
+        use crate::theme::{AccessibilityVisualPolicy, AccessibilityVisualPolicyResource};
+        let authored = Surface::rounded_rect_fill(8.0, Color::WHITE)
+            .uniform_border(2.0, Color::BLACK)
+            .animated_border(super::super::SpinningGradient::default());
+        let mut app = app();
+        let entity = spawn(&mut app, authored.clone());
+        app.update();
+        app.update();
+        assert_eq!(uniforms(&app, entity).border_paint.kind_and_flags.w, 1.0);
+        assert_eq!(uniforms(&app, entity).border_paint.kind_and_flags.x, 5.0);
+
+        app.world_mut()
+            .insert_resource(AccessibilityVisualPolicyResource {
+                current: AccessibilityVisualPolicy {
+                    reduced_motion: true,
+                    ..default()
+                },
+            });
+        app.update();
+        assert_eq!(uniforms(&app, entity).border_paint.kind_and_flags.w, 0.0);
+        assert_eq!(app.world().get::<Surface>(entity).unwrap(), &authored);
     }
 
     #[test]

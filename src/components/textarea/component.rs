@@ -14,6 +14,9 @@ pub struct Textarea {
 
     pub focused: bool,
 
+    /// Shows the spinning border, e.g. while a response is being generated.
+    pub busy: bool,
+
     /// Character index of the cursor.
     pub cursor: usize,
 
@@ -60,6 +63,7 @@ impl Textarea {
             placeholder: placeholder.into(),
 
             focused: false,
+            busy: false,
 
             cursor: 0,
             selection_anchor: None,
@@ -347,12 +351,12 @@ pub fn spawn_textarea(parent: &mut ChildSpawnerCommands, config: TextareaConfig)
                 justify_content: JustifyContent::FlexStart,
                 padding: UiRect::all(px(14.0)),
                 border: UiRect::all(px(1.0)),
-                border_radius: BorderRadius::all(px(0.0)),
+                border_radius: BorderRadius::all(px(8.0)),
                 ..default()
             },
             BackgroundColor(Color::NONE),
             BorderColor::all(Color::NONE),
-            Surface::rounded_rect_fill(0.0, Paint::solid(Color::srgb(0.96, 0.96, 0.96)))
+            Surface::rounded_rect_fill(8.0, Paint::solid(Color::srgb(0.96, 0.96, 0.96)))
                 .uniform_border(1.0, Paint::solid(Color::srgb(0.83, 0.83, 0.81))),
             TextareaSurface,
         ))
@@ -366,7 +370,13 @@ pub fn spawn_textarea(parent: &mut ChildSpawnerCommands, config: TextareaConfig)
                 },
                 TextColor(Color::srgb(0.12, 0.12, 0.14)),
                 TextareaText,
-                Node { ..default() },
+                Node {
+                    position_type: PositionType::Absolute,
+                    left: px(14.0),
+                    right: px(14.0),
+                    top: px(14.0),
+                    ..default()
+                },
             ));
 
             textarea_node.spawn((

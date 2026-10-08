@@ -11,7 +11,7 @@ use super::{
 };
 use crate::primitives::a11y::{FocusGained, FocusLost};
 use crate::primitives::clipboard::Clipboard;
-use crate::rendering::Paint;
+use crate::rendering::{Paint, SpinningGradient};
 use crate::theme::ThemeResource;
 
 /// Bridges keyboard (Tab) focus into `Textarea::focused`, so tabbing to a
@@ -117,16 +117,19 @@ pub fn textarea_visual_system(
         }
 
         if let Ok(mut surface) = surface_query.get_mut(entity) {
-            if textarea.focused {
-                surface.fill = Paint::solid(colors.surface);
-                if let Some(border) = surface.border.as_mut() {
-                    border.paint = Paint::solid(colors.focus);
-                }
+            surface.fill = Paint::solid(if textarea.focused {
+                colors.surface
             } else {
-                surface.fill = Paint::solid(colors.surface_elevated);
-                if let Some(border) = surface.border.as_mut() {
-                    border.paint = Paint::solid(colors.border);
-                }
+                colors.surface_elevated
+            });
+            if let Some(border) = surface.border.as_mut() {
+                border.paint = if textarea.busy {
+                    Paint::spinning(SpinningGradient::default())
+                } else if textarea.focused {
+                    Paint::solid(colors.focus)
+                } else {
+                    Paint::solid(colors.border)
+                };
             }
         }
     }
@@ -254,5 +257,52 @@ pub fn textarea_keyboard_system(
         if selecting {
             textarea.reset_caret();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::components::textarea::component::TextareaSurface;
+    use crate::rendering::Surface;
+
+    fn border_paint(app: &App, entity: Entity) -> Paint {
+        app.world()
+            .get::<Surface>(entity)
+            .unwrap()
+            .border
+            .as_ref()
+            .unwrap()
+            .paint
+            .clone()
+    }
+
+    #[test]
+    fn busy_textarea_draws_spinning_border_and_restores_it_when_idle() {
+        let mut app = App::new();
+        app.init_resource::<Time>()
+            .init_resource::<ThemeResource>()
+            .add_systems(Update, textarea_visual_system);
+        let entity = app
+            .world_mut()
+            .spawn((
+                Textarea::new("ask"),
+                TextareaSurface,
+                Surface::rounded_rect_fill(8.0, Color::WHITE).uniform_border(1.0, Color::BLACK),
+            ))
+            .id();
+
+        app.update();
+        assert!(matches!(border_paint(&app, entity), Paint::Solid(_)));
+
+        app.world_mut().get_mut::<Textarea>(entity).unwrap().busy = true;
+        app.update();
+        assert!(matches!(border_paint(&app, entity), Paint::Spinning(_)));
+
+        app.world_mut().get_mut::<Textarea>(entity).unwrap().busy = false;
+        app.world_mut().get_mut::<Textarea>(entity).unwrap().focused = true;
+        app.update();
+        let focus = app.world().resource::<ThemeResource>().current.colors.focus;
+        assert_eq!(border_paint(&app, entity), Paint::solid(focus));
     }
 }

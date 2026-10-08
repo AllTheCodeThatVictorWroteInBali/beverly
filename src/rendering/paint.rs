@@ -1,6 +1,6 @@
 use bevy::{color::LinearRgba, prelude::*};
 
-pub const MAX_GRADIENT_STOPS: usize = 4;
+pub const MAX_GRADIENT_STOPS: usize = 5;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct GradientStop {
@@ -145,6 +145,7 @@ pub enum Paint {
     LinearGradient(LinearGradient),
     RadialGradient(RadialGradient),
     AngularGradient(AngularGradient),
+    Spinning(super::SpinningGradient),
 }
 
 impl Paint {
@@ -164,6 +165,10 @@ impl Paint {
         Self::AngularGradient(gradient)
     }
 
+    pub fn spinning(gradient: super::SpinningGradient) -> Self {
+        Self::Spinning(gradient)
+    }
+
     /// Converts authored UI color into linear RGBA used by the shader.
     pub fn to_linear_rgba(&self) -> Option<LinearRgba> {
         match self {
@@ -171,7 +176,8 @@ impl Paint {
             Self::Shimmer(_)
             | Self::LinearGradient(_)
             | Self::RadialGradient(_)
-            | Self::AngularGradient(_) => None,
+            | Self::AngularGradient(_)
+            | Self::Spinning(_) => None,
         }
     }
 }

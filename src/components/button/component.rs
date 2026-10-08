@@ -566,7 +566,13 @@ fn resolve_button_colors(
         (_, Interaction::Pressed) => tint_for_state(base, 0.16),
     };
 
-    (fill, fill, readable_foreground(fill))
+    let border = match (button.color, interaction) {
+        (ButtonColor::Light, Interaction::None) => colors.border,
+        (ButtonColor::Light, Interaction::Hovered | Interaction::Pressed) => colors.border_strong,
+        _ => fill,
+    };
+
+    (fill, border, readable_foreground(fill))
 }
 
 /// Nudges `color` toward black or white (whichever increases contrast) by

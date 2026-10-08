@@ -1080,6 +1080,12 @@ fn with_min_paint_alpha(paint: Paint, min_alpha: f32) -> Paint {
             }
             Paint::angular(gradient)
         }
+        Paint::Spinning(mut gradient) => {
+            for stop in &mut gradient.stops {
+                stop.color = with_min_alpha(stop.color, min_alpha);
+            }
+            Paint::Spinning(gradient)
+        }
     }
 }
 

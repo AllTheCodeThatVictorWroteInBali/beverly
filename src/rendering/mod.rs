@@ -19,9 +19,11 @@ mod shape;
 mod shimmer;
 mod skeleton_demo;
 pub(crate) mod skeleton_metrics;
+mod spinning;
 mod surface;
 
 pub use shimmer::{Shimmer, ShimmerDirection};
+pub use spinning::SpinningGradient;
 
 pub use audit::UiFrameworkAuditPlugin;
 pub use backdrop::{Backdrop, BackdropDebugView, BackdropQuality};

@@ -4,6 +4,6 @@ pub use super::{
     FocusRingPlacement, GlassProfile, GradientStop, InnerShadow, LinearGradient, LiquidGlass,
     MAX_GRADIENT_STOPS, Mask, Noise, NoiseKind, NoiseSpace, NoiseTarget, OuterGlow, OuterShadow,
     Paint, RadialGradient, RoundedRect, SelectionDecoration, ShadowFalloff, Shape,
-    SharedSurfaceMaterial, Shimmer, ShimmerDirection, Surface, UiRenderDebugView,
+    SharedSurfaceMaterial, Shimmer, ShimmerDirection, SpinningGradient, Surface, UiRenderDebugView,
     UiRenderingPlugin, ValidationDecoration,
 };
