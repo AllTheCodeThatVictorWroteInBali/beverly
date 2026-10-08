@@ -52,7 +52,21 @@ impl PlatformPackager for MacOSPackager {
             false
         };
 
-        fs::write(contents_dir.join("Info.plist"), info_plist(ctx))
+        let icon_source = ctx
+            .assets_dir
+            .as_ref()
+            .map(|assets_dir| assets_dir.join("icon/AppIcon.icns"))
+            .filter(|path| path.is_file());
+        if let Some(icon_source) = &icon_source {
+            fs::copy(icon_source, resources_dir.join("AppIcon.icns")).with_context(|| {
+                format!(
+                    "failed to copy app icon from {}",
+                    icon_source.display()
+                )
+            })?;
+        }
+
+        fs::write(contents_dir.join("Info.plist"), info_plist(ctx, icon_source.is_some()))
             .context("failed to write Info.plist")?;
 
         let binary_size_bytes = fs::metadata(&executable_path)
@@ -82,7 +96,7 @@ fn strip_binary(path: &Path) {
     }
 }
 
-fn info_plist(ctx: &PublishContext) -> String {
+fn info_plist(ctx: &PublishContext, has_icon: bool) -> String {
     format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -104,6 +118,7 @@ fn info_plist(ctx: &PublishContext) -> String {
     <string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
+    {icon_key}
     <key>NSHighResolutionCapable</key>
     <true/>
 </dict>
@@ -113,6 +128,11 @@ fn info_plist(ctx: &PublishContext) -> String {
         bundle_id = escape_xml(&ctx.bundle_id),
         version = escape_xml(&ctx.version),
         executable = escape_xml(&ctx.pascal_name),
+        icon_key = if has_icon {
+            "<key>CFBundleIconFile</key>\n    <string>AppIcon</string>"
+        } else {
+            ""
+        },
     )
 }
 
@@ -151,11 +171,13 @@ mod tests {
 
     #[test]
     fn info_plist_embeds_metadata() {
-        let plist = info_plist(&sample_context());
+        let plist = info_plist(&sample_context(), true);
         assert!(plist.contains("<string>My App</string>"));
         assert!(plist.contains("<string>com.beverlyui.my-app</string>"));
         assert!(plist.contains("<string>0.1.0</string>"));
         assert!(plist.contains("<string>MyApp</string>"));
+        assert!(plist.contains("<key>CFBundleIconFile</key>"));
+        assert!(plist.contains("<string>AppIcon</string>"));
     }
 
     #[test]

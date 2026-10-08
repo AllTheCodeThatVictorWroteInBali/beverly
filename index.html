@@ -877,28 +877,8 @@
         justify-content: center;
       }
 
-      .download-steps {
-        margin-top: 56px;
-        padding: 28px 32px;
-
-        text-align: left;
-
-        border-radius: 16px;
-
-        border: 1px solid rgba(255, 255, 255, 0.07);
-
-        background: rgba(255, 255, 255, 0.025);
-      }
-
-      .download-steps h3 {
-        color: #f8fafc;
-
-        font-size: 1rem;
-      }
-
-      .download-steps ol {
-        margin: 16px 0 0;
-        padding-left: 22px;
+      .download-contact {
+        margin-top: 26px;
 
         color: #94a3b8;
 
@@ -907,36 +887,17 @@
         line-height: 1.7;
       }
 
-      .download-steps li + li {
-        margin-top: 8px;
+      .download-contact a {
+        color: #f8fafc;
+
+        text-decoration: underline;
+        text-underline-offset: 4px;
+
+        transition: color 0.25s ease;
       }
 
-      .download-steps strong {
-        color: #e2e8f0;
-      }
-
-      .download-steps p {
-        margin-top: 16px;
-
-        color: #64748b;
-
-        font-size: 0.85rem;
-
-        line-height: 1.7;
-      }
-
-      .download-steps code {
-        padding: 2px 6px;
-
-        border-radius: 6px;
-
-        background: rgba(255, 255, 255, 0.06);
-
+      .download-contact a:hover {
         color: #cbd5e1;
-
-        font-size: 0.8rem;
-
-        word-break: break-all;
       }
 
       /* =========================================================
@@ -1227,7 +1188,7 @@
         </div>
 
         <p class="hero-download-link">
-          <a href="#download"> Download the macOS demo &rarr; </a>
+          <a href="#download"> Try the macOS app &rarr; </a>
         </p>
       </div>
     </section>
@@ -1476,43 +1437,31 @@
         <h2>Beverly Agent for macOS</h2>
 
         <p class="download-copy">
-          A local-LLM chat demo built with Beverly. It runs fully on your
-          machine; model weights download from Hugging Face on first use.
-          Requires macOS on Apple Silicon.
+          A signed macOS release of Beverly Agent, a native local-LLM chat demo
+          built with Beverly. Choose a supported model in the app; its weights
+          download from Hugging Face and stay cached on your Mac for future use.
+          Requires Apple Silicon.
         </p>
 
         <div class="jumbotron-actions download-actions">
           <a
-            href="https://github.com/AllTheCodeThatVictorWroteInBali/beverly/releases/download/bev-test-v0.2.0/BeverlyAgent-0.2.0-macos-arm64.dmg"
+            href="https://github.com/AllTheCodeThatVictorWroteInBali/beverly/releases/download/bev-test-v0.2.0/BeverlyAgent-macOS.zip"
             class="btn btn-primary"
           >
-            Download for macOS (.dmg)
+            Download the signed macOS app (.zip)
           </a>
         </div>
 
-        <div class="download-steps">
-          <h3>Install</h3>
-          <ol>
-            <li>Open the downloaded DMG and drag Beverly Agent to Applications.</li>
-            <li>
-              Open Beverly Agent. macOS will say it could not verify the app is free
-              of malware, because it is not yet notarized by Apple (Coming
-              Soon!). Click
-              <strong>Done</strong>.
-            </li>
-            <li>
-              Open <strong>System Settings &rarr; Privacy &amp; Security</strong
-              >, scroll to Security, click <strong>Open Anyway</strong> next to
-              Beverly Agent, and confirm.
-            </li>
-          </ol>
-          <p>
-            On macOS 14 or earlier, right-click the app, choose Open, then Open
-            again. You can also run
-            <code>xattr -dr com.apple.quarantine "/Applications/Beverly Agent.app"</code>
-            in Terminal.
-          </p>
-        </div>
+        <p class="download-contact">
+          Building an AI app of your own?
+          <a
+            href="https://github.com/AllTheCodeThatVictorWroteInBali/beverly/issues/new?title=Custom%20app%20inquiry"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Tell us what you're building.
+          </a>
+        </p>
       </div>
     </section>
 
@@ -1607,7 +1556,7 @@
               </li>
 
               <li>
-                <a href="#download"> Download Demo (macOS) </a>
+                <a href="#download"> Beverly Agent (macOS) </a>
               </li>
 
               <li>
