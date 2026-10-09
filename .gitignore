@@ -1,5 +1,6 @@
 /target
 Cargo.lock
+!Cargo.lock
 !apps/beverly-agent/Cargo.lock
 .DS_Store
 /dist
