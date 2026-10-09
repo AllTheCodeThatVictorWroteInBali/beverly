@@ -33,12 +33,14 @@ fn publish_produces_a_macos_app_bundle() {
     let bundle = out_dir.join("DemoApp.app");
     assert!(bundle.is_dir(), "missing bundle at {}", bundle.display());
     assert!(bundle.join("Contents/MacOS/DemoApp").is_file());
+    assert!(bundle.join("Contents/Resources/AppIcon.icns").is_file());
     assert!(bundle.join("Contents/Resources/assets/hello.txt").is_file());
     assert!(bundle.join("Contents/Info.plist").is_file());
 
     let plist = fs::read_to_string(bundle.join("Contents/Info.plist")).unwrap();
     assert!(plist.contains("com.beverlyui.demo-app"));
     assert!(plist.contains("0.3.1"));
+    assert!(plist.contains("<key>CFBundleIconFile</key>"));
 }
 
 fn write_demo_project(root: &Path) {
@@ -59,4 +61,7 @@ edition = "2021"
     let assets = root.join("assets");
     fs::create_dir_all(&assets).unwrap();
     fs::write(assets.join("hello.txt"), "hello asset\n").unwrap();
+    let icon_dir = assets.join("icon");
+    fs::create_dir_all(&icon_dir).unwrap();
+    fs::write(icon_dir.join("AppIcon.icns"), b"test icon\n").unwrap();
 }

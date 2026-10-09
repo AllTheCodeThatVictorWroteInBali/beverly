@@ -80,4 +80,5 @@ the pipeline.
 cargo beverly publish --manifest-path path/to/Cargo.toml   # defaults to the current directory
 cargo beverly publish --target macos-arm64                 # defaults to the host platform
 cargo beverly publish --out-dir path/to/output              # defaults to `dist/`
+cargo beverly publish --locked                              # require the target Cargo.lock
 ```

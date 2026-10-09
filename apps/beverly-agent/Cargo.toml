@@ -1,0 +1,38 @@
+[package]
+name = "beverly-agent"
+version = "0.2.0"
+edition = "2024"
+autobins = false
+default-run = "monitor"
+
+[[bin]]
+name = "monitor"
+path = "src/bin/monitor.rs"
+
+[[bin]]
+name = "bev-test"
+path = "src/main.rs"
+
+[dependencies]
+beverly = { path = "../.." }
+bevy = { version = "0.19.1", default-features = false, features = ["2d", "ui"] }
+
+anyhow = "1"
+candle-core = "0.11"
+candle-nn = "0.11"
+candle-transformers = "0.11"
+candle-examples = { version = "0.11", features = ["metal"] }
+tokenizers = "0.22"
+hf-hub = "0.5"
+serde_json = "1"
+sysinfo = "0.38"
+
+[profile.dev]
+debug = 0
+incremental = false
+
+[workspace]
+
+[package.metadata.beverly]
+display-name = "Beverly Agent"
+bundle-id = "com.beverlyui.beverly-agent"

@@ -24,7 +24,7 @@ const RELEASE_PROFILE_DEFAULTS: &[(&str, &str)] = &[
 
 /// Runs `cargo build --release` for the target project's binary and returns
 /// the path to the resulting executable.
-pub fn build_release(metadata: &ProjectMetadata) -> Result<PathBuf> {
+pub fn build_release(metadata: &ProjectMetadata, locked: bool) -> Result<PathBuf> {
     let mut cmd = Command::new("cargo");
     cmd.arg("build")
         .arg("--release")
@@ -32,21 +32,19 @@ pub fn build_release(metadata: &ProjectMetadata) -> Result<PathBuf> {
         .arg(metadata.manifest_dir.join("Cargo.toml"))
         .arg("--bin")
         .arg(&metadata.bin_name);
+    if locked {
+        cmd.arg("--locked");
+    }
     for (key, value) in RELEASE_PROFILE_DEFAULTS {
         cmd.arg("--config").arg(format!("{key}={value}"));
     }
-    let status = cmd
-        .status()
-        .context("failed to invoke `cargo build`")?;
+    let status = cmd.status().context("failed to invoke `cargo build`")?;
 
     if !status.success() {
         bail!("release build failed (see `cargo build` output above)");
     }
 
-    let binary_path = metadata
-        .target_dir
-        .join("release")
-        .join(&metadata.bin_name);
+    let binary_path = metadata.target_dir.join("release").join(&metadata.bin_name);
 
     if !binary_path.is_file() {
         bail!(

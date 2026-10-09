@@ -30,6 +30,10 @@ pub struct PublishArgs {
     /// Override the output directory (defaults to `dist/` next to the manifest).
     #[arg(long = "out-dir")]
     pub out_dir: Option<PathBuf>,
+
+    /// Require the target project's Cargo.lock to be used without modification.
+    #[arg(long)]
+    pub locked: bool,
 }
 
 pub fn run(args: &PublishArgs) -> Result<()> {
@@ -46,7 +50,7 @@ pub fn run(args: &PublishArgs) -> Result<()> {
     );
 
     println!("   Building release binary...");
-    let binary_path = build::build_release(&project)?;
+    let binary_path = build::build_release(&project, args.locked)?;
     println!("    Finished release build");
 
     let output_dir = args

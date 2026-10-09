@@ -73,6 +73,59 @@ Please make sure your changes do not introduce compiler warnings or formatting f
 
 ---
 
+## Signed macOS App Releases
+
+The Beverly Agent app lives in `apps/beverly-agent`, separately locked from the
+library workspace. Publish an app release using a `bev-test-vX.Y.Z` tag matching
+the app package version. Publishing that GitHub Release starts
+`.github/workflows/release-macos.yml`, which checks out the tag, packages the app
+with `cargo-beverly`, signs it with Developer ID, submits it for Apple notarization,
+staples the accepted ticket, and uploads `BeverlyAgent-macOS-arm64.zip` to the same
+release. Reruns intentionally replace only an asset with that exact filename.
+
+Add these repository Actions secrets under **Settings > Secrets and variables > Actions**:
+
+- `APPLE_CERTIFICATE_BASE64`: base64-encoded Developer ID Application `.p12`, including its private key.
+- `APPLE_CERTIFICATE_PASSWORD`: password used when exporting that `.p12`.
+- `APPLE_TEAM_ID`: `MAYGW2FTG7`.
+- `APPLE_API_KEY_BASE64`: base64-encoded App Store Connect API `.p8` key.
+- `APPLE_API_KEY_ID`: the API key ID.
+- `APPLE_API_ISSUER_ID`: the API issuer ID.
+
+In Keychain Access, export the **Developer ID Application** certificate and its
+private key together as a password-protected `.p12`. Create an App Store Connect
+API key with notarization access under **Users and Access > Integrations > App
+Store Connect API**. Encode the files on macOS without adding line breaks, then
+paste the output into the matching secrets:
+
+```bash
+base64 -i DeveloperIDApplication.p12 | tr -d '\n' | pbcopy
+base64 -i AuthKey_KEYID.p8 | tr -d '\n' | pbcopy
+```
+
+Never commit the certificate, private key, API key, or exported files.
+
+To test the automation, bump `apps/beverly-agent/Cargo.toml`'s version, refresh
+its lockfile with `cargo check --manifest-path apps/beverly-agent/Cargo.toml`, and
+commit the workflow and app source. Push the commit, then create and publish a
+matching prerelease (for example, `bev-test-v0.2.1`):
+
+```bash
+git tag -a bev-test-v0.2.1 -m "Beverly Agent 0.2.1"
+git push origin HEAD
+git push origin bev-test-v0.2.1
+gh release create bev-test-v0.2.1 --prerelease --generate-notes
+```
+
+The Actions run must complete before the signed ZIP appears on the release. Check
+the job log for missing-secret, certificate-identity, build, or Gatekeeper errors;
+if notarization is rejected, the workflow prints Apple's submission log. This
+workflow currently builds Apple Silicon only (`aarch64-apple-darwin`); it does not
+produce Intel or universal binaries. The app downloads selected model weights on
+first use, so model files are not included in the release ZIP.
+
+---
+
 ## Adding a Component
 
 Beverly components should be designed as reusable primitives rather than application-specific implementations.
