@@ -73,6 +73,7 @@ jobs:
       - name: Cache Rust build artifacts
         uses: Swatinem/rust-cache@v2
         with:
+          cache-on-failure: true
           workspaces: |
             . -> target
             apps/beverly-agent -> apps/beverly-agent/target
@@ -128,6 +129,16 @@ jobs:
             -s \
             -k "$keychain_password" \
             "$keychain_path"
+          original_keychains_file="$RUNNER_TEMP/original-keychains.txt"
+          security list-keychains -d user \
+            | sed -E 's/^[[:space:]]*"(.*)"$/\1/' \
+            > "$original_keychains_file"
+          original_keychains=()
+          while IFS= read -r keychain; do
+            [[ -n "$keychain" ]] && original_keychains+=("$keychain")
+          done < "$original_keychains_file"
+          security list-keychains -d user -s "$keychain_path" "${original_keychains[@]}"
+
           identity="Developer ID Application: Victor Venters ($APPLE_TEAM_ID)"
           identities="$RUNNER_TEMP/signing-identities.txt"
           security find-identity -v -p codesigning "$keychain_path" > "$identities"
@@ -282,8 +293,19 @@ jobs:
         run: |
           set +e
           keychain_path="$RUNNER_TEMP/beverly-release.keychain-db"
+          original_keychains_file="$RUNNER_TEMP/original-keychains.txt"
+          if [[ -f "$original_keychains_file" ]]; then
+            original_keychains=()
+            while IFS= read -r keychain; do
+              [[ -n "$keychain" ]] && original_keychains+=("$keychain")
+            done < "$original_keychains_file"
+            if ((${#original_keychains[@]} > 0)); then
+              security list-keychains -d user -s "${original_keychains[@]}"
+            fi
+          fi
           security delete-keychain "$keychain_path" >/dev/null 2>&1
           rm -f \
             "$RUNNER_TEMP/developer-id.p12" \
             "$RUNNER_TEMP/AuthKey.p8" \
-            "$RUNNER_TEMP/signing-identities.txt"
+            "$RUNNER_TEMP/signing-identities.txt" \
+            "$original_keychains_file"
