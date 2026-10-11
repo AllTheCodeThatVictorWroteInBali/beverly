@@ -19,6 +19,18 @@ The visible label is the text passed to `link()`. `.aria(...)` sets the accessib
 
 For page registration, route parameters, and layouts, see [Pages, Links, and Layouts](../navigation/pages.md).
 
+## External Link
+
+Call `.external()` after `.to(...)` to open an absolute HTTP(S) target in the system web browser instead of routing it through Beverly:
+
+```rust
+link("Visit Beverly")
+    .to("https://www.beverlyui.com")
+    .external()
+```
+
+External targets still emit `LinkClicked`. Non-HTTP(S) and invalid targets are ignored with a warning.
+
 ## Basic Usage
 
 Add `Link` to a Bevy UI entity that also has `Button` and `Interaction`. Create the visual children yourself; the component plugin handles interaction feedback and emits the click message.
@@ -122,7 +134,7 @@ The component controls its own message and visual behavior. Your application sho
 
 ## Visual States
 
-The built-in visual system uses the theme's primary, hover, active, and disabled text colors for `LinkText` children. On the link's `Surface`, it applies a subtle fill for idle, hovered, and pressed states, and clears the fill when disabled.
+The built-in visual system uses the theme's primary, hover, active, and disabled text colors for `LinkText` children. Links have no border or background fill and show the pointer cursor when hovered.
 
 The link entity needs a `Surface` for that background feedback. The visual system does not create padding, layout, text, or icon content; those remain part of the entity and its children.
 

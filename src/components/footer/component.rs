@@ -78,10 +78,11 @@ impl Default for FooterConfig {
     fn default() -> Self {
         Self {
             height: Val::Px(FOOTER_HEIGHT),
-            show_border: true,
+            show_border: false,
             padding: UiRect::default(),
             gap: Val::Px(12.0),
-            background: Color::srgb(0.05, 0.05, 0.05),
+            // Unstyled by default: the footer only pins its content to the bottom.
+            background: Color::NONE,
             border_color: Color::srgb(0.20, 0.20, 0.20),
         }
     }
@@ -123,7 +124,12 @@ impl FooterBundle {
                 0.0,
                 Paint::linear(LinearGradient::vertical(vec![
                     GradientStop::new(0.0, config.background),
-                    GradientStop::new(1.0, config.background.with_alpha(0.96)),
+                    GradientStop::new(
+                        1.0,
+                        config
+                            .background
+                            .with_alpha(config.background.alpha() * 0.96),
+                    ),
                 ])),
             ),
         }
@@ -141,6 +147,15 @@ impl Plugin for FooterPlugin {
 
 /// Spawns a footer with 3 sections.
 pub fn spawn_footer(commands: &mut Commands, fixed: bool, config: FooterConfig) -> Entity {
+    spawn_footer_with_sections(commands, fixed, config).0
+}
+
+/// Spawns a footer and returns its sections so content can be added right away.
+pub fn spawn_footer_with_sections(
+    commands: &mut Commands,
+    fixed: bool,
+    config: FooterConfig,
+) -> (Entity, FooterSections) {
     let mut sections = None;
 
     let footer = commands
@@ -188,14 +203,15 @@ pub fn spawn_footer(commands: &mut Commands, fixed: bool, config: FooterConfig) 
         .id();
 
     let (left, center, right) = sections.expect("footer sections must be created");
-
-    commands.entity(footer).insert(FooterSections {
+    let sections = FooterSections {
         left,
         center,
         right,
-    });
+    };
 
-    footer
+    commands.entity(footer).insert(sections);
+
+    (footer, sections)
 }
 
 pub fn add_to_left(

@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
 use crate::components::text::{TextRole, ThemedText};
-use crate::icons::IconCommands;
-use crate::rendering::{GradientStop, LinearGradient, Paint, Surface};
+use crate::rendering::{Paint, Surface};
+use crate::theme::{ThemeMode, ThemeResource};
 
 /// Adds tooltip behavior to a UI entity.
 ///
@@ -92,34 +92,39 @@ pub enum TooltipPlacement {
 #[derive(Component)]
 struct TooltipVisual;
 
+#[derive(Component)]
+struct TooltipArrow;
+
+#[derive(Component)]
+struct TooltipBubble;
+
+#[derive(Component)]
+struct TooltipLabel;
+
 /// Stores the relationship between a tooltip visual
 /// and the UI element it belongs to.
 #[derive(Component)]
 struct TooltipFor(Entity);
 
-fn estimate_tooltip_width_px(text: &str) -> f32 {
-    // Approximate width for 13px text with 8px horizontal padding on both sides.
-    let glyph_width = 7.0;
-    let horizontal_padding = 16.0;
-    (text.chars().count() as f32 * glyph_width) + horizontal_padding
-}
+const TOOLTIP_MAX_WIDTH: f32 = 260.0;
 
-fn tooltip_visual_node(placement: TooltipPlacement, text: &str) -> Node {
+/// Fixed-width strip that places the bubble; it never constrains the bubble's own width.
+fn tooltip_visual_node(placement: TooltipPlacement) -> Node {
     let mut node = Node {
         position_type: PositionType::Absolute,
-        border_radius: BorderRadius::all(Val::Px(6.0)),
+        width: Val::Px(TOOLTIP_MAX_WIDTH),
+        flex_direction: FlexDirection::Row,
+        align_items: AlignItems::Center,
         ..default()
     };
-
-    let estimated_width = estimate_tooltip_width_px(text);
-    let center_offset = -0.5 * estimated_width;
 
     match placement {
         TooltipPlacement::Top => {
             node.left = Val::Percent(50.0);
             node.bottom = Val::Percent(100.0);
+            node.justify_content = JustifyContent::Center;
             node.margin = UiRect {
-                left: Val::Px(center_offset),
+                left: Val::Px(-TOOLTIP_MAX_WIDTH * 0.5),
                 bottom: Val::Px(8.0),
                 ..default()
             };
@@ -127,20 +132,23 @@ fn tooltip_visual_node(placement: TooltipPlacement, text: &str) -> Node {
         TooltipPlacement::Bottom => {
             node.left = Val::Percent(50.0);
             node.top = Val::Percent(100.0);
+            node.justify_content = JustifyContent::Center;
             node.margin = UiRect {
-                left: Val::Px(center_offset),
+                left: Val::Px(-TOOLTIP_MAX_WIDTH * 0.5),
                 top: Val::Px(8.0),
                 ..default()
             };
         }
         TooltipPlacement::Left => {
             node.right = Val::Percent(100.0);
-            node.top = Val::Px(0.0);
+            node.top = Val::Percent(50.0);
+            node.justify_content = JustifyContent::FlexEnd;
             node.margin = UiRect::right(Val::Px(8.0));
         }
         TooltipPlacement::Right => {
             node.left = Val::Percent(100.0);
-            node.top = Val::Px(0.0);
+            node.top = Val::Percent(50.0);
+            node.justify_content = JustifyContent::FlexStart;
             node.margin = UiRect::left(Val::Px(8.0));
         }
     }
@@ -148,52 +156,163 @@ fn tooltip_visual_node(placement: TooltipPlacement, text: &str) -> Node {
     node
 }
 
-fn tooltip_arrow_icon(placement: TooltipPlacement) -> &'static str {
+fn tooltip_bubble_node() -> Node {
+    Node {
+        flex_shrink: 0.0,
+        max_width: Val::Px(TOOLTIP_MAX_WIDTH),
+        padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
+        border_radius: BorderRadius::all(Val::Px(6.0)),
+        ..default()
+    }
+}
+
+fn tooltip_translation(placement: TooltipPlacement) -> Val2 {
     match placement {
-        TooltipPlacement::Top => "chevron-down",
-        TooltipPlacement::Bottom => "chevron-up",
-        TooltipPlacement::Left => "chevron-right",
-        TooltipPlacement::Right => "chevron-left",
+        TooltipPlacement::Top | TooltipPlacement::Bottom => Val2::ZERO,
+        TooltipPlacement::Left | TooltipPlacement::Right => Val2::percent(0.0, -50.0),
     }
 }
 
 fn tooltip_arrow_node(placement: TooltipPlacement) -> Node {
     let mut node = Node {
         position_type: PositionType::Absolute,
+        width: Val::Px(8.0),
+        height: Val::Px(8.0),
         ..default()
     };
 
     match placement {
         TooltipPlacement::Top => {
             node.left = Val::Percent(50.0);
-            node.bottom = Val::Px(-12.0);
+            node.bottom = Val::Px(-4.0);
             node.margin = UiRect::left(Val::Px(-4.0));
         }
         TooltipPlacement::Bottom => {
             node.left = Val::Percent(50.0);
-            node.top = Val::Px(-12.0);
+            node.top = Val::Px(-4.0);
             node.margin = UiRect::left(Val::Px(-4.0));
         }
         TooltipPlacement::Left => {
-            node.right = Val::Px(-10.0);
+            node.right = Val::Px(-4.0);
             node.top = Val::Percent(50.0);
-            node.margin = UiRect::top(Val::Px(-8.0));
+            node.margin = UiRect::top(Val::Px(-4.0));
         }
         TooltipPlacement::Right => {
-            node.left = Val::Px(-10.0);
+            node.left = Val::Px(-4.0);
             node.top = Val::Percent(50.0);
-            node.margin = UiRect::top(Val::Px(-8.0));
+            node.margin = UiRect::top(Val::Px(-4.0));
         }
     }
 
     node
 }
 
+fn tooltip_colors(mode: ThemeMode) -> (Color, Color) {
+    match mode {
+        ThemeMode::Light => (Color::srgb_u8(24, 24, 27), Color::srgb_u8(250, 250, 250)),
+        ThemeMode::Dark => (Color::srgb_u8(250, 250, 250), Color::srgb_u8(24, 24, 27)),
+    }
+}
+
+fn tooltip_theme_system(
+    theme: Res<ThemeResource>,
+    mut surfaces: Query<&mut Surface, Or<(With<TooltipBubble>, With<TooltipArrow>)>>,
+    mut labels: Query<(&mut ThemedText, &mut TextColor), With<TooltipLabel>>,
+) {
+    let (background, foreground) = tooltip_colors(theme.current.mode);
+    for mut surface in &mut surfaces {
+        if surface.fill != Paint::solid(background) {
+            surface.fill = Paint::solid(background);
+        }
+    }
+    for (mut themed, mut color) in &mut labels {
+        if themed.color_override != Some(foreground) {
+            themed.color_override = Some(foreground);
+        }
+        if color.0 != foreground {
+            color.0 = foreground;
+        }
+    }
+}
+
+#[cfg(test)]
+mod style_tests {
+    use super::*;
+
+    #[test]
+    fn bubble_sizes_to_its_text_and_is_not_limited_by_the_target_width() {
+        for placement in [
+            TooltipPlacement::Top,
+            TooltipPlacement::Bottom,
+            TooltipPlacement::Left,
+            TooltipPlacement::Right,
+        ] {
+            let anchor = tooltip_visual_node(placement);
+            assert_eq!(anchor.width, Val::Px(TOOLTIP_MAX_WIDTH));
+            let bubble = tooltip_bubble_node();
+            assert_eq!(bubble.flex_shrink, 0.0);
+            assert_eq!(bubble.width, Val::Auto);
+            assert_eq!(bubble.max_width, Val::Px(TOOLTIP_MAX_WIDTH));
+        }
+        let top = tooltip_visual_node(TooltipPlacement::Top);
+        assert_eq!(top.justify_content, JustifyContent::Center);
+        assert_eq!(top.margin.left, Val::Px(-TOOLTIP_MAX_WIDTH * 0.5));
+    }
+
+    #[test]
+    fn tooltip_bubble_pointer_and_text_follow_the_inverse_theme_palette() {
+        let mut app = App::new();
+        app.insert_resource(ThemeResource {
+            current: crate::theme::light_theme(),
+        })
+        .add_systems(
+            Update,
+            (tooltip_visibility_system, tooltip_theme_system).chain(),
+        );
+        let mut tooltip = Tooltip::new("One tin. No sharing clause.");
+        tooltip.visible = true;
+        app.world_mut().spawn((Node::default(), tooltip));
+        for theme in [crate::theme::light_theme(), crate::theme::dark_theme()] {
+            let (background, foreground) = tooltip_colors(theme.mode);
+            app.world_mut().resource_mut::<ThemeResource>().current = theme;
+            app.update();
+            let mut bubbles = app
+                .world_mut()
+                .query_filtered::<(&Node, &Surface), With<TooltipBubble>>();
+            let (node, surface) = bubbles.single(app.world()).unwrap();
+            assert_eq!(surface.fill, Paint::solid(background));
+            assert_eq!(node.padding, UiRect::axes(Val::Px(12.0), Val::Px(6.0)));
+            let mut arrows = app
+                .world_mut()
+                .query_filtered::<&Surface, With<TooltipArrow>>();
+            assert_eq!(
+                arrows.single(app.world()).unwrap().fill,
+                Paint::solid(background)
+            );
+            let mut labels = app
+                .world_mut()
+                .query_filtered::<(&ThemedText, &TextColor), With<TooltipLabel>>();
+            let (themed, color) = labels.single(app.world()).unwrap();
+            assert_eq!(themed.size_override, Some(12.0));
+            assert_eq!(themed.color_override, Some(foreground));
+            assert_eq!(color.0, foreground);
+        }
+    }
+}
+
 pub struct TooltipPlugin;
 
 impl Plugin for TooltipPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (tooltip_hover_system, tooltip_visibility_system));
+        app.add_systems(
+            Update,
+            (
+                tooltip_hover_system,
+                tooltip_visibility_system,
+                tooltip_theme_system,
+            )
+                .chain(),
+        );
     }
 }
 
@@ -222,6 +341,7 @@ fn tooltip_hover_system(time: Res<Time>, mut query: Query<(&Interaction, &mut To
 /// Creates/removes the tooltip visual based on Tooltip state.
 fn tooltip_visibility_system(
     mut commands: Commands,
+    theme: Res<ThemeResource>,
     tooltip_query: Query<(Entity, &Tooltip, Option<&Children>), Changed<Tooltip>>,
     visual_query: Query<(Entity, &TooltipFor)>,
 ) {
@@ -245,42 +365,57 @@ fn tooltip_visibility_system(
 
             let tooltip_text = tooltip.text.clone();
             let placement = tooltip.placement;
+            let (background, foreground) = tooltip_colors(theme.current.mode);
 
             commands.entity(entity).with_children(|parent| {
                 parent
                     .spawn((
                         TooltipVisual,
                         TooltipFor(entity),
-                        tooltip_visual_node(placement, &tooltip_text),
-                    ))
-                    .insert(BackgroundColor(Color::NONE))
-                    .insert(Surface::rounded_rect_fill(
-                        8.0,
-                        Paint::linear(LinearGradient::vertical(vec![
-                            GradientStop::new(0.0, Color::srgb(0.08, 0.08, 0.08)),
-                            GradientStop::new(1.0, Color::srgb(0.12, 0.12, 0.14)),
-                        ])),
+                        tooltip_visual_node(placement),
+                        UiTransform {
+                            translation: tooltip_translation(placement),
+                            ..default()
+                        },
+                        ZIndex(2000),
+                        Pickable::IGNORE,
                     ))
                     .with_children(|tooltip_parent| {
                         tooltip_parent
-                            .spawn(tooltip_arrow_node(placement))
-                            .with_children(|arrow| {
-                                arrow.spawn_feather_sized(tooltip_arrow_icon(placement), 12.0);
-                            });
+                            .spawn((
+                                TooltipBubble,
+                                tooltip_bubble_node(),
+                                BackgroundColor(Color::NONE),
+                                Surface::rounded_rect_fill(6.0, Paint::solid(background)),
+                                Pickable::IGNORE,
+                            ))
+                            .with_children(|bubble| {
+                                bubble.spawn((
+                                    TooltipArrow,
+                                    tooltip_arrow_node(placement),
+                                    UiTransform {
+                                        rotation: Rot2::degrees(45.0),
+                                        ..default()
+                                    },
+                                    Surface::rounded_rect_fill(1.0, Paint::solid(background)),
+                                    Pickable::IGNORE,
+                                ));
 
-                        tooltip_parent.spawn((
-                            ThemedText::new(TextRole::Caption),
-                            Text::new(tooltip_text),
-                            TextFont {
-                                font_size: FontSize::Px(13.0),
-                                ..default()
-                            },
-                            TextColor(Color::WHITE),
-                            Node {
-                                padding: UiRect::axes(Val::Px(8.0), Val::Px(5.0)),
-                                ..default()
-                            },
-                        ));
+                                bubble.spawn((
+                                    TooltipLabel,
+                                    ThemedText::new(TextRole::Caption)
+                                        .size(12.0)
+                                        .color(foreground),
+                                    Text::new(tooltip_text),
+                                    TextFont {
+                                        font_size: FontSize::Px(12.0),
+                                        ..default()
+                                    },
+                                    TextColor(foreground),
+                                    TextLayout::linebreak(LineBreak::WordOrCharacter),
+                                    Pickable::IGNORE,
+                                ));
+                            });
                     });
             });
         } else {

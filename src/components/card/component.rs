@@ -1,11 +1,11 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
+use bevy::window::{CursorIcon, PrimaryWindow, SystemCursorIcon};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-use crate::components::text::{TextRole, ThemedText};
+use crate::icons::{Icon, IconCommands, IconNode};
 use crate::rendering::prelude::*;
 use crate::theme::ThemeResource;
 
@@ -251,10 +251,10 @@ fn spawn_card_internal(
                 Button,
                 Node {
                     position_type: PositionType::Absolute,
-                    width: px(20.0),
-                    height: px(20.0),
-                    right: px(6.0),
-                    bottom: px(6.0),
+                    width: px(28.0),
+                    height: px(28.0),
+                    right: px(8.0),
+                    bottom: px(8.0),
                     justify_content: JustifyContent::Center,
                     align_items: AlignItems::Center,
                     ..default()
@@ -263,16 +263,8 @@ fn spawn_card_internal(
                 ZIndex(2),
             ))
             .with_children(|handle| {
-                handle.spawn((
-                    CardResizeGlyph,
-                    ThemedText::new(TextRole::Muted),
-                    Text::new("///"),
-                    TextFont {
-                        font_size: FontSize::Px(15.0),
-                        ..default()
-                    },
-                    TextColor(Color::srgba(0.82, 0.86, 0.96, 0.95)),
-                ));
+                let glyph = handle.spawn_icon_colored(Icon::feather("grid"), 12.0, colors.text_muted);
+                handle.commands().entity(glyph).insert(CardResizeGlyph);
             });
     });
 
@@ -317,6 +309,8 @@ fn card_resize_drag_system(
     buttons: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     mut card_sizes: Query<&mut CardSizeModel, With<Card>>,
+    card_nodes: Query<(&Node, &ChildOf), With<Card>>,
+    parent_nodes: Query<&Node, Without<Card>>,
     mut active_resize: ResMut<ActiveCardResize>,
     mut memory: ResMut<CardLayoutMemory>,
 ) {
@@ -344,8 +338,15 @@ fn card_resize_drag_system(
     };
 
     let delta = cursor - resize.start_cursor;
-    let new_width = (resize.start_width + delta.x).max(CARD_MIN_WIDTH);
-    let new_height = (resize.start_height + delta.y).max(CARD_MIN_HEIGHT);
+    // A centered card only moves its corner by half of any size change, so scale
+    // the size change up until the corner lands under the cursor.
+    let follow = card_nodes
+        .get(resize.card)
+        .ok()
+        .and_then(|(card, parent)| Some(corner_follow_factor(parent_nodes.get(parent.parent()).ok()?, card)))
+        .unwrap_or(Vec2::ONE);
+    let new_width = (resize.start_width + delta.x / follow.x).max(CARD_MIN_WIDTH);
+    let new_height = (resize.start_height + delta.y / follow.y).max(CARD_MIN_HEIGHT);
 
     if (card_size.target_width - new_width).abs() > f32::EPSILON
         || (card_size.target_height - new_height).abs() > f32::EPSILON
@@ -354,6 +355,33 @@ fn card_resize_drag_system(
         card_size.target_height = new_height;
         memory.dirty = true;
     }
+}
+
+/// How far the card's bottom-right corner moves per pixel of size change on each
+/// axis, given how the parent aligns it (1 = start-aligned, 0.5 = centered).
+fn corner_follow_factor(parent: &Node, card: &Node) -> Vec2 {
+    let (main, cross) = match parent.flex_direction {
+        FlexDirection::Row | FlexDirection::RowReverse => (0, 1),
+        FlexDirection::Column | FlexDirection::ColumnReverse => (1, 0),
+    };
+
+    let main_factor = match parent.justify_content {
+        JustifyContent::Center | JustifyContent::SpaceAround | JustifyContent::SpaceEvenly => 0.5,
+        _ => 1.0,
+    };
+    let align = match card.align_self {
+        AlignSelf::Auto => match parent.align_items {
+            AlignItems::Center => 0.5,
+            _ => 1.0,
+        },
+        AlignSelf::Center => 0.5,
+        _ => 1.0,
+    };
+
+    let mut factor = Vec2::ONE;
+    factor[main] = main_factor;
+    factor[cross] = align;
+    factor
 }
 
 fn card_drag_surface_interaction_system(
@@ -626,28 +654,74 @@ fn persist_card_layout_if_dirty_system(
 }
 
 fn card_resize_handle_visuals_system(
-    handles: Query<(&Interaction, &Children), (With<CardResizeHandle>, Changed<Interaction>)>,
-    mut glyphs: Query<&mut TextColor, With<CardResizeGlyph>>,
+    theme: Res<ThemeResource>,
+    handles: Query<(&Interaction, &Children), With<CardResizeHandle>>,
+    mut glyphs: Query<&mut IconNode, With<CardResizeGlyph>>,
 ) {
+    let colors = theme.current.colors;
+
     for (interaction, children) in &handles {
         let glyph_color = match *interaction {
-            Interaction::Hovered => Color::srgba(0.92, 0.95, 1.0, 1.0),
-            Interaction::Pressed => Color::srgba(0.72, 0.79, 0.95, 1.0),
-            Interaction::None => Color::srgba(0.82, 0.86, 0.96, 0.95),
+            Interaction::Hovered => colors.text,
+            Interaction::Pressed => colors.text.with_alpha(0.7),
+            Interaction::None => colors.text_muted,
         };
 
         for child in children.iter() {
-            if let Ok(mut color) = glyphs.get_mut(child) {
-                color.0 = glyph_color;
+            if let Ok(mut icon) = glyphs.get_mut(child) {
+                if icon.color != glyph_color {
+                    icon.color = glyph_color;
+                }
             }
         }
+    }
+}
+
+/// Grab cursor over the resize handle, grabbing while it is pressed.
+fn card_resize_cursor_icon(
+    mut commands: Commands,
+    handles: Query<&Interaction, With<CardResizeHandle>>,
+    mut windows: Query<(Entity, Option<&mut CursorIcon>), With<PrimaryWindow>>,
+) {
+    let Ok((window, icon)) = windows.single_mut() else {
+        return;
+    };
+
+    let target = handles.iter().fold(None, |acc, interaction| match interaction {
+        Interaction::Pressed => Some(SystemCursorIcon::Grabbing),
+        Interaction::Hovered => acc.or(Some(SystemCursorIcon::Grab)),
+        Interaction::None => acc,
+    });
+
+    // Bevy windows don't carry a `CursorIcon` until one is inserted.
+    let Some(mut icon) = icon else {
+        if let Some(target) = target {
+            commands.entity(window).insert(CursorIcon::from(target));
+        }
+        return;
+    };
+
+    let next = match target {
+        Some(target) => target,
+        // Only release the cursor if the handle set it.
+        None if matches!(
+            &*icon,
+            CursorIcon::System(SystemCursorIcon::Grab | SystemCursorIcon::Grabbing)
+        ) =>
+        {
+            SystemCursorIcon::Default
+        }
+        None => return,
+    };
+
+    if !matches!(&*icon, CursorIcon::System(current) if *current == next) {
+        *icon = next.into();
     }
 }
 
 fn card_theme_system(
     theme: Res<ThemeResource>,
     mut cards: Query<(&Card, &mut Surface)>,
-    mut glyphs: Query<&mut TextColor, With<CardResizeGlyph>>,
 ) {
     let colors = theme.current.colors;
 
@@ -659,10 +733,6 @@ fn card_theme_system(
             surface.fill = Paint::solid(card.base_background);
             surface.border = Some(Border::new(1.0, Paint::solid(CARD_BORDER_DEFAULT)));
         }
-    }
-
-    for mut glyph in &mut glyphs {
-        glyph.0 = colors.text_muted;
     }
 }
 
@@ -713,6 +783,7 @@ impl Plugin for CardPlugin {
                     apply_card_target_size_system,
                     card_dashboard_compaction_system,
                     card_resize_handle_visuals_system,
+                    card_resize_cursor_icon,
                     card_theme_system,
                     persist_card_layout_if_dirty_system,
                 )

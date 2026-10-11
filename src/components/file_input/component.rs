@@ -1,5 +1,10 @@
+use super::dropzone::{DropZonePlugin, ZoneCancel, spawn_zone_content, zone_node};
+use crate::icons::{Icon, IconCommands, IconNode};
 use crate::primitives::a11y;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
+use crate::rendering::prelude::Border;
+use crate::rendering::{Paint, Surface};
+use crate::theme::{ThemeMode, ThemeResource};
 use bevy::prelude::*;
 use bevy::ui::{CalculatedClip, ComputedStackIndex};
 #[cfg(feature = "file_dialog")]
@@ -55,6 +60,8 @@ impl FileType {
 
 #[derive(Component, Debug, Clone)]
 pub struct FileInput {
+    pub variant: FileInputVariant,
+
     pub accepted_types: Vec<FileType>,
 
     /// Allow multiple files.
@@ -72,12 +79,23 @@ pub struct FileInput {
     pub drag_and_drop: bool,
 }
 
+/// How a file input looks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FileInputVariant {
+    /// A dashed drop area with a preview and progress bar for the chosen file.
+    #[default]
+    DropZone,
+    /// A compact button.
+    Button,
+}
+
 impl Default for FileInput {
     fn default() -> Self {
         Self {
+            variant: FileInputVariant::DropZone,
             accepted_types: vec![FileType::Image, FileType::Audio, FileType::Video],
             multiple: false,
-            label: "Choose file".to_string(),
+            label: "Drag and drop a file here".to_string(),
             extensions: Vec::new(),
             drag_and_drop: true,
         }
@@ -90,6 +108,18 @@ impl FileInput {
             label: label.into(),
             ..default()
         }
+    }
+
+    /// Shows a compact button instead of the default drop zone.
+    pub fn button(mut self) -> Self {
+        self.variant = FileInputVariant::Button;
+        self
+    }
+
+    /// Shows the dashed drop zone (the default).
+    pub fn drop_zone(mut self) -> Self {
+        self.variant = FileInputVariant::DropZone;
+        self
     }
 
     pub fn images(mut self) -> Self {
@@ -197,6 +227,12 @@ pub struct FilesDragExited {
     pub entity: Entity,
 }
 
+/// The chosen file was removed with the X button.
+#[derive(Message, Debug, Clone)]
+pub struct FileInputCleared {
+    pub entity: Entity,
+}
+
 #[derive(Message, Debug, Clone)]
 pub struct FilesDropped {
     pub entity: Entity,
@@ -275,6 +311,8 @@ impl Plugin for FileInputPlugin {
         .add_message::<FilesDragEntered>()
         .add_message::<FilesDragExited>()
         .add_message::<FilesDropped>()
+        .add_message::<FileInputCleared>()
+        .add_plugins(DropZonePlugin)
         .add_systems(
             Update,
             (
@@ -282,6 +320,7 @@ impl Plugin for FileInputPlugin {
                 process_file_picker_results,
                 process_os_drag_and_drop,
                 activate_file_input,
+                file_input_visual_system,
             ),
         );
     }
@@ -289,6 +328,7 @@ impl Plugin for FileInputPlugin {
 
 fn activate_file_input(
     inputs: Query<(Entity, &Interaction, &FileInput), Changed<Interaction>>,
+    cancels: Query<(&ZoneCancel, &Interaction)>,
     channels: Res<FilePickerChannels>,
     mut opened: MessageWriter<FileInputOpened>,
 ) {
@@ -297,6 +337,13 @@ fn activate_file_input(
             continue;
         }
 
+        // Pressing the X button must not also open the picker.
+        if cancels
+            .iter()
+            .any(|(cancel, state)| cancel.owner == entity && *state != Interaction::None)
+        {
+            continue;
+        }
         open_file_input(entity, input, &channels);
         opened.write(FileInputOpened { entity });
     }
@@ -307,33 +354,178 @@ fn activate_file_input(
 // ============================================================================
 
 pub fn spawn_file_input(commands: &mut Commands, input: FileInput) -> Entity {
+    let content_input = input.clone();
+    let mut entity = commands.spawn(file_input_bundle(input));
+    let id = entity.id();
+    entity.with_children(|parent| spawn_file_input_content(parent, id, &content_input));
+    id
+}
+
+/// Spawns a file input as a child of `parent`.
+pub fn spawn_file_input_in(parent: &mut ChildSpawnerCommands, input: FileInput) -> Entity {
+    let content_input = input.clone();
+    let mut entity = parent.spawn(file_input_bundle(input));
+    let id = entity.id();
+    entity.with_children(|content| spawn_file_input_content(content, id, &content_input));
+    id
+}
+
+fn file_input_bundle(input: FileInput) -> impl Bundle {
     let label = input.label.clone();
-    commands
-        .spawn((
-            input,
-            FileInputDragState::default(),
-            FileInputSelectionState::default(),
-            Button,
-            a11y::TabIndex(0),
-            SemanticNode::new(SemanticRole::Button).label(label.clone()),
-            Node {
-                min_width: px(180),
-                min_height: px(42),
-                padding: UiRect::axes(px(14), px(10)),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            BackgroundColor(Color::NONE),
-            crate::rendering::Surface::rounded_rect_fill(
-                8.0,
-                crate::rendering::Paint::solid(Color::NONE),
-            ),
-        ))
-        .with_children(|parent| {
-            parent.spawn(Text::new(label));
-        })
-        .id()
+    let node = match input.variant {
+        FileInputVariant::Button => Node {
+            min_width: px(180),
+            min_height: px(42),
+            padding: UiRect::axes(px(14), px(10)),
+            column_gap: px(8),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            border_radius: BorderRadius::all(px(8.0)),
+            ..default()
+        },
+        FileInputVariant::DropZone => zone_node(),
+    };
+    (
+        input,
+        FileInputDragState::default(),
+        FileInputSelectionState::default(),
+        Button,
+        a11y::TabIndex(0),
+        SemanticNode::new(SemanticRole::Button).label(label),
+        node,
+        BackgroundColor(Color::NONE),
+        Surface::rounded_rect_fill(8.0, Paint::solid(Color::NONE))
+            .uniform_border(1.0, Paint::solid(Color::NONE)),
+    )
+}
+
+fn spawn_file_input_content(parent: &mut ChildSpawnerCommands, owner: Entity, input: &FileInput) {
+    if input.variant == FileInputVariant::DropZone {
+        spawn_zone_content(parent, owner, input);
+        return;
+    }
+
+    let label = input.label.clone();
+    // Colors are applied by `file_input_visual_system` every frame.
+    let icon = parent.spawn_icon_colored(Icon::feather("upload"), 16.0, Color::BLACK);
+    parent
+        .commands()
+        .entity(icon)
+        .insert(FileInputIcon { owner });
+    parent.spawn((
+        FileInputLabel { owner },
+        Text::new(label),
+        TextFont {
+            font_size: FontSize::Px(14.0),
+            ..default()
+        },
+        TextColor(Color::BLACK),
+    ));
+}
+
+#[derive(Component, Clone, Copy)]
+struct FileInputLabel {
+    owner: Entity,
+}
+
+#[derive(Component, Clone, Copy)]
+struct FileInputIcon {
+    owner: Entity,
+}
+
+/// Same neutral palette as the default alert, button and avatar.
+fn file_input_visual_system(
+    theme: Option<Res<ThemeResource>>,
+    inputs: Query<(
+        &Interaction,
+        &FileInputDragState,
+        &FileInputSelectionState,
+        &FileInput,
+    )>,
+    mut surfaces: Query<(Entity, &mut Surface), With<FileInput>>,
+    mut labels: Query<(&FileInputLabel, &mut Text, &mut TextColor)>,
+    mut icons: Query<(&FileInputIcon, &mut IconNode)>,
+) {
+    let light = theme.is_none_or(|theme| theme.current.mode == ThemeMode::Light);
+    let gray = |v: u8| Color::srgb_u8(v, v, v);
+    let (paper, ink, muted, border, hover, pressed, error) = if light {
+        (
+            gray(255),
+            gray(0),
+            gray(115),
+            gray(212),
+            gray(245),
+            gray(229),
+            Color::srgb_u8(220, 38, 38),
+        )
+    } else {
+        (
+            gray(23),
+            gray(255),
+            gray(163),
+            gray(38),
+            gray(38),
+            gray(51),
+            Color::srgb_u8(248, 113, 113),
+        )
+    };
+
+    for (entity, mut surface) in &mut surfaces {
+        let Ok((interaction, drag, _, input)) = inputs.get(entity) else {
+            continue;
+        };
+        if input.variant != FileInputVariant::Button {
+            continue;
+        }
+
+        let fill = if drag.dragging {
+            hover
+        } else {
+            match interaction {
+                Interaction::Pressed => pressed,
+                Interaction::Hovered => hover,
+                Interaction::None => paper,
+            }
+        };
+        let outline = match (drag.dragging, drag.accepted) {
+            (true, true) => ink,
+            (true, false) => error,
+            _ => border,
+        };
+
+        surface.fill = Paint::solid(fill);
+        surface.border = Some(Border::new(1.0, Paint::solid(outline)));
+    }
+
+    for (label, mut text, mut color) in &mut labels {
+        let Ok((_, _, selection, input)) = inputs.get(label.owner) else {
+            continue;
+        };
+
+        let shown = match selection.files.as_slice() {
+            [] => input.label.clone(),
+            [file] => file.filename().unwrap_or(&input.label).to_string(),
+            files => format!("{} files", files.len()),
+        };
+        if text.0 != shown {
+            text.0 = shown;
+        }
+
+        let target = if selection.files.is_empty() {
+            muted
+        } else {
+            ink
+        };
+        if color.0 != target {
+            color.0 = target;
+        }
+    }
+
+    for (icon, mut node) in &mut icons {
+        if inputs.get(icon.owner).is_ok() && node.color != muted {
+            node.color = muted;
+        }
+    }
 }
 
 // ============================================================================
@@ -579,24 +771,39 @@ fn file_input_drop_target_for_window(
     )>,
 ) -> Option<Entity> {
     let window = windows.get(window_entity).ok()?;
-    let pointer = window.cursor_position()? * window.scale_factor();
-    if !pointer.is_finite() {
-        return None;
+    let pointer = window
+        .cursor_position()
+        .map(|position| position * window.scale_factor())
+        .filter(|pointer| pointer.is_finite());
+
+    let eligible = targets
+        .iter()
+        .filter(|(_, input, node, _, _, visibility, _)| {
+            input.drag_and_drop && input.accepts(path) && visibility.get() && !node.is_empty()
+        })
+        .collect::<Vec<_>>();
+
+    let under_pointer = pointer.and_then(|pointer| {
+        let hits = eligible
+            .iter()
+            .filter(|(_, _, node, transform, _, _, clip)| {
+                clip.is_none_or(|clip| !clip.clip.is_empty() && clip.clip.contains(pointer))
+                    && node.contains_point(**transform, pointer)
+            })
+            .map(|(entity, _, _, _, stack, _, _)| (*entity, stack.0))
+            .collect::<Vec<_>>();
+        choose_topmost_file_input(hits)
+    });
+    if under_pointer.is_some() {
+        return under_pointer;
     }
 
-    let candidates = targets
-        .iter()
-        .filter(|(_, input, node, transform, _, visibility, clip)| {
-            input.drag_and_drop
-                && input.accepts(path)
-                && visibility.get()
-                && !node.is_empty()
-                && clip.is_none_or(|clip| !clip.clip.is_empty() && clip.clip.contains(pointer))
-                && node.contains_point(**transform, pointer)
-        })
-        .map(|(entity, _, _, _, stack, _, _)| (entity, stack.0))
-        .collect::<Vec<_>>();
-    choose_topmost_file_input(candidates)
+    // The OS doesn't report the cursor while files are dragged in from another app
+    // (it is stale or missing), so with a single candidate accept the drop anywhere.
+    match eligible.as_slice() {
+        [(entity, ..)] => Some(*entity),
+        _ => None,
+    }
 }
 
 fn choose_topmost_file_input(

@@ -33,10 +33,10 @@ pub enum UiIconSyncSet {
 }
 
 #[derive(Component)]
-struct UiIconProxyCamera;
+pub(crate) struct UiIconProxyCamera;
 
 #[derive(Component)]
-struct UiIconContentClipCamera;
+pub(crate) struct UiIconContentClipCamera;
 
 #[derive(Component)]
 struct UiIconProxy {
@@ -48,6 +48,10 @@ struct UiIconProxy {
 
 #[derive(Component)]
 struct UiIconProxyEntity(Entity);
+
+/// Marks a UI subtree that visually occludes SVG icon proxies outside it.
+#[derive(Component)]
+pub struct IconProxyOcclusionRoot;
 
 /// Marker for icons that should automatically follow the active UI theme color.
 #[derive(Component)]
@@ -464,6 +468,9 @@ fn sync_ui_svg_icon_proxies(
     )>,
     windows: Query<&Window, With<PrimaryWindow>>,
     content_cameras: Query<&Camera, With<UiIconContentClipCamera>>,
+    parent_query: Query<&ChildOf>,
+    clip_nodes: Query<(&Node, &ComputedNode, &UiGlobalTransform)>,
+    occlusion_roots: Query<Entity, With<IconProxyOcclusionRoot>>,
     mut proxies: Query<(
         Entity,
         &UiIconProxy,
@@ -493,8 +500,18 @@ fn sync_ui_svg_icon_proxies(
                 / window.scale_factor()
         })
         .unwrap_or(window_center);
+    let occlusion_roots: Vec<_> = occlusion_roots.iter().collect();
 
     for (proxy_entity, proxy, mut svg2d, mut transform, mut visibility, anchor) in &mut proxies {
+        if !occlusion_roots.is_empty()
+            && !occlusion_roots
+                .iter()
+                .any(|root| is_descendant_of(proxy.owner, *root, &parent_query))
+        {
+            *visibility = Visibility::Hidden;
+            continue;
+        }
+
         let Ok((
             icon_node,
             computed,
@@ -514,6 +531,13 @@ fn sync_ui_svg_icon_proxies(
         }
 
         if linked_proxy.0 != proxy_entity {
+            *visibility = Visibility::Hidden;
+            continue;
+        }
+
+        // Proxies render on their own camera, so UI overflow clipping never applies to them.
+        let icon_rect = ui_logical_rect(computed, ui_transform);
+        if clipped_out_by_ancestor(proxy.owner, icon_rect, &parent_query, &clip_nodes) {
             *visibility = Visibility::Hidden;
             continue;
         }
@@ -592,6 +616,30 @@ fn ui_logical_rect(computed: &ComputedNode, ui_transform: &UiGlobalTransform) ->
     }
 }
 
+fn clipped_out_by_ancestor(
+    owner: Entity,
+    icon: UiLogicalRect,
+    parents: &Query<&ChildOf>,
+    nodes: &Query<(&Node, &ComputedNode, &UiGlobalTransform)>,
+) -> bool {
+    let mut current = owner;
+    while let Ok(child_of) = parents.get(current) {
+        current = child_of.parent();
+        if let Ok((node, computed, transform)) = nodes.get(current)
+            && rect_outside_clip(icon, ui_logical_rect(computed, transform), node.overflow)
+        {
+            return true;
+        }
+    }
+    false
+}
+
+fn rect_outside_clip(icon: UiLogicalRect, clip: UiLogicalRect, overflow: Overflow) -> bool {
+    let clips = |axis: OverflowAxis| axis != OverflowAxis::Visible;
+    (clips(overflow.x) && (icon.left >= clip.right || icon.right <= clip.left))
+        || (clips(overflow.y) && (icon.top >= clip.bottom || icon.bottom <= clip.top))
+}
+
 fn is_descendant_of(entity: Entity, ancestor: Entity, parents: &Query<&ChildOf>) -> bool {
     let mut current = entity;
 
@@ -636,5 +684,33 @@ fn load_feather_icons(
         let svg: Handle<Svg> = asset_server.load(icon_node.icon.path());
 
         commands.entity(entity).insert(Svg2d(svg));
+    }
+}
+
+#[cfg(test)]
+mod clip_tests {
+    use super::*;
+
+    fn rect(left: f32, top: f32, size: f32) -> UiLogicalRect {
+        UiLogicalRect {
+            left,
+            right: left + size,
+            top,
+            bottom: top + size,
+        }
+    }
+
+    #[test]
+    fn icons_outside_a_clipping_panel_are_hidden() {
+        let panel = rect(0.0, 0.0, 300.0);
+        let clip = Overflow::clip();
+        assert!(!rect_outside_clip(rect(20.0, 20.0, 28.0), panel, clip));
+        assert!(rect_outside_clip(rect(310.0, 20.0, 28.0), panel, clip));
+        assert!(rect_outside_clip(rect(20.0, 320.0, 28.0), panel, clip));
+        assert!(!rect_outside_clip(
+            rect(310.0, 20.0, 28.0),
+            panel,
+            Overflow::visible()
+        ));
     }
 }

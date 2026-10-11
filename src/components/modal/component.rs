@@ -5,13 +5,15 @@ use std::collections::HashMap;
 use crate::animation::blur::component::{BackdropBlur, spawn_backdrop_blur};
 use crate::components::text::{TextRole, ThemedText};
 use crate::components::title::{ThemedTitle, TitleLevel};
-use crate::icons::{Icon, IconNode};
+use crate::icons::{Icon, IconNode, IconProxyOcclusionRoot};
 use crate::primitives::a11y;
 use crate::primitives::focus::{FocusOrigin, FocusRequest, FocusScope, FocusSystems};
-use crate::primitives::interaction::{InteractionAction, InteractionActionEvent};
+use crate::primitives::interaction::{
+    DefaultCursorOnHover, InteractionAction, InteractionActionEvent, PointerCursorOnHover,
+};
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::rendering::prelude::*;
-use crate::theme::{AccessibilityVisualPolicyResource, ThemeResource};
+use crate::theme::{AccessibilityVisualPolicyResource, ThemeColors, ThemeMode, ThemeResource};
 
 fn dialog_semantics(label: impl Into<String>) -> SemanticNode {
     let mut semantic = SemanticNode::new(SemanticRole::Dialog).label(label);
@@ -96,6 +98,20 @@ struct ModalActionButton {
 #[derive(Component)]
 struct ModalBaseColor(Color);
 
+#[derive(Component, Clone, Copy)]
+struct ModalThemeColor(ModalThemeColorRole);
+
+#[derive(Clone, Copy)]
+enum ModalThemeColorRole {
+    Overlay,
+    Surface,
+    CloseButton,
+    CloseIcon,
+}
+
+#[derive(Component)]
+struct ModalThemeBackdrop;
+
 /// Remembers which entity had keyboard focus before this modal opened, so it
 /// can be restored when the modal closes.
 #[derive(Component, Default)]
@@ -153,6 +169,8 @@ pub struct ModalStyle {
 
     pub border_radius: f32,
     pub padding: f32,
+    /// Follows the active light/dark theme. Disable with [`ModalStyle::fixed_colors`].
+    pub theme_aware: bool,
 }
 
 #[derive(Clone)]
@@ -184,17 +202,67 @@ impl Default for ModalStyle {
             min_height: 180.0,
             max_width: 640.0,
 
-            overlay_color: Color::srgba(0.0, 0.0, 0.0, 0.55),
-            surface_color: Color::srgba(0.08, 0.08, 0.10, 0.96),
-            border_color: Color::srgba(1.0, 1.0, 1.0, 0.10),
+            overlay_color: Color::srgba(1.0, 1.0, 1.0, 0.52),
+            surface_color: Color::WHITE,
+            border_color: Color::srgb(0.86, 0.88, 0.91),
 
             border_radius: 20.0,
             padding: 24.0,
+            theme_aware: true,
         }
     }
 }
 
-const MODAL_SCENE_OFFSET_X: f32 = 180.0;
+impl ModalStyle {
+    /// Keeps the configured overlay, surface, and border colors across theme changes.
+    pub fn fixed_colors(mut self) -> Self {
+        self.theme_aware = false;
+        self
+    }
+}
+
+#[derive(Clone, Copy)]
+struct ModalThemePalette {
+    overlay: Color,
+    surface: Color,
+    border: Color,
+    backdrop_darkness: f32,
+    close_button: Color,
+    close_icon: Color,
+}
+
+fn modal_theme_palette(mode: ThemeMode, colors: ThemeColors) -> ModalThemePalette {
+    match mode {
+        ThemeMode::Light => ModalThemePalette {
+            overlay: Color::srgba(1.0, 1.0, 1.0, 0.52),
+            surface: Color::WHITE,
+            border: colors.border,
+            backdrop_darkness: 0.0,
+            close_button: Color::srgba(0.0, 0.0, 0.0, 0.06),
+            close_icon: colors.text,
+        },
+        ThemeMode::Dark => ModalThemePalette {
+            overlay: Color::srgba(0.0, 0.0, 0.0, 0.58),
+            surface: Color::BLACK,
+            border: colors.border,
+            backdrop_darkness: 0.78,
+            close_button: Color::srgba(1.0, 1.0, 1.0, 0.08),
+            close_icon: colors.text,
+        },
+    }
+}
+
+fn apply_modal_theme(style: &mut ModalStyle, theme: &ThemeResource) -> f32 {
+    if !style.theme_aware {
+        return 0.78;
+    }
+
+    let palette = modal_theme_palette(theme.current.mode, theme.current.colors);
+    style.overlay_color = palette.overlay;
+    style.surface_color = palette.surface;
+    style.border_color = palette.border;
+    palette.backdrop_darkness
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Modal Commands
@@ -234,6 +302,9 @@ pub fn spawn_modal(
     content: BasicModalContent,
     theme: &ThemeResource,
 ) -> Entity {
+    let mut style = style;
+    let backdrop_darkness = apply_modal_theme(&mut style, theme);
+    let palette = modal_theme_palette(theme.current.mode, theme.current.colors);
     let colors = theme.current.colors;
     let modal_entity = commands
         .spawn((
@@ -258,8 +329,6 @@ pub fn spawn_modal(
                 bottom: Val::Px(0.0),
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
-                padding: UiRect::left(Val::Px(MODAL_SCENE_OFFSET_X)),
-
                 display: if modal.open {
                     Display::Flex
                 } else {
@@ -272,6 +341,7 @@ pub fn spawn_modal(
                 ..default()
             },
             ZIndex(1000),
+            GlobalZIndex(1000),
             ModalAnimation::default(),
             Visibility::Visible,
             InheritedVisibility::default(),
@@ -285,17 +355,21 @@ pub fn spawn_modal(
         // Backdrop
         // ─────────────────────────────────────────────────────────────
 
-        spawn_backdrop_blur(
+        let backdrop = spawn_backdrop_blur(
             root,
             BackdropBlur::new()
                 .opacity(style.overlay_color.alpha())
-                .darkness(0.78)
+                .darkness(backdrop_darkness)
                 .intensity(1.0)
                 .visible(modal.open),
         );
+        if style.theme_aware {
+            root.commands().entity(backdrop).insert(ModalThemeBackdrop);
+        }
 
-        root.spawn((
+        let mut overlay = root.spawn((
             Button,
+            DefaultCursorOnHover,
             Node {
                 position_type: PositionType::Absolute,
 
@@ -311,12 +385,17 @@ pub fn spawn_modal(
             ModalOverlay,
             Surface::rounded_rect_fill(0.0, Paint::solid(style.overlay_color)),
         ));
+        if style.theme_aware {
+            overlay.insert(ModalThemeColor(ModalThemeColorRole::Overlay));
+        }
 
         // ─────────────────────────────────────────────────────────────
         // Modal Surface
         // ─────────────────────────────────────────────────────────────
 
-        root.spawn((
+        let mut modal_surface = root.spawn((
+            Interaction::None,
+            DefaultCursorOnHover,
             Node {
                 width: Val::Px(style.width),
                 min_height: Val::Px(style.min_height),
@@ -341,8 +420,11 @@ pub fn spawn_modal(
             },
             Surface::rounded_rect_fill(style.border_radius, Paint::solid(style.surface_color))
                 .uniform_border(1.0, Paint::solid(style.border_color)),
-        ))
-        .with_children(|surface| {
+        ));
+        if style.theme_aware {
+            modal_surface.insert(ModalThemeColor(ModalThemeColorRole::Surface));
+        }
+        modal_surface.with_children(|surface| {
             surface
                 .spawn((
                     Node {
@@ -368,37 +450,51 @@ pub fn spawn_modal(
                         },
                     ));
 
-                    header
-                        .spawn((
-                            Button,
-                            ModalCloseButton,
-                            a11y::TabIndex(0),
-                            SemanticNode::new(SemanticRole::Button).label("Close dialog"),
-                            ModalActionButton {
-                                owner: modal_entity,
-                            },
+                    let mut close_button = header.spawn((
+                        Button,
+                        ModalCloseButton,
+                        PointerCursorOnHover,
+                        a11y::TabIndex(0),
+                        SemanticNode::new(SemanticRole::Button).label("Close dialog"),
+                        ModalActionButton {
+                            owner: modal_entity,
+                        },
+                        Node {
+                            width: px(36.0),
+                            height: px(36.0),
+                            align_items: AlignItems::Center,
+                            justify_content: JustifyContent::Center,
+                            border_radius: BorderRadius::all(px(18.0)),
+                            ..default()
+                        },
+                        BackgroundColor(if style.theme_aware {
+                            palette.close_button
+                        } else {
+                            Color::srgba(1.0, 1.0, 1.0, 0.08)
+                        }),
+                    ));
+                    if style.theme_aware {
+                        close_button.insert(ModalThemeColor(ModalThemeColorRole::CloseButton));
+                    }
+                    close_button.with_children(|button| {
+                        let mut close_icon = button.spawn((
+                            IconNode::new(Icon::feather("x")).size(20.0).color(
+                                if style.theme_aware {
+                                    palette.close_icon
+                                } else {
+                                    Color::WHITE
+                                },
+                            ),
                             Node {
-                                width: px(36.0),
-                                height: px(36.0),
-                                align_items: AlignItems::Center,
-                                justify_content: JustifyContent::Center,
-                                border_radius: BorderRadius::all(px(18.0)),
+                                width: px(20.0),
+                                height: px(20.0),
                                 ..default()
                             },
-                            BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.08)),
-                        ))
-                        .with_children(|button| {
-                            button.spawn((
-                                IconNode::new(Icon::feather("x"))
-                                    .size(20.0)
-                                    .color(Color::WHITE),
-                                Node {
-                                    width: px(20.0),
-                                    height: px(20.0),
-                                    ..default()
-                                },
-                            ));
-                        });
+                        ));
+                        if style.theme_aware {
+                            close_icon.insert(ModalThemeColor(ModalThemeColorRole::CloseIcon));
+                        }
+                    });
                 });
 
             surface
@@ -436,6 +532,7 @@ pub fn spawn_modal(
                     footer
                         .spawn((
                             Button,
+                            PointerCursorOnHover,
                             a11y::TabIndex(0),
                             SemanticNode::new(SemanticRole::Button)
                                 .label(content.dismiss_label.clone()),
@@ -484,6 +581,9 @@ where
     F: FnOnce(&mut ChildSpawnerCommands),
 {
     let title = title.into();
+    let mut style = style;
+    let backdrop_darkness = apply_modal_theme(&mut style, theme);
+    let palette = modal_theme_palette(theme.current.mode, theme.current.colors);
     let colors = theme.current.colors;
 
     let modal_entity = commands
@@ -508,8 +608,6 @@ where
                 bottom: Val::Px(0.0),
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
-                padding: UiRect::left(Val::Px(MODAL_SCENE_OFFSET_X)),
-
                 display: if modal.open {
                     Display::Flex
                 } else {
@@ -522,6 +620,7 @@ where
                 ..default()
             },
             ZIndex(1000),
+            GlobalZIndex(1000),
             ModalAnimation::default(),
             Visibility::Visible,
             InheritedVisibility::default(),
@@ -531,17 +630,21 @@ where
     commands.entity(modal_entity).insert(ChildOf(parent));
 
     commands.entity(modal_entity).with_children(|root| {
-        spawn_backdrop_blur(
+        let backdrop = spawn_backdrop_blur(
             root,
             BackdropBlur::new()
                 .opacity(style.overlay_color.alpha())
-                .darkness(0.78)
+                .darkness(backdrop_darkness)
                 .intensity(1.0)
                 .visible(modal.open),
         );
+        if style.theme_aware {
+            root.commands().entity(backdrop).insert(ModalThemeBackdrop);
+        }
 
-        root.spawn((
+        let mut overlay = root.spawn((
             Button,
+            DefaultCursorOnHover,
             Node {
                 position_type: PositionType::Absolute,
 
@@ -556,8 +659,13 @@ where
             ModalBaseColor(style.overlay_color),
             ModalOverlay,
         ));
+        if style.theme_aware {
+            overlay.insert(ModalThemeColor(ModalThemeColorRole::Overlay));
+        }
 
-        root.spawn((
+        let mut modal_surface = root.spawn((
+            Interaction::None,
+            DefaultCursorOnHover,
             Node {
                 width: Val::Px(style.width),
                 min_height: Val::Px(style.min_height),
@@ -584,8 +692,11 @@ where
                 opacity: if modal.open { 1.0 } else { 0.0 },
                 scale: if modal.open { 1.0 } else { 0.92 },
             },
-        ))
-        .with_children(|surface| {
+        ));
+        if style.theme_aware {
+            modal_surface.insert(ModalThemeColor(ModalThemeColorRole::Surface));
+        }
+        modal_surface.with_children(|surface| {
             surface
                 .spawn((
                     Node {
@@ -611,40 +722,54 @@ where
                         },
                     ));
 
-                    header
-                        .spawn((
-                            Button,
-                            ModalCloseButton,
-                            a11y::TabIndex(0),
-                            SemanticNode::new(SemanticRole::Button).label("Close dialog"),
-                            ModalActionButton {
-                                owner: modal_entity,
-                            },
+                    let mut close_button = header.spawn((
+                        Button,
+                        ModalCloseButton,
+                        PointerCursorOnHover,
+                        a11y::TabIndex(0),
+                        SemanticNode::new(SemanticRole::Button).label("Close dialog"),
+                        ModalActionButton {
+                            owner: modal_entity,
+                        },
+                        Node {
+                            width: px(36.0),
+                            height: px(36.0),
+                            align_items: AlignItems::Center,
+                            justify_content: JustifyContent::Center,
+                            border_radius: BorderRadius::all(px(18.0)),
+                            ..default()
+                        },
+                        Surface::rounded_rect_fill(
+                            18.0,
+                            Paint::solid(if style.theme_aware {
+                                palette.close_button
+                            } else {
+                                Color::srgba(1.0, 1.0, 1.0, 0.08)
+                            }),
+                        ),
+                    ));
+                    if style.theme_aware {
+                        close_button.insert(ModalThemeColor(ModalThemeColorRole::CloseButton));
+                    }
+                    close_button.with_children(|button| {
+                        let mut close_icon = button.spawn((
+                            IconNode::new(Icon::feather("x")).size(20.0).color(
+                                if style.theme_aware {
+                                    palette.close_icon
+                                } else {
+                                    Color::WHITE
+                                },
+                            ),
                             Node {
-                                width: px(36.0),
-                                height: px(36.0),
-                                align_items: AlignItems::Center,
-                                justify_content: JustifyContent::Center,
-                                border_radius: BorderRadius::all(px(18.0)),
+                                width: px(20.0),
+                                height: px(20.0),
                                 ..default()
                             },
-                            Surface::rounded_rect_fill(
-                                18.0,
-                                Paint::solid(Color::srgba(1.0, 1.0, 1.0, 0.08)),
-                            ),
-                        ))
-                        .with_children(|button| {
-                            button.spawn((
-                                IconNode::new(Icon::feather("x"))
-                                    .size(20.0)
-                                    .color(Color::WHITE),
-                                Node {
-                                    width: px(20.0),
-                                    height: px(20.0),
-                                    ..default()
-                                },
-                            ));
-                        });
+                        ));
+                        if style.theme_aware {
+                            close_icon.insert(ModalThemeColor(ModalThemeColorRole::CloseIcon));
+                        }
+                    });
                 });
 
             build_surface(surface);
@@ -741,10 +866,17 @@ fn modal_commands(
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn modal_visibility(
-    mut modals: Query<(&Modal, &Children, &mut Node)>,
+    mut commands: Commands,
+    mut modals: Query<(
+        Entity,
+        &Modal,
+        &Children,
+        &mut Node,
+        Option<&IconProxyOcclusionRoot>,
+    )>,
     surfaces: Query<&ModalAnimation, With<ModalSurface>>,
 ) {
-    for (modal, children, mut node) in modals.iter_mut() {
+    for (entity, modal, children, mut node, occlusion_root) in modals.iter_mut() {
         let mut surface_visible = modal.open;
 
         if !surface_visible {
@@ -760,6 +892,11 @@ fn modal_visibility(
         } else {
             Display::None
         };
+        if surface_visible && occlusion_root.is_none() {
+            commands.entity(entity).insert(IconProxyOcclusionRoot);
+        } else if !surface_visible && occlusion_root.is_some() {
+            commands.entity(entity).remove::<IconProxyOcclusionRoot>();
+        }
     }
 }
 
@@ -950,6 +1087,66 @@ fn modal_close_button_direct_click(
 // ─────────────────────────────────────────────────────────────────────────────
 // Animation
 // ─────────────────────────────────────────────────────────────────────────────
+fn modal_theme_system(
+    theme: Option<Res<ThemeResource>>,
+    mut surfaces: Query<
+        (&ModalThemeColor, &mut ModalBaseColor, &mut Surface),
+        Without<ModalCloseButton>,
+    >,
+    mut close_buttons: Query<
+        (
+            &ModalThemeColor,
+            Option<&mut BackgroundColor>,
+            Option<&mut Surface>,
+        ),
+        With<ModalCloseButton>,
+    >,
+    mut close_icons: Query<(&ModalThemeColor, &mut IconNode)>,
+    mut backdrops: Query<&mut BackdropBlur, With<ModalThemeBackdrop>>,
+) {
+    let Some(theme) = theme else {
+        return;
+    };
+    if !theme.is_changed() {
+        return;
+    }
+
+    let palette = modal_theme_palette(theme.current.mode, theme.current.colors);
+    for (role, mut base_color, mut surface) in &mut surfaces {
+        let color = match role.0 {
+            ModalThemeColorRole::Overlay => palette.overlay,
+            ModalThemeColorRole::Surface => palette.surface,
+            ModalThemeColorRole::CloseButton | ModalThemeColorRole::CloseIcon => continue,
+        };
+        base_color.0 = color;
+        if matches!(role.0, ModalThemeColorRole::Surface) {
+            surface.border = Some(Border::new(1.0, Paint::solid(palette.border)));
+        }
+    }
+
+    for (role, background, surface) in &mut close_buttons {
+        if matches!(role.0, ModalThemeColorRole::CloseButton) {
+            if let Some(mut background) = background {
+                background.0 = palette.close_button;
+            }
+            if let Some(mut surface) = surface {
+                surface.fill = Paint::solid(palette.close_button);
+            }
+        }
+    }
+
+    for (role, mut icon) in &mut close_icons {
+        if matches!(role.0, ModalThemeColorRole::CloseIcon) {
+            icon.color = palette.close_icon;
+        }
+    }
+
+    for mut backdrop in &mut backdrops {
+        backdrop.darkness = palette.backdrop_darkness;
+        backdrop.opacity = palette.overlay.alpha();
+    }
+}
+
 fn modal_animation(
     time: Res<Time>,
     policy: Res<AccessibilityVisualPolicyResource>,
@@ -1065,10 +1262,12 @@ impl Plugin for ModalPlugin {
                     modal_buttons,
                     modal_close_button_direct_click,
                     modal_commands,
+                    modal_theme_system,
                     modal_animation,
                     modal_visibility,
                 )
-                    .chain(),
+                    .chain()
+                    .before(crate::icons::component::UiIconSyncSet::Sync),
             )
             .add_systems(
                 PostUpdate,
@@ -1187,6 +1386,57 @@ mod tests {
         (modal, surface, overlay, backdrop)
     }
 
+    #[test]
+    fn both_modal_spawn_paths_use_a_global_overlay_layer() {
+        for custom in [false, true] {
+            let mut app = modal_app();
+            let (modal, _, _, _) = mount_visual_modal(&mut app, custom);
+            assert_eq!(app.world().get::<GlobalZIndex>(modal).unwrap().0, 1000);
+        }
+    }
+
+    #[test]
+    fn modal_close_controls_use_pointer_cursor() {
+        let mut app = modal_app();
+        let (_, surface, overlay, _) = mount_visual_modal(&mut app, false);
+
+        assert!(app.world().get::<Interaction>(surface).is_some());
+        assert!(app.world().get::<DefaultCursorOnHover>(surface).is_some());
+        assert!(app.world().get::<DefaultCursorOnHover>(overlay).is_some());
+
+        let mut close_buttons = app
+            .world_mut()
+            .query_filtered::<Entity, (With<ModalCloseButton>, With<PointerCursorOnHover>)>();
+        assert_eq!(close_buttons.iter(app.world()).count(), 1);
+
+        let mut footer_buttons = app.world_mut().query_filtered::<Entity, (
+            With<ModalActionButton>,
+            Without<ModalCloseButton>,
+            With<PointerCursorOnHover>,
+        )>();
+        assert_eq!(footer_buttons.iter(app.world()).count(), 1);
+    }
+
+    #[test]
+    fn modal_occludes_external_icon_proxies_until_close_animation_finishes() {
+        let mut app = modal_app();
+        let (modal, _, _, _) = mount_visual_modal(&mut app, false);
+        advance_modal(&mut app, 0.0);
+        assert!(app.world().get::<IconProxyOcclusionRoot>(modal).is_none());
+
+        app.world_mut().write_message(ModalCommand::Open(modal));
+        advance_modal(&mut app, 0.1);
+        assert!(app.world().get::<IconProxyOcclusionRoot>(modal).is_some());
+
+        app.world_mut().write_message(ModalCommand::Close(modal));
+        advance_modal(&mut app, 1.0 / 60.0);
+        assert!(app.world().get::<IconProxyOcclusionRoot>(modal).is_some());
+        for _ in 0..120 {
+            advance_modal(&mut app, 1.0 / 60.0);
+        }
+        assert!(app.world().get::<IconProxyOcclusionRoot>(modal).is_none());
+    }
+
     fn advance_modal(app: &mut App, seconds: f32) {
         app.world_mut()
             .resource_mut::<Time>()
@@ -1198,6 +1448,63 @@ mod tests {
         match &app.world().get::<Surface>(entity).unwrap().fill {
             Paint::Solid(color) => color.alpha(),
             _ => panic!("expected solid modal fill"),
+        }
+    }
+
+    fn solid_color(app: &App, entity: Entity) -> Color {
+        match &app.world().get::<Surface>(entity).unwrap().fill {
+            Paint::Solid(color) => *color,
+            _ => panic!("expected solid modal fill"),
+        }
+    }
+
+    #[test]
+    fn default_modal_palette_tracks_light_and_dark_theme_changes() {
+        for custom in [false, true] {
+            let mut app = modal_app();
+            app.insert_resource(ThemeResource::default());
+            let (modal, surface, overlay, backdrop) = mount_visual_modal(&mut app, custom);
+            app.world_mut()
+                .resource_mut::<AccessibilityVisualPolicyResource>()
+                .current
+                .reduced_motion = true;
+            app.world_mut().write_message(ModalCommand::Open(modal));
+            advance_modal(&mut app, 0.0);
+
+            assert_eq!(
+                app.world().get::<ModalBaseColor>(surface).unwrap().0,
+                Color::WHITE
+            );
+            assert_eq!(solid_color(&app, surface), Color::WHITE);
+            assert_eq!(
+                app.world().get::<ModalBaseColor>(overlay).unwrap().0,
+                Color::srgba(1.0, 1.0, 1.0, 0.52)
+            );
+            assert_eq!(
+                app.world().get::<BackdropBlur>(backdrop).unwrap().darkness,
+                0.0
+            );
+
+            app.world_mut().resource_mut::<ThemeResource>().current = crate::theme::dark_theme();
+            advance_modal(&mut app, 0.0);
+
+            assert_eq!(
+                app.world().get::<ModalBaseColor>(surface).unwrap().0,
+                Color::BLACK
+            );
+            assert_eq!(solid_color(&app, surface), Color::BLACK);
+            assert_eq!(
+                app.world().get::<ModalBaseColor>(overlay).unwrap().0,
+                Color::srgba(0.0, 0.0, 0.0, 0.58)
+            );
+            assert_eq!(
+                solid_color(&app, overlay),
+                Color::srgba(0.0, 0.0, 0.0, 0.58)
+            );
+            assert_eq!(
+                app.world().get::<BackdropBlur>(backdrop).unwrap().darkness,
+                0.78
+            );
         }
     }
 

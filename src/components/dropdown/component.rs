@@ -7,7 +7,35 @@ use crate::icons::{Icon, IconNode};
 use crate::primitives::a11y;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::rendering::{Border, Paint, Surface};
-use crate::theme::{ThemeResource, dark_theme};
+use crate::theme::{ThemeMode, ThemeResource, light_theme};
+
+/// Same neutral palette as the default alert, button and avatar.
+struct DropdownPalette {
+    paper: Color,
+    ink: Color,
+    muted: Color,
+    border: Color,
+    hover: Color,
+}
+
+fn dropdown_palette(mode: ThemeMode) -> DropdownPalette {
+    match mode {
+        ThemeMode::Light => DropdownPalette {
+            paper: Color::WHITE,
+            ink: Color::BLACK,
+            muted: Color::srgb_u8(115, 115, 115),
+            border: Color::srgb_u8(212, 212, 212),
+            hover: Color::srgb_u8(245, 245, 245),
+        },
+        ThemeMode::Dark => DropdownPalette {
+            paper: Color::srgb_u8(23, 23, 23),
+            ink: Color::WHITE,
+            muted: Color::srgb_u8(163, 163, 163),
+            border: Color::srgb_u8(38, 38, 38),
+            hover: Color::srgb_u8(38, 38, 38),
+        },
+    }
+}
 
 // ============================================================
 // DROPDOWN
@@ -56,6 +84,8 @@ pub struct DropdownConfig {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DropdownMenuAnimationKind {
+    /// Drops out of the trigger and settles with a small bounce.
+    DropFromTrigger,
     Fade,
     FallFromTrigger,
     ScaleInOut,
@@ -69,8 +99,8 @@ impl DropdownConfig {
             placeholder: placeholder.into(),
             options: Vec::new(),
             selected: None,
-            open_animation: DropdownMenuAnimationKind::Fade,
-            close_animation: DropdownMenuAnimationKind::Fade,
+            open_animation: DropdownMenuAnimationKind::DropFromTrigger,
+            close_animation: DropdownMenuAnimationKind::DropFromTrigger,
         }
     }
 
@@ -183,7 +213,8 @@ pub enum DropdownEvent {
 // ============================================================
 
 pub fn spawn_dropdown(parent: &mut ChildSpawnerCommands, config: DropdownConfig) -> Entity {
-    let colors = dark_theme().colors;
+    // Placeholder until the visual systems apply the live theme on the first frame.
+    let colors = light_theme().colors;
 
     let DropdownConfig {
         placeholder,
@@ -266,80 +297,98 @@ pub fn spawn_dropdown(parent: &mut ChildSpawnerCommands, config: DropdownConfig)
                 ));
             });
 
+        // The viewport clips the menu at the select's bottom edge, so a menu offset
+        // upward appears to slide up underneath the select like a roller blind.
         dropdown
             .spawn((
-                DropdownMenu { owner: dropdown_id },
-                DropdownMenuAnimation {
-                    progress: 0.0,
-                    target: 0.0,
-                    velocity: 0.0,
-                    stiffness: 220.0,
-                    damping: 26.0,
-                },
                 Node {
-                    width: percent(100),
                     position_type: PositionType::Absolute,
                     top: px(42),
                     left: px(0),
-                    flex_direction: FlexDirection::Column,
-                    padding: UiRect::all(px(6)),
-                    row_gap: px(4),
-                    border_radius: BorderRadius::all(px(10.0)),
+                    width: percent(100),
+                    // Slack below the menu so the opening bounce isn't cut off.
+                    padding: UiRect::bottom(px(12)),
+                    overflow: Overflow::clip_y(),
                     ..default()
                 },
-                Visibility::Hidden,
-                BackgroundColor(Color::NONE),
-                Surface::rounded_rect_fill(
-                    10.0,
-                    Paint::solid(colors.surface_elevated.with_alpha(0.0)),
-                )
-                .uniform_border(1.0, Paint::solid(colors.border.with_alpha(0.55))),
                 GlobalZIndex(200),
             ))
-            .with_children(|menu| {
-                for (index, option) in options.iter().enumerate() {
-                    menu.spawn((
-                        Button,
-                        DropdownOptionButton {
-                            owner: dropdown_id,
-                            index,
-                        },
-                        {
-                            let mut semantic = SemanticNode::new(SemanticRole::ListBoxOption)
-                                .label(option.label.clone());
-                            semantic.state.selected = clamped_selected == Some(index);
-                            semantic
+            .with_children(|viewport| {
+                viewport
+                    .spawn((
+                        DropdownMenu { owner: dropdown_id },
+                        DropdownMenuAnimation {
+                            progress: 0.0,
+                            target: 0.0,
+                            velocity: 0.0,
+                            stiffness: 220.0,
+                            damping: 26.0,
                         },
                         Node {
                             width: percent(100),
-                            height: px(34),
-                            align_items: AlignItems::Center,
-                            padding: UiRect::horizontal(px(10)),
-                            border_radius: BorderRadius::all(px(8.0)),
+                            position_type: PositionType::Relative,
+                            top: px(0),
+                            left: px(0),
+                            flex_direction: FlexDirection::Column,
+                            padding: UiRect::all(px(6)),
+                            row_gap: px(4),
+                            border_radius: BorderRadius::all(px(10.0)),
                             ..default()
                         },
+                        Visibility::Hidden,
                         BackgroundColor(Color::NONE),
                         Surface::rounded_rect_fill(
-                            8.0,
-                            Paint::solid(colors.surface.with_alpha(0.0)),
-                        ),
+                            10.0,
+                            Paint::solid(colors.surface_elevated.with_alpha(0.0)),
+                        )
+                        .uniform_border(1.0, Paint::solid(colors.border.with_alpha(0.55))),
                     ))
-                    .with_children(|option_button| {
-                        option_button.spawn((
-                            DropdownOptionLabel {
-                                owner: dropdown_id,
-                                index,
-                            },
-                            ThemedText::new(TextRole::Label),
-                            Text::new(option.label.clone()),
-                            TextFont {
-                                font_size: FontSize::Px(13.0),
-                                ..default()
-                            },
-                            TextColor(colors.text.with_alpha(0.0)),
-                        ));
+                    .with_children(|menu| {
+                        for (index, option) in options.iter().enumerate() {
+                            menu.spawn((
+                                Button,
+                                DropdownOptionButton {
+                                    owner: dropdown_id,
+                                    index,
+                                },
+                                {
+                                    let mut semantic =
+                                        SemanticNode::new(SemanticRole::ListBoxOption)
+                                            .label(option.label.clone());
+                                    semantic.state.selected = clamped_selected == Some(index);
+                                    semantic
+                                },
+                                Node {
+                                    width: percent(100),
+                                    height: px(34),
+                                    align_items: AlignItems::Center,
+                                    padding: UiRect::horizontal(px(10)),
+                                    border_radius: BorderRadius::all(px(8.0)),
+                                    ..default()
+                                },
+                                BackgroundColor(Color::NONE),
+                                Surface::rounded_rect_fill(
+                                    8.0,
+                                    Paint::solid(colors.surface.with_alpha(0.0)),
+                                ),
+                            ))
+                            .with_children(|option_button| {
+                                option_button.spawn((
+                                    DropdownOptionLabel {
+                                        owner: dropdown_id,
+                                        index,
+                                    },
+                                    ThemedText::new(TextRole::Label),
+                                    Text::new(option.label.clone()),
+                                    TextFont {
+                                        font_size: FontSize::Px(13.0),
+                                        ..default()
+                                    },
+                                    TextColor(colors.text.with_alpha(0.0)),
+                                ));
+                            });
+                        }
                     });
-                }
             });
     });
 
@@ -612,8 +661,7 @@ fn dropdown_visual_system(
     mut arrow_query: Query<(&DropdownArrow, &mut IconNode), Without<DropdownLabel>>,
     mut label_color_query: Query<(&DropdownLabel, &mut TextColor), Without<DropdownArrow>>,
 ) {
-    let colors = theme.current.colors;
-    let is_dark = theme.current.mode == crate::theme::ThemeMode::Dark;
+    let palette = dropdown_palette(theme.current.mode);
 
     for (marker, mut label) in &mut label_query {
         let Ok((dropdown, state)) = dropdown_query.get(marker.owner) else {
@@ -643,25 +691,15 @@ fn dropdown_visual_system(
         }
 
         if surface_marker.is_some() {
-            background.fill = Paint::solid(if is_dark {
-                colors.surface.with_alpha(0.94)
-            } else {
-                colors.surface
-            });
-            background.border = Some(Border::new(
-                1.0,
-                Paint::solid(colors.border.with_alpha(if is_dark { 0.92 } else { 0.60 })),
-            ));
+            background.fill = Paint::solid(palette.paper);
+            background.border = Some(Border::new(1.0, Paint::solid(palette.border)));
         } else if menu_marker.is_some() {
             let alpha = match &background.fill {
                 Paint::Solid(color) => color.alpha(),
                 _ => 1.0,
             };
-            background.fill = Paint::solid(colors.surface_elevated.with_alpha(alpha));
-            background.border = Some(Border::new(
-                1.0,
-                Paint::solid(colors.border.with_alpha(if is_dark { 0.90 } else { 0.55 })),
-            ));
+            background.fill = Paint::solid(palette.paper.with_alpha(alpha));
+            background.border = Some(Border::new(1.0, Paint::solid(palette.border)));
         }
     }
 
@@ -676,9 +714,9 @@ fn dropdown_visual_system(
             .is_none();
 
         color.0 = if is_placeholder {
-            colors.text_muted
+            palette.muted
         } else {
-            colors.text
+            palette.ink
         };
     }
 
@@ -694,9 +732,9 @@ fn dropdown_visual_system(
         };
 
         arrow.color = if state.open {
-            colors.text
+            palette.ink
         } else {
-            colors.text_muted
+            palette.muted
         };
     }
 }
@@ -708,27 +746,43 @@ fn dropdown_menu_animation_system(
     mut menu_query: Query<(
         &DropdownMenu,
         &mut DropdownMenuAnimation,
+        &ComputedNode,
         &mut Node,
         &mut Visibility,
         &mut Surface,
     )>,
 ) {
-    let colors = theme.current.colors;
+    let palette = dropdown_palette(theme.current.mode);
 
-    for (menu, mut animation, mut node, mut visibility, mut background) in &mut menu_query {
+    for (menu, mut animation, computed, mut node, mut visibility, mut background) in &mut menu_query
+    {
         let Ok((state, profile)) = dropdown_meta_query.get(menu.owner) else {
             continue;
         };
 
         animation.target = if state.open { 1.0 } else { 0.0 };
-        spring_step(&mut animation, time.delta_secs());
-        let clamped_progress = animation.progress.clamp(0.0, 1.0);
         let active_animation = if state.open {
             profile.open
         } else {
             profile.close
         };
-        let visual = active_animation.sample(clamped_progress);
+
+        // Only the opening drop is underdamped; closing retracts without bouncing.
+        let bounce = state.open && active_animation == DropdownMenuAnimationKind::DropFromTrigger;
+        (animation.stiffness, animation.damping) =
+            if bounce { (380.0, 20.0) } else { (220.0, 26.0) };
+
+        // Playing the spring 35% faster keeps its damping (and so the bounce) the same.
+        spring_step(&mut animation, time.delta_secs() * 1.35);
+        let clamped_progress = animation.progress.clamp(0.0, 1.0);
+        // The drop is sampled unclamped so the overshoot shows as a bounce.
+        let sample_progress = if active_animation == DropdownMenuAnimationKind::DropFromTrigger {
+            animation.progress.clamp(0.0, 1.5)
+        } else {
+            clamped_progress
+        };
+        let menu_height = computed.size().y * computed.inverse_scale_factor();
+        let visual = active_animation.sample(sample_progress, menu_height);
 
         if animation.target > 0.0 || clamped_progress > 0.001 {
             *visibility = Visibility::Inherited;
@@ -736,22 +790,30 @@ fn dropdown_menu_animation_system(
             *visibility = Visibility::Hidden;
         }
 
-        node.top = px(visual.top_px);
+        // Positions are authored relative to the select's bottom edge (42px).
+        node.top = px(visual.top_px - 42.0);
         node.left = percent(visual.left_percent);
         node.width = percent(visual.width_percent);
-        background.fill = Paint::solid(colors.surface_elevated.with_alpha(0.98 * visual.opacity));
+        background.fill = Paint::solid(palette.paper.with_alpha(visual.opacity));
     }
 }
 
 fn dropdown_option_visual_system(
     theme: Res<ThemeResource>,
     dropdown_query: Query<&DropdownState>,
+    profiles: Query<&DropdownAnimationProfile>,
     menu_query: Query<(&DropdownMenu, &DropdownMenuAnimation)>,
     mut option_query: Query<(&DropdownOptionButton, &Interaction, &mut Surface)>,
     mut option_label_query: Query<(&DropdownOptionLabel, &mut TextColor)>,
 ) {
-    let colors = theme.current.colors;
-    let is_dark = theme.current.mode == crate::theme::ThemeMode::Dark;
+    let palette = dropdown_palette(theme.current.mode);
+    // The drop animation is clipped by the select rather than faded.
+    let fades = |owner: Entity| {
+        profiles.get(owner).is_ok_and(|profile| {
+            profile.open != DropdownMenuAnimationKind::DropFromTrigger
+                && profile.close != DropdownMenuAnimationKind::DropFromTrigger
+        })
+    };
 
     for (option, interaction, mut background) in &mut option_query {
         let Ok(state) = dropdown_query.get(option.owner) else {
@@ -771,45 +833,34 @@ fn dropdown_option_visual_system(
             state.selected == Some(option.index)
         };
 
-        let base_color = if is_active {
-            colors.primary
-        } else if *interaction == Interaction::Hovered {
-            if is_dark {
-                colors.surface_elevated
-            } else {
-                colors.secondary
-            }
-        } else {
-            colors.surface
-        };
+        // The highlighted/selected option and the hovered one share one subtle shade.
+        let highlighted = is_active || *interaction == Interaction::Hovered;
+        let max_alpha = if highlighted { 1.0 } else { 0.0 };
 
-        let alpha = smoothstep(menu_progress);
-        let max_alpha = if is_active { 0.90 } else { 0.78 };
-        background.fill = Paint::solid(base_color.with_alpha(alpha * max_alpha));
+        let alpha = if fades(option.owner) {
+            smoothstep(menu_progress)
+        } else {
+            1.0
+        };
+        background.fill = Paint::solid(palette.hover.with_alpha(alpha * max_alpha));
     }
 
     for (label, mut color) in &mut option_label_query {
-        let Ok(state) = dropdown_query.get(label.owner) else {
+        if dropdown_query.get(label.owner).is_err() {
             continue;
-        };
+        }
 
         let menu_progress = menu_query
             .iter()
             .find_map(|(menu, animation)| (menu.owner == label.owner).then_some(animation.progress))
             .unwrap_or(0.0);
 
-        let text_alpha = smoothstep(menu_progress);
-        let selected_tint = if state.open {
-            state.highlighted == Some(label.index)
+        let text_alpha = if fades(label.owner) {
+            smoothstep(menu_progress)
         } else {
-            state.selected == Some(label.index)
+            1.0
         };
-
-        color.0 = if selected_tint {
-            colors.surface.with_alpha(text_alpha)
-        } else {
-            colors.text.with_alpha(text_alpha * 0.95)
-        };
+        color.0 = palette.ink.with_alpha(text_alpha);
     }
 }
 
@@ -819,10 +870,25 @@ fn smoothstep(t: f32) -> f32 {
 }
 
 impl DropdownMenuAnimationKind {
-    fn sample(self, progress: f32) -> DropdownMenuVisual {
+    fn sample(self, progress: f32, menu_height: f32) -> DropdownMenuVisual {
         let eased = smoothstep(progress);
 
         match self {
+            // The menu rolls up out of view behind the select (and drops back down)
+            // as a solid panel: only its position changes, never its opacity, and
+            // the spring overshoot (progress > 1) shows as the landing bounce.
+            Self::DropFromTrigger => {
+                // A little extra so the border is fully tucked away when closed.
+                let travel_px = menu_height + 6.0;
+
+                DropdownMenuVisual {
+                    top_px: 42.0 - travel_px * (1.0 - progress),
+                    left_percent: 0.0,
+                    width_percent: 100.0,
+                    opacity: 1.0,
+                }
+            }
+
             Self::Fade => DropdownMenuVisual {
                 top_px: 42.0,
                 left_percent: 0.0,

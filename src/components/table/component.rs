@@ -7,7 +7,7 @@ use super::rows::spawn_row;
 use crate::animation::loading::LoadingAssets;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::rendering::{Paint, Surface};
-use crate::theme::ThemeResource;
+use crate::theme::{ThemeMode, ThemeResource};
 
 const HEADER_FONT_SIZE: f32 = 14.0;
 const CELL_FONT_SIZE: f32 = 14.0;
@@ -254,10 +254,19 @@ fn table_visual_system(
 
     for mut surface in &mut visual_queries.p0() {
         surface.fill = Paint::solid(colors.surface.with_alpha(0.66));
+        if let Some(border) = surface.border.as_mut() {
+            border.paint = Paint::solid(match theme.current.mode {
+                ThemeMode::Light => colors.border,
+                ThemeMode::Dark => Color::srgba(1.0, 1.0, 1.0, 0.16),
+            });
+        }
     }
 
     for mut surface in &mut visual_queries.p1() {
-        surface.fill = Paint::solid(colors.surface_elevated.with_alpha(0.92));
+        surface.fill = Paint::solid(match theme.current.mode {
+            ThemeMode::Light => Color::srgb(0.95, 0.95, 0.95),
+            ThemeMode::Dark => colors.surface_elevated.with_alpha(0.92),
+        });
     }
 
     for (row, interaction, mut surface) in &mut visual_queries.p2() {
@@ -272,6 +281,16 @@ fn table_visual_system(
             Interaction::Hovered => colors.surface_elevated.with_alpha(0.96),
             Interaction::None => base,
         });
+        if let Some(border) = surface.border.as_mut() {
+            border.paint = Paint::solid(match theme.current.mode {
+                ThemeMode::Light => colors.border,
+                ThemeMode::Dark => Color::srgba(1.0, 1.0, 1.0, 0.06),
+            });
+            border.width = match theme.current.mode {
+                ThemeMode::Light => crate::rendering::BorderWidths::sides(0.0, 0.0, 1.0, 0.0),
+                ThemeMode::Dark => crate::rendering::BorderWidths::all(1.0),
+            };
+        }
     }
 
     for (mut text_color, header, cell) in &mut visual_queries.p3() {
@@ -280,6 +299,134 @@ fn table_visual_system(
         } else if cell.is_some() {
             text_color.0 = colors.text;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn header_has_a_light_grey_background_only_in_light_mode() {
+        let mut app = App::new();
+        app.insert_resource(ThemeResource {
+            current: crate::theme::light_theme(),
+        })
+        .add_systems(Update, table_visual_system);
+        let header = app
+            .world_mut()
+            .spawn((
+                TableHeader,
+                Surface::rounded_rect_fill(0.0, Paint::solid(Color::NONE)),
+            ))
+            .id();
+        app.update();
+        assert_eq!(
+            app.world().get::<Surface>(header).unwrap().fill,
+            Paint::solid(Color::srgb(0.95, 0.95, 0.95))
+        );
+        let dark = crate::theme::dark_theme();
+        let expected = Paint::solid(dark.colors.surface_elevated.with_alpha(0.92));
+        app.world_mut().resource_mut::<ThemeResource>().current = dark;
+        app.update();
+        assert_eq!(app.world().get::<Surface>(header).unwrap().fill, expected);
+    }
+
+    #[test]
+    fn table_buttons_do_not_wobble_and_light_rows_have_grey_separators() {
+        let mut app = App::new();
+        app.insert_resource(ThemeResource {
+            current: crate::theme::light_theme(),
+        })
+        .add_systems(Update, table_visual_system);
+        let config = TableConfig {
+            id: "separator-test".to_string(),
+            columns: vec![TableColumn {
+                id: "item".to_string(),
+                label: "Item".to_string(),
+                width: 100.0,
+            }],
+            rows: vec![TableRow {
+                id: "toast".to_string(),
+                cells: vec![TableCell {
+                    text: "Toast".to_string(),
+                }],
+            }],
+            ..default()
+        };
+        Table::spawn(&mut app.world_mut().commands(), config);
+        app.world_mut().flush();
+        app.update();
+        let expected = Paint::solid(
+            app.world()
+                .resource::<ThemeResource>()
+                .current
+                .colors
+                .border,
+        );
+        let mut rows = app
+            .world_mut()
+            .query_filtered::<&Surface, With<TableRowNode>>();
+        let border = rows.single(app.world()).unwrap().border.as_ref().unwrap();
+        assert_eq!(border.paint, expected);
+        assert_eq!(
+            border.width,
+            crate::rendering::BorderWidths::sides(0.0, 0.0, 1.0, 0.0)
+        );
+        let mut buttons = app
+            .world_mut()
+            .query_filtered::<Has<crate::components::button::ButtonMotionDisabled>, With<Button>>();
+        assert_eq!(buttons.iter(app.world()).count(), 3);
+        assert!(buttons.iter(app.world()).all(|disabled| disabled));
+    }
+
+    #[test]
+    fn table_border_is_grey_in_light_mode_and_preserved_in_dark_mode() {
+        let mut app = App::new();
+        app.insert_resource(ThemeResource {
+            current: crate::theme::light_theme(),
+        })
+        .add_systems(Update, table_visual_system);
+        let table = app
+            .world_mut()
+            .spawn((
+                Table {
+                    id: "border-test".to_string(),
+                },
+                Surface::rounded_rect_fill(14.0, Paint::solid(Color::NONE))
+                    .uniform_border(1.0, Paint::solid(Color::WHITE)),
+            ))
+            .id();
+        app.update();
+        let expected = Paint::solid(
+            app.world()
+                .resource::<ThemeResource>()
+                .current
+                .colors
+                .border,
+        );
+        assert_eq!(
+            app.world()
+                .get::<Surface>(table)
+                .unwrap()
+                .border
+                .as_ref()
+                .unwrap()
+                .paint,
+            expected
+        );
+        app.world_mut().resource_mut::<ThemeResource>().current = crate::theme::dark_theme();
+        app.update();
+        assert_eq!(
+            app.world()
+                .get::<Surface>(table)
+                .unwrap()
+                .border
+                .as_ref()
+                .unwrap()
+                .paint,
+            Paint::solid(Color::srgba(1.0, 1.0, 1.0, 0.16))
+        );
     }
 }
 

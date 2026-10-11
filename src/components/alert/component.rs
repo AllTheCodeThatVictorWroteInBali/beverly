@@ -6,22 +6,45 @@ use std::time::Duration;
 
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::rendering::{Paint, Surface};
-use crate::theme::{ThemeColors, ThemeResource};
+use crate::theme::{ThemeColors, ThemeMode, ThemeResource};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AlertVariant {
+    /// White in light mode, dark in dark mode.
+    #[default]
+    Default,
+    Primary,
+    Secondary,
     Success,
+    Danger,
     Error,
     Warning,
     Info,
+    Light,
+    Dark,
     Status,
 }
 
 impl AlertVariant {
+    const BLUE: Color = Color::srgb(0.05, 0.43, 0.99);
+    const TEAL: Color = Color::srgb(0.13, 0.79, 0.59);
+    const GREEN: Color = Color::srgb(0.10, 0.70, 0.25);
+    const ORANGE: Color = Color::srgb(1.0, 0.49, 0.08);
+
+    /// Resolves `Default` to `Light` or `Dark` for the active theme mode.
+    pub fn resolve(self, mode: ThemeMode) -> Self {
+        match (self, mode) {
+            (Self::Default, ThemeMode::Dark) => Self::Dark,
+            (Self::Default, ThemeMode::Light) => Self::Light,
+            (other, _) => other,
+        }
+    }
+
     pub fn feather_name(&self) -> &'static str {
         match self {
+            Self::Default | Self::Primary | Self::Secondary | Self::Light | Self::Dark => "info",
             Self::Success => "check-circle",
-            Self::Error => "x-circle",
+            Self::Danger | Self::Error => "x-circle",
             Self::Warning => "alert-triangle",
             Self::Info => "info",
             Self::Status => "wifi",
@@ -30,6 +53,12 @@ impl AlertVariant {
 
     pub fn label(&self) -> &'static str {
         match self {
+            Self::Default => "Default",
+            Self::Primary => "Primary",
+            Self::Secondary => "Secondary",
+            Self::Danger => "Danger",
+            Self::Light => "Light",
+            Self::Dark => "Dark",
             Self::Success => "Success",
             Self::Error => "Error",
             Self::Warning => "Warning",
@@ -40,20 +69,28 @@ impl AlertVariant {
 
     pub fn background_color(&self, colors: ThemeColors) -> Color {
         match self {
-            Self::Success => colors.success.with_alpha(0.11),
-            Self::Error => colors.error.with_alpha(0.10),
-            Self::Warning => colors.warning.with_alpha(0.14),
-            Self::Info => colors.info.with_alpha(0.11),
+            Self::Primary => Self::BLUE.with_alpha(0.28),
+            Self::Secondary => colors.text_muted.with_alpha(0.28),
+            Self::Light | Self::Default => Color::WHITE,
+            Self::Dark => Color::srgb_u8(23, 23, 23),
+            Self::Success => Self::GREEN.with_alpha(0.28),
+            Self::Danger | Self::Error => colors.error.with_alpha(0.26),
+            Self::Warning => Self::ORANGE.with_alpha(0.32),
+            Self::Info => Self::TEAL.with_alpha(0.28),
             Self::Status => colors.secondary.with_alpha(0.7),
         }
     }
 
     pub fn accent_color(&self, colors: ThemeColors) -> Color {
         match self {
-            Self::Success => colors.success,
-            Self::Error => colors.error,
-            Self::Warning => colors.warning,
-            Self::Info => colors.info,
+            Self::Primary => Self::BLUE,
+            Self::Secondary => colors.text_muted,
+            Self::Light | Self::Default => Color::BLACK,
+            Self::Dark => Color::WHITE,
+            Self::Success => Self::GREEN,
+            Self::Danger | Self::Error => colors.error,
+            Self::Warning => Self::ORANGE,
+            Self::Info => Self::TEAL,
             Self::Status => colors.primary,
         }
     }
@@ -80,6 +117,12 @@ pub struct Alert {
     pub timer: Option<Timer>,
 }
 
+impl Default for Alert {
+    fn default() -> Self {
+        Self::new(AlertVariant::default(), "")
+    }
+}
+
 impl Alert {
     pub fn new(variant: AlertVariant, message: impl Into<String>) -> Self {
         Self {
@@ -90,6 +133,26 @@ impl Alert {
             duration: None,
             timer: None,
         }
+    }
+
+    pub fn primary(message: impl Into<String>) -> Self {
+        Self::new(AlertVariant::Primary, message)
+    }
+
+    pub fn secondary(message: impl Into<String>) -> Self {
+        Self::new(AlertVariant::Secondary, message)
+    }
+
+    pub fn danger(message: impl Into<String>) -> Self {
+        Self::new(AlertVariant::Danger, message)
+    }
+
+    pub fn light(message: impl Into<String>) -> Self {
+        Self::new(AlertVariant::Light, message)
+    }
+
+    pub fn dark(message: impl Into<String>) -> Self {
+        Self::new(AlertVariant::Dark, message)
     }
 
     pub fn success(message: impl Into<String>) -> Self {
@@ -127,6 +190,32 @@ impl Alert {
         self.duration = Some(duration);
         self
     }
+}
+
+/// Composites a translucent tint over the page so the fill can be fully opaque.
+fn flatten(tint: Color, page: Color) -> Color {
+    let tint = tint.to_srgba();
+    let page = page.to_srgba();
+    let a = tint.alpha;
+    Color::srgb(
+        tint.red * a + page.red * (1.0 - a),
+        tint.green * a + page.green * (1.0 - a),
+        tint.blue * a + page.blue * (1.0 - a),
+    )
+}
+
+/// Darkens `accent` until it reaches WCAG AA (4.5:1) against the opaque `backdrop`.
+fn readable_accent_text(accent: Color, backdrop: Color) -> Color {
+    let accent = accent.to_srgba();
+    let mut text = Color::srgb(accent.red, accent.green, accent.blue);
+    for step in 1..=20 {
+        if crate::theme::meets_contrast(text, backdrop, crate::theme::WCAG_AA_NORMAL_TEXT) {
+            break;
+        }
+        let k = 1.0 - step as f32 * 0.05;
+        text = Color::srgb(accent.red * k, accent.green * k, accent.blue * k);
+    }
+    text
 }
 
 /// Marker for the root UI node of an alert.
@@ -170,13 +259,27 @@ fn spawn_alert_ui(
 
     for (entity, alert) in &alerts {
         let mut root = commands.entity(entity);
-        let background = alert.variant.background_color(colors);
-        let accent = alert.variant.accent_color(colors);
+        let variant = alert.variant.resolve(theme.current.mode);
+        let background = flatten(variant.background_color(colors), colors.background);
+        let accent = variant.accent_color(colors);
+        let border = match variant {
+            AlertVariant::Light => Color::srgb_u8(212, 212, 212),
+            AlertVariant::Dark => Color::srgb_u8(38, 38, 38), // shadcn neutral-800
+            _ => accent,
+        };
+        let (title_color, body_color) = match variant {
+            AlertVariant::Light => (Color::BLACK, Color::BLACK),
+            AlertVariant::Dark => (Color::WHITE, Color::WHITE),
+            _ => {
+                let text = readable_accent_text(accent, background);
+                (text, text)
+            }
+        };
 
         root.insert((
             AlertRoot,
             SemanticNode::new(
-                if matches!(alert.variant, AlertVariant::Error | AlertVariant::Warning) {
+                if matches!(variant, AlertVariant::Error | AlertVariant::Danger | AlertVariant::Warning) {
                     SemanticRole::Alert
                 } else {
                     SemanticRole::Status
@@ -186,7 +289,7 @@ fn spawn_alert_ui(
                 alert
                     .title
                     .clone()
-                    .unwrap_or_else(|| alert.variant.label().to_string()),
+                    .unwrap_or_else(|| variant.label().to_string()),
             )
             .description(alert.message.clone()),
             Node {
@@ -202,7 +305,7 @@ fn spawn_alert_ui(
             BackgroundColor(Color::NONE),
             BorderColor::all(Color::NONE),
             Surface::rounded_rect_fill(12.0, Paint::solid(background))
-                .uniform_border(1.0, Paint::solid(accent.with_alpha(0.35))),
+            .uniform_border(1.0, Paint::solid(border)),
         ));
 
         // Icon
@@ -220,7 +323,7 @@ fn spawn_alert_ui(
                 ))
                 .with_children(|icon| {
                     icon.spawn_icon_colored(
-                        Icon::feather(alert.variant.feather_name()),
+                        Icon::feather(variant.feather_name()),
                         20.0,
                         accent,
                     );
@@ -237,25 +340,25 @@ fn spawn_alert_ui(
                     if let Some(title) = &alert.title {
                         parent.spawn((
                             AlertTitle,
-                            ThemedTitle::new(TitleLevel::H5),
+                            ThemedTitle::new(TitleLevel::H5).color(title_color),
                             Text::new(title.clone()),
                             TextFont {
                                 font_size: FontSize::Px(15.0),
                                 ..default()
                             },
-                            TextColor(colors.text),
+                            TextColor(title_color),
                         ));
                     }
 
                     parent.spawn((
                         AlertMessage,
-                        ThemedText::new(TextRole::Body),
+                        ThemedText::new(TextRole::Body).color(body_color),
                         Text::new(alert.message.clone()),
                         TextFont {
                             font_size: FontSize::Px(14.0),
                             ..default()
                         },
-                        TextColor(colors.text_muted),
+                        TextColor(body_color),
                     ));
                 });
 
@@ -274,7 +377,7 @@ fn spawn_alert_ui(
                         },
                     ))
                     .with_children(|button| {
-                        button.spawn_icon_colored(Icon::feather("x"), 18.0, colors.text_muted);
+                        button.spawn_icon_colored(Icon::feather("x"), 18.0, body_color);
                     });
             }
         });

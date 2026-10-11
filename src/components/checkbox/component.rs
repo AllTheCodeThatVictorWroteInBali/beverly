@@ -4,8 +4,9 @@ use crate::components::text::{TextRole, ThemedText};
 use crate::icons::{Icon, IconNode};
 use crate::primitives::a11y;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
+use crate::rendering::prelude::Border;
 use crate::rendering::{Paint, Surface};
-use crate::theme::{ThemeColors, ThemeResource, dark_theme};
+use crate::theme::{ThemeColors, ThemeMode, ThemeResource, light_theme};
 
 // ============================================================
 // CHECKBOX
@@ -136,7 +137,9 @@ const MARK_HIDDEN_EPSILON: f32 = 0.01;
 pub fn spawn_checkbox(parent: &mut ChildSpawnerCommands, config: CheckboxConfig) -> Entity {
     let checked = config.checked;
     let indeterminate = config.indeterminate;
-    let colors = dark_theme().colors;
+    // Placeholder until the visual system applies the live theme on the first frame.
+    let colors = light_theme().colors;
+    let mode = ThemeMode::Light;
     let accessible_label = config
         .label
         .clone()
@@ -194,7 +197,17 @@ pub fn spawn_checkbox(parent: &mut ChildSpawnerCommands, config: CheckboxConfig)
             Surface::rounded_rect_fill(
                 7.0,
                 Paint::solid(box_color(
-                    colors,
+                    mode,
+                    checked,
+                    indeterminate,
+                    config.disabled,
+                    Interaction::None,
+                )),
+            )
+            .uniform_border(
+                1.0,
+                Paint::solid(border_color(
+                    mode,
                     checked,
                     indeterminate,
                     config.disabled,
@@ -207,7 +220,7 @@ pub fn spawn_checkbox(parent: &mut ChildSpawnerCommands, config: CheckboxConfig)
                 CheckboxCheck,
                 CheckboxCheckPart { owner: checkbox_id },
                 IconNode::new(initial_mark).size(20.0).color(mark_color(
-                    colors,
+                    mode,
                     checked,
                     indeterminate,
                     config.disabled,
@@ -386,6 +399,7 @@ fn checkbox_visual_system(
     >,
 ) {
     let colors = theme.current.colors;
+    let mode = theme.current.mode;
 
     for (box_part, mut surface) in &mut box_query {
         let Ok((interaction, state, _)) = root_query.get(box_part.owner) else {
@@ -393,11 +407,21 @@ fn checkbox_visual_system(
         };
 
         surface.fill = Paint::solid(box_color(
-            colors,
+            mode,
             state.checked,
             state.indeterminate,
             state.disabled,
             *interaction,
+        ));
+        surface.border = Some(Border::new(
+            1.0,
+            Paint::solid(border_color(
+                mode,
+                state.checked,
+                state.indeterminate,
+                state.disabled,
+                *interaction,
+            )),
         ));
     }
 
@@ -432,7 +456,7 @@ fn checkbox_visual_system(
         node.height = px(size);
 
         icon.color = mark_color(
-            colors,
+            mode,
             state.checked,
             state.indeterminate,
             state.disabled,
@@ -450,33 +474,47 @@ fn checkbox_visual_system(
     }
 }
 
+/// Same neutral palette as the default alert, button and avatar.
 fn box_color(
-    colors: ThemeColors,
+    mode: ThemeMode,
     checked: bool,
     indeterminate: bool,
     disabled: bool,
     interaction: Interaction,
 ) -> Color {
-    if disabled {
-        return if checked || indeterminate {
-            colors.primary_active
-        } else {
-            colors.surface_elevated
-        };
+    let on = checked || indeterminate;
+    let light = mode == ThemeMode::Light;
+    let gray = |v: u8| Color::srgb_u8(v, v, v);
+
+    match (on, disabled, interaction) {
+        // Checked: ink-colored box (black in light mode, white in dark mode).
+        (true, true, _) => gray(if light { 163 } else { 82 }),
+        (true, false, Interaction::None) => gray(if light { 23 } else { 255 }),
+        (true, false, Interaction::Hovered) => gray(if light { 38 } else { 229 }),
+        (true, false, Interaction::Pressed) => gray(if light { 64 } else { 212 }),
+        // Unchecked: paper-colored box (white in light mode, #171717 in dark mode).
+        (false, true, _) => gray(if light { 245 } else { 38 }),
+        (false, false, Interaction::None) => gray(if light { 255 } else { 23 }),
+        (false, false, Interaction::Hovered) => gray(if light { 245 } else { 38 }),
+        (false, false, Interaction::Pressed) => gray(if light { 229 } else { 51 }),
+    }
+}
+
+fn border_color(
+    mode: ThemeMode,
+    checked: bool,
+    indeterminate: bool,
+    disabled: bool,
+    interaction: Interaction,
+) -> Color {
+    if checked || indeterminate {
+        // Checked boxes blend their border into the fill.
+        return box_color(mode, checked, indeterminate, disabled, interaction);
     }
 
-    if checked || indeterminate {
-        match interaction {
-            Interaction::Hovered => colors.primary_hover,
-            Interaction::Pressed => colors.primary_active,
-            Interaction::None => colors.primary,
-        }
-    } else {
-        match interaction {
-            Interaction::Hovered => colors.secondary,
-            Interaction::Pressed => colors.border_strong,
-            Interaction::None => colors.surface,
-        }
+    match mode {
+        ThemeMode::Light => Color::srgb_u8(212, 212, 212),
+        ThemeMode::Dark => Color::srgb_u8(38, 38, 38),
     }
 }
 
@@ -491,7 +529,7 @@ fn mark_icon(checked: bool, indeterminate: bool) -> Option<Icon> {
 }
 
 fn mark_color(
-    colors: ThemeColors,
+    mode: ThemeMode,
     checked: bool,
     indeterminate: bool,
     disabled: bool,
@@ -506,11 +544,12 @@ fn mark_color(
         0.0
     };
 
-    if disabled {
-        colors.text_disabled.with_alpha(alpha * 0.90)
-    } else {
-        colors.surface.with_alpha(alpha)
-    }
+    // The mark is the inverse of the checked fill.
+    let ink = match mode {
+        ThemeMode::Light => Color::WHITE,
+        ThemeMode::Dark => Color::srgb_u8(23, 23, 23),
+    };
+    ink.with_alpha(if disabled { alpha * 0.90 } else { alpha })
 }
 
 fn label_color(colors: ThemeColors, disabled: bool) -> Color {

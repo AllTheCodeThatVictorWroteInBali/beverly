@@ -18,6 +18,7 @@ pub struct Link {
     pub disabled: bool,
     pub aria_description: Option<String>,
     pub target_path: Option<String>,
+    pub external: bool,
     pub params: Vec<(String, String)>,
 }
 
@@ -29,6 +30,7 @@ impl Link {
             disabled: false,
             aria_description: None,
             target_path: None,
+            external: false,
             params: Vec::new(),
         }
     }
@@ -50,6 +52,12 @@ impl Link {
 
     pub fn to(mut self, path: impl Into<String>) -> Self {
         self.target_path = Some(path.into());
+        self
+    }
+
+    /// Opens the target in the system web browser instead of routing in-app.
+    pub fn external(mut self) -> Self {
+        self.external = true;
         self
     }
 
@@ -115,6 +123,7 @@ impl Plugin for LinkPlugin {
             (
                 link_semantics_system,
                 link_interaction_system,
+                open_external_link_system,
                 link_visual_system,
             ),
         );
@@ -126,6 +135,7 @@ fn link_semantics_system(mut commands: Commands, links: Query<(Entity, &Link), A
         commands.entity(entity).insert((
             Button,
             crate::primitives::a11y::TabIndex(if link.disabled { -1 } else { 0 }),
+            crate::primitives::interaction::PointerCursorOnHover,
             SemanticNode::new(SemanticRole::Link).label(link.text.clone()),
         ));
         if let Some(description) = &link.aria_description {
@@ -153,6 +163,31 @@ fn link_interaction_system(
     }
 }
 
+fn open_external_link_system(mut clicks: MessageReader<LinkClicked>, links: Query<&Link>) {
+    for click in clicks.read() {
+        let Ok(link) = links.get(click.entity) else {
+            continue;
+        };
+        if !link.external {
+            continue;
+        }
+        let Some(target) = link.target_path.as_deref() else {
+            continue;
+        };
+        let Ok(url) = url::Url::parse(target) else {
+            warn!("External link target must be an absolute HTTP(S) URL: {target:?}");
+            continue;
+        };
+        if !matches!(url.scheme(), "http" | "https") || url.host().is_none() {
+            warn!("External link target must be an absolute HTTP(S) URL: {target:?}");
+            continue;
+        }
+        if let Err(error) = webbrowser::open(url.as_str()) {
+            warn!("Failed to open external link {target:?}: {error}");
+        }
+    }
+}
+
 fn link_visual_system(
     theme: Res<ThemeResource>,
     links: Query<(Entity, &Link, Option<&Interaction>)>,
@@ -163,15 +198,8 @@ fn link_visual_system(
 
     for (entity, link, interaction) in &links {
         if let Ok(mut surface) = backgrounds.get_mut(entity) {
-            surface.fill = if link.disabled {
-                Paint::solid(Color::srgba(0.0, 0.0, 0.0, 0.0))
-            } else {
-                match interaction.copied().unwrap_or(Interaction::None) {
-                    Interaction::Pressed => Paint::solid(Color::srgba(0.0, 0.0, 0.0, 0.20)),
-                    Interaction::Hovered => Paint::solid(Color::srgba(0.0, 0.0, 0.0, 0.10)),
-                    Interaction::None => Paint::solid(Color::srgba(0.0, 0.0, 0.0, 0.06)),
-                }
-            };
+            surface.border = None;
+            surface.fill = Paint::solid(Color::NONE);
         }
 
         for (parent, mut text_color) in &mut text_colors {
@@ -212,5 +240,23 @@ mod tests {
         assert_eq!(node.0.label(), Some("Documentation"));
         assert_eq!(node.0.role(), accesskit::Role::Link);
         assert!(app.world().get::<Button>(entity).is_some());
+        assert!(
+            app.world()
+                .get::<crate::primitives::interaction::PointerCursorOnHover>(entity)
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn external_target_is_opt_in() {
+        assert!(!Link::new("Internal").external);
+        let external = Link::new("Beverly")
+            .to("https://www.beverlyui.com")
+            .external();
+        assert!(external.external);
+        assert_eq!(
+            external.target_path.as_deref(),
+            Some("https://www.beverlyui.com")
+        );
     }
 }

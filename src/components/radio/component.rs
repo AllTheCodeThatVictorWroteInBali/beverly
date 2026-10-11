@@ -5,7 +5,7 @@ use crate::components::text::{TextRole, ThemedText};
 use crate::primitives::a11y::{self, FocusCause};
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::rendering::{Paint, Surface};
-use crate::theme::{ThemeColors, ThemeResource, dark_theme};
+use crate::theme::{ThemeColors, ThemeMode, ThemeResource, dark_theme};
 
 /// Identifies a radio group.
 #[derive(Component)]
@@ -123,6 +123,7 @@ impl RadioGroupBuilder {
 
     pub fn spawn(self, parent: &mut ChildSpawnerCommands) -> Entity {
         let colors = dark_theme().colors;
+        let mode = dark_theme().mode;
         let selected = self
             .selected
             .clone()
@@ -194,6 +195,7 @@ impl RadioGroupBuilder {
                                 9.0,
                                 Paint::solid(radio_border_color(
                                     colors,
+                                    mode,
                                     is_selected,
                                     Interaction::None,
                                 )),
@@ -214,7 +216,7 @@ impl RadioGroupBuilder {
                                 BackgroundColor(Color::NONE),
                                 Surface::rounded_rect_fill(
                                     4.0,
-                                    Paint::solid(radio_dot_color(colors, is_selected)),
+                                    Paint::solid(radio_dot_color(mode, is_selected)),
                                 ),
                                 RadioDotPart {
                                     owner: button_entity,
@@ -265,16 +267,14 @@ fn radio_interaction_system(
                 continue;
             }
 
-            if group.selected == button.value {
-                break;
+            if group.selected != button.value {
+                group.selected = button.value.clone();
+                events.write(RadioChanged {
+                    entity,
+                    group_id: group.id.clone(),
+                    value: group.selected.clone(),
+                });
             }
-
-            group.selected = button.value.clone();
-            events.write(RadioChanged {
-                entity,
-                group_id: group.id.clone(),
-                value: group.selected.clone(),
-            });
             break;
         }
     }
@@ -291,6 +291,7 @@ fn radio_visual_system(
     mut label_query: Query<(&RadioLabelPart, &mut TextColor), With<RadioLabel>>,
 ) {
     let colors = theme.current.colors;
+    let mode = theme.current.mode;
 
     for (part, mut surface) in &mut surface_queries.p0() {
         let Ok((button, interaction)) = button_query.get(part.owner) else {
@@ -301,7 +302,7 @@ fn radio_visual_system(
             .iter()
             .any(|group| group.id == button.group_id && group.selected == button.value);
 
-        surface.fill = Paint::solid(radio_border_color(colors, is_selected, *interaction));
+        surface.fill = Paint::solid(radio_border_color(colors, mode, is_selected, *interaction));
     }
 
     for (part, mut surface) in &mut surface_queries.p1() {
@@ -313,7 +314,7 @@ fn radio_visual_system(
             .iter()
             .any(|group| group.id == button.group_id && group.selected == button.value);
 
-        surface.fill = Paint::solid(radio_dot_color(colors, is_selected));
+        surface.fill = Paint::solid(radio_dot_color(mode, is_selected));
     }
 
     for (part, mut label_color) in &mut label_query {
@@ -329,20 +330,31 @@ fn radio_visual_system(
     }
 }
 
-fn radio_border_color(colors: ThemeColors, selected: bool, interaction: Interaction) -> Color {
+fn radio_border_color(
+    colors: ThemeColors,
+    mode: ThemeMode,
+    selected: bool,
+    interaction: Interaction,
+) -> Color {
     match (selected, interaction) {
-        (true, Interaction::None) => colors.primary,
-        (true, Interaction::Hovered) => colors.primary_hover,
-        (true, Interaction::Pressed) => colors.primary_active,
+        (true, Interaction::None | Interaction::Hovered) => radio_active_color(mode),
+        (true, Interaction::Pressed) => radio_active_color(mode),
         (false, Interaction::None) => colors.border,
         (false, Interaction::Hovered) => colors.border_strong,
         (false, Interaction::Pressed) => colors.text_muted,
     }
 }
 
-fn radio_dot_color(colors: ThemeColors, selected: bool) -> Color {
+fn radio_active_color(mode: ThemeMode) -> Color {
+    match mode {
+        ThemeMode::Light => Color::BLACK,
+        ThemeMode::Dark => Color::WHITE,
+    }
+}
+
+fn radio_dot_color(mode: ThemeMode, selected: bool) -> Color {
     if selected {
-        colors.primary
+        radio_active_color(mode)
     } else {
         Color::NONE
     }
@@ -353,6 +365,19 @@ fn radio_label_color(colors: ThemeColors, selected: bool) -> Color {
         colors.text
     } else {
         colors.text_muted
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn selected_radio_color_tracks_theme_mode() {
+        assert_eq!(radio_active_color(ThemeMode::Light), Color::BLACK);
+        assert_eq!(radio_active_color(ThemeMode::Dark), Color::WHITE);
+        assert_eq!(radio_dot_color(ThemeMode::Light, true), Color::BLACK);
+        assert_eq!(radio_dot_color(ThemeMode::Dark, true), Color::WHITE);
     }
 }
 

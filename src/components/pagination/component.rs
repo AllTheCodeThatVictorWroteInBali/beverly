@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 
+use crate::icons::{Icon, IconNode};
 use crate::primitives::a11y;
+use crate::primitives::interaction::{DisabledInteraction, PointerCursorOnHover};
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::rendering::{Border, Paint, Surface};
-use crate::theme::{ThemeResource, dark_theme};
+use crate::theme::{ThemeMode, ThemeResource, dark_theme};
 
 /// Marker component for the pagination root.
 #[derive(Component)]
@@ -129,6 +131,11 @@ struct PaginationButtonLabel {
     button: Entity,
 }
 
+#[derive(Component)]
+struct PaginationButtonIcon {
+    button: Entity,
+}
+
 /// Marker for page summary text.
 #[derive(Component)]
 struct PaginationSummaryText {
@@ -204,17 +211,11 @@ pub fn spawn_pagination(parent: &mut ChildSpawnerCommands, config: PaginationCon
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
             padding: UiRect::axes(px(10.0), px(8.0)),
-            border: UiRect::all(px(1.0)),
             border_radius: BorderRadius::all(px(14.0)),
             column_gap: Val::Px(6.0),
             ..default()
         },
-        Surface::rounded_rect_border(
-            14.0,
-            default_colors.surface.with_alpha(0.62),
-            1.0,
-            default_colors.border.with_alpha(0.42),
-        ),
+        Surface::rounded_rect_fill(14.0, default_colors.surface.with_alpha(0.62)),
     ));
 
     let root = root_entity.id();
@@ -323,6 +324,148 @@ mod tests {
         assert!(!state.has_next());
         assert!(state.has_previous());
     }
+
+    #[test]
+    fn pagination_navigation_roles_use_chevron_icons() {
+        assert_eq!(
+            pagination_icon_name(PaginationButtonRole::First),
+            Some("chevrons-left")
+        );
+        assert_eq!(
+            pagination_icon_name(PaginationButtonRole::Previous),
+            Some("chevron-left")
+        );
+        assert_eq!(
+            pagination_icon_name(PaginationButtonRole::Next),
+            Some("chevron-right")
+        );
+        assert_eq!(
+            pagination_icon_name(PaginationButtonRole::Last),
+            Some("chevrons-right")
+        );
+        assert_eq!(
+            pagination_icon_name(PaginationButtonRole::PageSlot(0)),
+            None
+        );
+    }
+
+    #[test]
+    fn light_mode_pagination_container_is_transparent() {
+        let light = crate::theme::light_theme();
+        let dark = dark_theme();
+
+        assert_eq!(
+            pagination_container_fill(ThemeMode::Light, light.colors),
+            Paint::solid(Color::NONE)
+        );
+        assert_eq!(
+            pagination_container_fill(ThemeMode::Dark, dark.colors),
+            Paint::solid(dark.colors.surface.with_alpha(0.62))
+        );
+    }
+
+    #[test]
+    fn active_page_colors_are_black_in_light_and_white_in_dark_mode() {
+        assert_eq!(
+            active_page_colors(ThemeMode::Light),
+            (Color::BLACK, Color::WHITE)
+        );
+        assert_eq!(
+            active_page_colors(ThemeMode::Dark),
+            (Color::WHITE, Color::BLACK)
+        );
+    }
+
+    #[test]
+    fn pagination_buttons_use_pointer_cursor_on_hover() {
+        let mut app = App::new();
+        let parent = app.world_mut().spawn(Node::default()).id();
+        let mut commands = app.world_mut().commands();
+        commands.entity(parent).with_children(|parent| {
+            spawn_pagination(
+                parent,
+                PaginationConfig {
+                    total_pages: 3,
+                    max_page_buttons: 3,
+                    ..default()
+                },
+            );
+        });
+        app.world_mut().flush();
+
+        let mut buttons = app
+            .world_mut()
+            .query_filtered::<Entity, With<PaginationButton>>();
+        let total_buttons = buttons.iter(app.world()).count();
+        let mut pointer_buttons = app
+            .world_mut()
+            .query_filtered::<Entity, (With<PaginationButton>, With<PointerCursorOnHover>)>();
+        assert_eq!(pointer_buttons.iter(app.world()).count(), total_buttons);
+    }
+
+    #[test]
+    fn hovering_disabled_pagination_buttons_shows_not_allowed_cursor() {
+        use crate::primitives::interaction::HoverState;
+        use bevy::window::{CursorIcon, PrimaryWindow, SystemCursorIcon};
+
+        let mut app = App::new();
+        app.insert_resource(ThemeResource::default())
+            .add_plugins((crate::components::button::ButtonPlugin, PaginationPlugin));
+        let window = app
+            .world_mut()
+            .spawn((Window::default(), PrimaryWindow))
+            .id();
+        let parent = app.world_mut().spawn(Node::default()).id();
+        app.world_mut()
+            .commands()
+            .entity(parent)
+            .with_children(|parent| {
+                spawn_pagination(
+                    parent,
+                    PaginationConfig {
+                        total_pages: 3,
+                        max_page_buttons: 3,
+                        ..default()
+                    },
+                );
+            });
+        app.world_mut().flush();
+        app.update();
+
+        let button_for = |app: &mut App, wanted: PaginationButtonRole| {
+            let mut query = app.world_mut().query::<(Entity, &PaginationButton)>();
+            query
+                .iter(app.world())
+                .find(|(_, button)| button.role == wanted)
+                .map(|(entity, _)| entity)
+                .unwrap()
+        };
+        let hover = |app: &mut App, entity: Entity, hovered: bool| {
+            app.world_mut().entity_mut(entity).insert(HoverState {
+                hovered,
+                contains_hovered_child: false,
+            });
+            app.update();
+        };
+        let cursor = |app: &App| app.world().get::<CursorIcon>(window).cloned();
+
+        // On page 1 the first/previous controls are disabled; next is enabled.
+        let previous = button_for(&mut app, PaginationButtonRole::Previous);
+        let next = button_for(&mut app, PaginationButtonRole::Next);
+
+        hover(&mut app, previous, true);
+        assert_eq!(
+            cursor(&app),
+            Some(CursorIcon::System(SystemCursorIcon::NotAllowed))
+        );
+
+        hover(&mut app, previous, false);
+        hover(&mut app, next, true);
+        assert_eq!(
+            cursor(&app),
+            Some(CursorIcon::System(SystemCursorIcon::Pointer))
+        );
+    }
 }
 
 fn spawn_pagination_button(
@@ -343,6 +486,7 @@ fn spawn_pagination_button(
 
     let mut button_entity = parent.spawn((
         Button,
+        PointerCursorOnHover,
         a11y::TabIndex(0),
         SemanticNode::new(SemanticRole::Button).label(accessible_label),
         PaginationButton {
@@ -366,16 +510,40 @@ fn spawn_pagination_button(
 
     let button = button_entity.id();
     button_entity.with_children(|parent| {
-        parent.spawn((
-            PaginationButtonLabel { button },
-            Text::new(label),
-            TextFont {
-                font_size: FontSize::Px(16.0),
-                ..default()
-            },
-            TextColor(default_colors.text),
-        ));
+        if let Some(icon_name) = pagination_icon_name(role) {
+            parent.spawn((
+                PaginationButtonIcon { button },
+                IconNode::new(Icon::feather(icon_name))
+                    .size(16.0)
+                    .color(default_colors.text),
+                Node {
+                    width: px(16.0),
+                    height: px(16.0),
+                    ..default()
+                },
+            ));
+        } else {
+            parent.spawn((
+                PaginationButtonLabel { button },
+                Text::new(label),
+                TextFont {
+                    font_size: FontSize::Px(16.0),
+                    ..default()
+                },
+                TextColor(default_colors.text),
+            ));
+        }
     });
+}
+
+fn pagination_icon_name(role: PaginationButtonRole) -> Option<&'static str> {
+    match role {
+        PaginationButtonRole::First => Some("chevrons-left"),
+        PaginationButtonRole::Previous => Some("chevron-left"),
+        PaginationButtonRole::Next => Some("chevron-right"),
+        PaginationButtonRole::Last => Some("chevrons-right"),
+        PaginationButtonRole::PageSlot(_) => None,
+    }
 }
 
 fn spawn_page_numbers(parent: &mut ChildSpawnerCommands, owner: Entity, config: &PaginationConfig) {
@@ -455,8 +623,17 @@ fn pagination_button_interaction(
 }
 
 fn update_pagination_ui(
+    mut commands: Commands,
     theme: Option<Res<ThemeResource>>,
-    pagination_query: Query<(Entity, &PaginationState, &PaginationStyleConfig), With<Pagination>>,
+    mut pagination_query: Query<
+        (
+            Entity,
+            &PaginationState,
+            &PaginationStyleConfig,
+            &mut Surface,
+        ),
+        With<Pagination>,
+    >,
     mut pagination_semantics: Query<
         &mut SemanticNode,
         (With<Pagination>, Without<PaginationButton>),
@@ -471,6 +648,7 @@ fn update_pagination_ui(
             &Interaction,
             &mut a11y::TabIndex,
             &mut SemanticNode,
+            Has<DisabledInteraction>,
         ),
         (With<Button>, Without<Pagination>),
     >,
@@ -478,17 +656,25 @@ fn update_pagination_ui(
         (&PaginationButtonLabel, &mut Text, &mut TextColor),
         Without<PaginationSummaryText>,
     >,
+    mut icon_query: Query<(&PaginationButtonIcon, &mut IconNode)>,
     mut summary_query: Query<
         (&PaginationSummaryText, &mut Text, &mut TextColor),
         Without<PaginationButtonLabel>,
     >,
 ) {
-    let colors = theme
+    let (mode, colors) = theme
         .as_ref()
-        .map(|theme| theme.current.colors)
-        .unwrap_or_else(|| dark_theme().colors);
+        .map(|theme| (theme.current.mode, theme.current.colors))
+        .unwrap_or_else(|| {
+            let theme = dark_theme();
+            (theme.mode, theme.colors)
+        });
 
-    for (pagination_entity, state, style) in &pagination_query {
+    for (pagination_entity, state, style, mut pagination_surface) in &mut pagination_query {
+        let container_fill = pagination_container_fill(mode, colors);
+        if pagination_surface.fill != container_fill {
+            pagination_surface.fill = container_fill;
+        }
         if let Ok(mut semantic) = pagination_semantics.get_mut(pagination_entity) {
             semantic.value = Some(format!(
                 "Page {} of {}",
@@ -508,6 +694,7 @@ fn update_pagination_ui(
             interaction,
             mut tab_index,
             mut semantic,
+            has_disabled_marker,
         ) in &mut button_query
         {
             if button.owner != pagination_entity {
@@ -559,6 +746,15 @@ fn update_pagination_ui(
             node.display = if hidden { Display::None } else { Display::Flex };
             surface.border = Some(Border::new(1.0, Paint::solid(colors.border)));
 
+            // Beverly reports no `Interaction` for disabled controls, so the cursor reads hover instead.
+            if disabled.0 && !has_disabled_marker {
+                commands.entity(button_entity).insert(DisabledInteraction);
+            } else if !disabled.0 && has_disabled_marker {
+                commands
+                    .entity(button_entity)
+                    .remove::<DisabledInteraction>();
+            }
+
             tab_index.0 = if hidden || disabled.0 { -1 } else { 0 };
             if semantic.state.disabled != disabled.0 {
                 semantic.state.disabled = disabled.0;
@@ -579,10 +775,10 @@ fn update_pagination_ui(
             let bg = if disabled.0 {
                 colors.surface_elevated.with_alpha(0.82)
             } else if is_active_page {
-                colors.primary.with_alpha(0.96)
+                active_page_colors(mode).0
             } else {
                 match *interaction {
-                    Interaction::Pressed => colors.primary_active,
+                    Interaction::Pressed => active_page_colors(mode).0,
                     Interaction::Hovered => colors.secondary.with_alpha(0.88),
                     Interaction::None => colors.surface.with_alpha(0.72),
                 }
@@ -602,11 +798,24 @@ fn update_pagination_ui(
 
                 text_color.0 = if disabled.0 {
                     colors.text_disabled
-                } else if is_active_page {
-                    Color::WHITE
+                } else if is_active_page || *interaction == Interaction::Pressed {
+                    active_page_colors(mode).1
                 } else {
                     colors.text
                 };
+            }
+
+            let icon_color = if disabled.0 {
+                colors.text_disabled
+            } else if is_active_page || *interaction == Interaction::Pressed {
+                active_page_colors(mode).1
+            } else {
+                colors.text
+            };
+            for (icon_ref, mut icon) in &mut icon_query {
+                if icon_ref.button == button_entity && icon.color != icon_color {
+                    icon.color = icon_color;
+                }
             }
         }
 
@@ -618,6 +827,20 @@ fn update_pagination_ui(
             **text = format!("Page {} of {}", state.current_page, state.total_pages);
             text_color.0 = colors.text_muted;
         }
+    }
+}
+
+fn active_page_colors(mode: ThemeMode) -> (Color, Color) {
+    match mode {
+        ThemeMode::Light => (Color::BLACK, Color::WHITE),
+        ThemeMode::Dark => (Color::WHITE, Color::BLACK),
+    }
+}
+
+fn pagination_container_fill(mode: ThemeMode, colors: crate::theme::ThemeColors) -> Paint {
+    match mode {
+        ThemeMode::Light => Paint::solid(Color::NONE),
+        ThemeMode::Dark => Paint::solid(colors.surface.with_alpha(0.62)),
     }
 }
 

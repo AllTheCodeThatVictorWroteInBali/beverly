@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::components::button::ButtonMotionDisabled;
 use crate::components::text::{TextRole, ThemedText};
 use crate::rendering::{Paint, Surface};
 
@@ -32,6 +33,7 @@ pub(crate) fn spawn_header(parent: &mut ChildSpawnerCommands, config: &TableConf
                         },
                         SemanticNode::new(SemanticRole::ColumnHeader).label(column.label.clone()),
                         Button,
+                        ButtonMotionDisabled,
                         Node {
                             width: Val::Percent(column.width),
                             min_height: Val::Percent(100.0),

@@ -1,16 +1,52 @@
-use bevy::prelude::*;
 use bevy::{
+    color::Mix,
     input::{ButtonState, keyboard::KeyboardInput},
+    prelude::*,
     ui::BorderColor,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::components::text::{TextRole, ThemedText};
+use crate::components::button::ButtonMotionDisabled;
 use crate::icons::{Icon, IconNode};
 use crate::primitives::a11y::{self, FocusGained, FocusLost};
 use crate::primitives::semantic::{SemanticNode, SemanticRole, SemanticValue};
-use crate::rendering::{Border, GradientStop, LinearGradient as UiLinearGradient, Paint, Surface};
-use crate::theme::ThemeResource;
+use crate::rendering::{Border, Paint, Surface};
+use crate::theme::{ThemeMode, ThemeResource};
+
+/// Same neutral palette as the default alert, button and avatar.
+struct InputPalette {
+    paper: Color,
+    ink: Color,
+    muted: Color,
+    disabled_ink: Color,
+    disabled_fill: Color,
+    border: Color,
+    error: Color,
+}
+
+fn input_palette(mode: ThemeMode) -> InputPalette {
+    let gray = |v: u8| Color::srgb_u8(v, v, v);
+    match mode {
+        ThemeMode::Light => InputPalette {
+            paper: gray(255),
+            ink: gray(0),
+            muted: gray(115),
+            disabled_ink: gray(163),
+            disabled_fill: gray(245),
+            border: gray(212),
+            error: Color::srgb_u8(220, 38, 38),
+        },
+        ThemeMode::Dark => InputPalette {
+            paper: gray(23),
+            ink: gray(255),
+            muted: gray(163),
+            disabled_ink: gray(82),
+            disabled_fill: gray(38),
+            border: gray(38),
+            error: Color::srgb_u8(248, 113, 113),
+        },
+    }
+}
 #[derive(Component)]
 pub struct TextInput {
     pub value: String,
@@ -43,6 +79,12 @@ impl Default for TextInputKind {
 
 #[derive(Component)]
 pub struct TextInputSurface;
+
+#[derive(Component, Default)]
+struct TextInputSubmitWobble {
+    elapsed: f32,
+    active: bool,
+}
 
 #[derive(Component)]
 pub struct TextInputText;
@@ -89,6 +131,8 @@ pub struct TextInputConfig {
     pub width: Option<Val>,
     pub flex_grow: Option<f32>,
     pub show_submit_button: bool,
+    pub char_filter: Option<fn(char) -> bool>,
+    pub error_message: Option<String>,
 }
 
 impl TextInputConfig {
@@ -108,7 +152,22 @@ impl TextInputConfig {
             width: None,
             flex_grow: None,
             show_submit_button: true,
+            char_filter: None,
+            error_message: Some("This character is not allowed.".to_string()),
         }
+    }
+
+    /// Overrides the default text shown under the input when a character is rejected.
+    pub fn error_message(mut self, message: impl Into<String>) -> Self {
+        self.error_message = Some(message.into());
+        self
+    }
+
+    /// Rejects every character the filter returns `false` for. A rejected key press
+    /// flashes the border red and shakes the input.
+    pub fn char_filter(mut self, filter: fn(char) -> bool) -> Self {
+        self.char_filter = Some(filter);
+        self
     }
 
     pub fn kind(mut self, kind: TextInputKind) -> Self {
@@ -191,7 +250,7 @@ pub fn spawn_text_input(parent: &mut ChildSpawnerCommands, config: TextInputConf
     let border_radius = if is_search {
         config.border_radius.unwrap_or(17.0)
     } else {
-        config.border_radius.unwrap_or(0.0)
+        config.border_radius.unwrap_or(8.0)
     };
     let semantic_role = match config.kind {
         TextInputKind::Search => SemanticRole::SearchBox,
@@ -225,8 +284,12 @@ pub fn spawn_text_input(parent: &mut ChildSpawnerCommands, config: TextInputConf
     parent
         .spawn((
             Button,
+            ButtonMotionDisabled,
             a11y::TabIndex(if config.disabled { -1 } else { 0 }),
             semantic,
+            TextInputReject::default(),
+            TextInputSubmitWobble::default(),
+            TextInputCharFilter(config.char_filter),
             TextInput {
                 value: initial_value,
                 placeholder: config.placeholder.clone(),
@@ -243,7 +306,7 @@ pub fn spawn_text_input(parent: &mut ChildSpawnerCommands, config: TextInputConf
             Node {
                 width: config.width.unwrap_or(percent(100)),
                 height: if is_search {
-                    px(34.0)
+                    px(68.0)
                 } else if has_floating_label {
                     px(66.0)
                 } else {
@@ -255,7 +318,7 @@ pub fn spawn_text_input(parent: &mut ChildSpawnerCommands, config: TextInputConf
                 flex_grow: config.flex_grow.unwrap_or(0.0),
                 padding: UiRect {
                     left: if is_search { px(12.0) } else { px(16.0) },
-                    right: if is_search { px(12.0) } else { px(16.0) },
+                    right: if is_search { px(0.0) } else { px(16.0) },
                     top: if has_floating_label {
                         px(14.0)
                     } else {
@@ -277,20 +340,50 @@ pub fn spawn_text_input(parent: &mut ChildSpawnerCommands, config: TextInputConf
             BackgroundColor(Color::NONE),
             BorderColor::all(Color::NONE),
             TextInputSurface,
-            Surface::rounded_rect_fill(
-                border_radius,
-                Paint::linear(UiLinearGradient::vertical(vec![
-                    GradientStop::new(0.0, Color::srgb(0.10, 0.10, 0.13)),
-                    GradientStop::new(1.0, Color::srgb(0.13, 0.13, 0.17)),
-                ])),
-            )
-            .uniform_border(1.0, Paint::solid(Color::srgb(0.24, 0.24, 0.30))),
+            Surface::rounded_rect_fill(border_radius, Paint::solid(Color::WHITE))
+                .uniform_border(1.0, Paint::solid(Color::srgb_u8(212, 212, 212))),
         ))
         .with_children(|input| {
+            if let Some(message) = config.error_message {
+                input.spawn((
+                    TextInputErrorIcon,
+                    IconNode::new(Icon::feather("alert-circle"))
+                        .size(14.0)
+                        .color(Color::NONE),
+                    Visibility::Hidden,
+                    Node {
+                        position_type: PositionType::Absolute,
+                        top: percent(50),
+                        right: px(12),
+                        margin: UiRect::top(px(-7)),
+                        width: px(14),
+                        height: px(14),
+                        ..default()
+                    },
+                ));
+                input.spawn((
+                    TextInputErrorMessage,
+                    Text::new(message),
+                    TextFont {
+                        font_size: FontSize::Px(13.0),
+                        ..default()
+                    },
+                    TextColor(Color::NONE),
+                    Visibility::Hidden,
+                    // Hangs below the field, so it shakes along with it.
+                    Node {
+                        position_type: PositionType::Absolute,
+                        top: percent(100),
+                        left: px(0),
+                        margin: UiRect::top(px(6)),
+                        ..default()
+                    },
+                ));
+            }
+
             if let Some(label) = config.floating_label {
                 input.spawn((
                     TextInputFloatingLabel,
-                    ThemedText::new(TextRole::Label),
                     Text::new(label),
                     TextFont {
                         font_size: FontSize::Px(16.0),
@@ -321,22 +414,21 @@ pub fn spawn_text_input(parent: &mut ChildSpawnerCommands, config: TextInputConf
             }
 
             input.spawn((
-                ThemedText::new(TextRole::Body),
                 Text::new(""),
                 TextFont {
-                    font_size: FontSize::Px(20.0),
+                    font_size: FontSize::Px(16.0),
                     ..default()
                 },
                 TextColor(Color::WHITE),
                 TextInputText,
+                TextInputCursor,
                 Node { ..default() },
             ));
 
             input.spawn((
-                ThemedText::new(TextRole::Muted),
                 Text::new(config.placeholder),
                 TextFont {
-                    font_size: FontSize::Px(20.0),
+                    font_size: FontSize::Px(16.0),
                     ..default()
                 },
                 TextColor(Color::NONE),
@@ -364,18 +456,18 @@ pub fn spawn_text_input(parent: &mut ChildSpawnerCommands, config: TextInputConf
                             Button,
                             TextInputSubmitButton,
                             Node {
-                                width: px(28.0),
-                                height: px(28.0),
-                                border_radius: BorderRadius::all(px(14.0)),
+                                width: px(52.0),
+                                height: px(52.0),
+                                border_radius: BorderRadius::all(px(26.0)),
                                 align_items: AlignItems::Center,
                                 justify_content: JustifyContent::Center,
-                                margin: UiRect::right(px(12.0)),
+                                margin: UiRect::right(px(7.0)),
                                 ..default()
                             },
                             BackgroundColor(Color::NONE),
                             BorderColor::all(Color::NONE),
                             Surface::rounded_rect_fill(
-                                14.0,
+                                26.0,
                                 Paint::solid(Color::srgb(0.14, 0.18, 0.24)),
                             )
                             .uniform_border(1.0, Paint::solid(Color::srgb(0.24, 0.30, 0.39))),
@@ -394,22 +486,6 @@ pub fn spawn_text_input(parent: &mut ChildSpawnerCommands, config: TextInputConf
                         });
                 }
             }
-
-            input.spawn((
-                ThemedText::new(TextRole::Accent),
-                Text::new("|"),
-                TextFont {
-                    font_size: FontSize::Px(20.0),
-                    ..default()
-                },
-                TextColor(Color::WHITE),
-                TextInputCursor,
-                Visibility::Hidden,
-                Node {
-                    margin: UiRect::left(px(-2.0)),
-                    ..default()
-                },
-            ));
         })
         .id()
 }
@@ -464,7 +540,7 @@ fn text_input_focus(
 }
 
 fn text_input_submit_button(
-    input_query: Query<(Entity, &TextInput)>,
+    mut input_query: Query<(Entity, &TextInput, &mut TextInputSubmitWobble)>,
     submit_query: Query<
         (&ChildOf, &Interaction),
         (Changed<Interaction>, With<TextInputSubmitButton>),
@@ -477,11 +553,13 @@ fn text_input_submit_button(
         }
 
         let parent = child_of.parent();
-        if let Ok((entity, input)) = input_query.get(parent) {
+        if let Ok((entity, input, mut wobble)) = input_query.get_mut(parent) {
             if input.disabled {
                 continue;
             }
 
+            wobble.elapsed = 0.0;
+            wobble.active = true;
             events.write(TextInputEvent::Submitted {
                 entity,
                 value: input.value.clone(),
@@ -490,22 +568,240 @@ fn text_input_submit_button(
     }
 }
 
+const SUBMIT_WOBBLE_SECONDS: f32 = 0.32;
+const SUBMIT_WOBBLE_DEGREES: f32 = 1.8;
+const SUBMIT_WOBBLE_HERTZ: f32 = 5.0;
+const SUBMIT_WOBBLE_DECAY: f32 = 9.0;
+
+fn submit_wobble_angle(elapsed: f32) -> f32 {
+    if elapsed >= SUBMIT_WOBBLE_SECONDS {
+        return 0.0;
+    }
+
+    SUBMIT_WOBBLE_DEGREES.to_radians()
+        * (std::f32::consts::TAU * SUBMIT_WOBBLE_HERTZ * elapsed).sin()
+        * (-SUBMIT_WOBBLE_DECAY * elapsed).exp()
+}
+
+fn text_input_submit_wobble_system(
+    time: Res<Time>,
+    mut inputs: Query<(&mut UiTransform, &mut TextInputSubmitWobble), With<TextInputSurface>>,
+) {
+    for (mut transform, mut wobble) in &mut inputs {
+        if !wobble.active {
+            continue;
+        }
+
+        wobble.elapsed += time.delta_secs();
+        if wobble.elapsed >= SUBMIT_WOBBLE_SECONDS {
+            wobble.active = false;
+            transform.rotation = Rot2::IDENTITY;
+        } else {
+            transform.rotation = Rot2::radians(submit_wobble_angle(wobble.elapsed));
+        }
+    }
+}
+
+/// Held-key state for the editing keys that repeat (the OS repeat events are ignored
+/// for these so the rate is the same everywhere).
+#[derive(Default)]
+struct KeyRepeat {
+    key: Option<KeyCode>,
+    held: f32,
+    since_last: f32,
+}
+
+const REPEAT_DELAY_SECS: f32 = 0.4;
+const REPEAT_INTERVAL_SECS: f32 = 0.035;
+
+fn is_repeatable_key(key: KeyCode) -> bool {
+    matches!(
+        key,
+        KeyCode::Backspace | KeyCode::Delete | KeyCode::ArrowLeft | KeyCode::ArrowRight
+    )
+}
+
+/// Applies one step of a repeatable key; returns whether the text changed.
+fn apply_repeatable_key(input: &mut TextInput, key: KeyCode) -> bool {
+    match key {
+        KeyCode::ArrowLeft => {
+            input.cursor = input.cursor.saturating_sub(1);
+            false
+        }
+        KeyCode::ArrowRight => {
+            input.cursor = (input.cursor + 1).min(grapheme_count(&input.value));
+            false
+        }
+        KeyCode::Backspace if !input.read_only => {
+            let mut cursor = input.cursor;
+            let removed = remove_char_before_cursor(&mut input.value, &mut cursor);
+            input.cursor = cursor;
+            removed
+        }
+        KeyCode::Delete if !input.read_only => {
+            let cursor = input.cursor;
+            remove_char_at_cursor(&mut input.value, cursor)
+        }
+        _ => false,
+    }
+}
+
+/// Extra per-input character filter (`None` accepts everything the kind allows).
+#[derive(Component, Clone, Copy)]
+struct TextInputCharFilter(Option<fn(char) -> bool>);
+
+/// Rejection feedback: the border flashes red and the input shakes briefly.
+#[derive(Component, Default)]
+struct TextInputReject {
+    elapsed: f32,
+    active: bool,
+    /// Seconds the error message stays on screen.
+    message_left: f32,
+}
+
+#[derive(Component)]
+struct TextInputErrorMessage;
+
+#[derive(Component)]
+struct TextInputErrorIcon;
+
+const REJECT_MESSAGE_SECS: f32 = 2.0;
+const REJECT_MESSAGE_FADE_SECS: f32 = 0.4;
+const REJECT_FLASH_SECS: f32 = 0.6;
+const REJECT_SHAKE_SECS: f32 = 0.4;
+const REJECT_SHAKE_PX: f32 = 5.0;
+const REJECT_SHAKE_HERTZ: f32 = 10.0;
+const REJECT_SHAKE_DECAY: f32 = 8.0;
+
+impl TextInputReject {
+    fn start(&mut self) {
+        self.elapsed = 0.0;
+        self.active = true;
+        self.message_left = REJECT_MESSAGE_SECS;
+    }
+}
+
+fn reject_error_alpha(message_left: f32) -> f32 {
+    (message_left / REJECT_MESSAGE_FADE_SECS).clamp(0.0, 1.0)
+}
+
+fn text_input_reject_system(
+    time: Res<Time>,
+    mut inputs: Query<(&mut TextInputReject, &mut UiTransform)>,
+) {
+    for (mut reject, mut transform) in &mut inputs {
+        if reject.message_left > 0.0 {
+            reject.message_left = (reject.message_left - time.delta_secs()).max(0.0);
+        }
+
+        if !reject.active {
+            continue;
+        }
+
+        reject.elapsed += time.delta_secs();
+        let t = reject.elapsed;
+        if t >= REJECT_FLASH_SECS {
+            reject.active = false;
+        }
+
+        let offset = if t < REJECT_SHAKE_SECS {
+            REJECT_SHAKE_PX
+                * (std::f32::consts::TAU * REJECT_SHAKE_HERTZ * t).sin()
+                * (-REJECT_SHAKE_DECAY * t).exp()
+        } else {
+            0.0
+        };
+        transform.translation = Val2::px(offset, 0.0);
+    }
+}
+
+/// Shows the error message in red, fading out at the end.
+fn text_input_error_message_system(
+    theme: Res<ThemeResource>,
+    inputs: Query<(&TextInputReject, &Children)>,
+    mut messages: Query<
+        (&mut TextColor, &mut Visibility),
+        (With<TextInputErrorMessage>, Without<TextInputErrorIcon>),
+    >,
+    mut icons: Query<
+        (&mut IconNode, &mut Visibility),
+        (With<TextInputErrorIcon>, Without<TextInputErrorMessage>),
+    >,
+) {
+    let palette = input_palette(theme.current.mode);
+
+    for (reject, children) in &inputs {
+        let alpha = reject_error_alpha(reject.message_left);
+        let visibility = if reject.message_left > 0.0 {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+
+        for child in children.iter() {
+            if let Ok((mut icon, mut icon_visibility)) = icons.get_mut(child) {
+                icon.color = palette.error.with_alpha(alpha);
+                if *icon_visibility != visibility {
+                    *icon_visibility = visibility;
+                }
+                continue;
+            }
+            let Ok((mut color, mut message_visibility)) = messages.get_mut(child) else {
+                continue;
+            };
+            color.0 = palette.error.with_alpha(alpha);
+            if *message_visibility != visibility {
+                *message_visibility = visibility;
+            }
+        }
+    }
+}
+
 fn text_input_keyboard(
     mut commands: Commands,
+    time: Res<Time>,
+    keys: Res<ButtonInput<KeyCode>>,
+    mut repeat: Local<KeyRepeat>,
     mut keyboard: MessageReader<KeyboardInput>,
-    mut focused_query: Query<(Entity, &mut TextInput), With<TextInputFocused>>,
+    mut focused_query: Query<
+        (
+            Entity,
+            &mut TextInput,
+            Option<&TextInputCharFilter>,
+            Option<&mut TextInputReject>,
+        ),
+        With<TextInputFocused>,
+    >,
     mut events: MessageWriter<TextInputEvent>,
 ) {
-    let Some((entity, mut input)) = focused_query.iter_mut().next() else {
+    let Some((entity, mut input, filter, mut reject)) = focused_query.iter_mut().next() else {
+        repeat.key = None;
         return;
     };
 
     if input.disabled {
+        repeat.key = None;
         return;
     }
 
     for event in keyboard.read() {
         if event.state != ButtonState::Pressed {
+            continue;
+        }
+
+        if is_repeatable_key(event.key_code) {
+            if !event.repeat {
+                if apply_repeatable_key(&mut input, event.key_code) {
+                    events.write(TextInputEvent::Changed {
+                        entity,
+                        value: input.value.clone(),
+                    });
+                }
+                *repeat = KeyRepeat {
+                    key: Some(event.key_code),
+                    ..default()
+                };
+            }
             continue;
         }
 
@@ -523,16 +819,6 @@ fn text_input_keyboard(
             continue;
         }
 
-        if event.key_code == KeyCode::ArrowLeft {
-            input.cursor = input.cursor.saturating_sub(1);
-            continue;
-        }
-
-        if event.key_code == KeyCode::ArrowRight {
-            input.cursor = (input.cursor + 1).min(grapheme_count(&input.value));
-            continue;
-        }
-
         if event.key_code == KeyCode::Home {
             input.cursor = 0;
             continue;
@@ -540,35 +826,6 @@ fn text_input_keyboard(
 
         if event.key_code == KeyCode::End {
             input.cursor = grapheme_count(&input.value);
-            continue;
-        }
-
-        if event.key_code == KeyCode::Backspace {
-            if input.read_only {
-                continue;
-            }
-            let mut cursor = input.cursor;
-            if remove_char_before_cursor(&mut input.value, &mut cursor) {
-                input.cursor = cursor;
-                events.write(TextInputEvent::Changed {
-                    entity,
-                    value: input.value.clone(),
-                });
-            }
-            continue;
-        }
-
-        if event.key_code == KeyCode::Delete {
-            if input.read_only {
-                continue;
-            }
-            let cursor = input.cursor;
-            if remove_char_at_cursor(&mut input.value, cursor) {
-                events.write(TextInputEvent::Changed {
-                    entity,
-                    value: input.value.clone(),
-                });
-            }
             continue;
         }
 
@@ -586,7 +843,14 @@ fn text_input_keyboard(
                 continue;
             }
 
-            if !allows_char(input.kind, ch) {
+            if !allows_char(input.kind, ch)
+                || filter
+                    .and_then(|filter| filter.0)
+                    .is_some_and(|allowed| !allowed(ch))
+            {
+                if let Some(reject) = reject.as_mut() {
+                    reject.start();
+                }
                 continue;
             }
 
@@ -613,6 +877,33 @@ fn text_input_keyboard(
             value: input.value.clone(),
         });
     }
+
+    // Holding a repeatable key keeps applying it after a short delay.
+    if let Some(key) = repeat.key {
+        if !keys.pressed(key) {
+            repeat.key = None;
+            return;
+        }
+
+        let dt = time.delta_secs();
+        repeat.held += dt;
+        if repeat.held < REPEAT_DELAY_SECS {
+            return;
+        }
+
+        repeat.since_last += dt;
+        let mut changed = false;
+        while repeat.since_last >= REPEAT_INTERVAL_SECS {
+            repeat.since_last -= REPEAT_INTERVAL_SECS;
+            changed |= apply_repeatable_key(&mut input, key);
+        }
+        if changed {
+            events.write(TextInputEvent::Changed {
+                entity,
+                value: input.value.clone(),
+            });
+        }
+    }
 }
 
 fn update_text_input_visuals(
@@ -624,6 +915,7 @@ fn update_text_input_visuals(
             &TextInput,
             Option<&TextInputFocused>,
             Option<&Children>,
+            Option<&TextInputReject>,
             &mut Surface,
         ),
         With<TextInputSurface>,
@@ -633,7 +925,6 @@ fn update_text_input_visuals(
         (
             With<TextInputText>,
             Without<TextInputPlaceholder>,
-            Without<TextInputCursor>,
             Without<TextInputFloatingLabel>,
         ),
     >,
@@ -661,35 +952,31 @@ fn update_text_input_visuals(
             Without<TextInputCursor>,
         ),
     >,
-    mut cursor_query: Query<
-        (&ChildOf, &mut TextColor, &mut Visibility),
-        (
-            With<TextInputCursor>,
-            Without<TextInputText>,
-            Without<TextInputPlaceholder>,
-            Without<TextInputFloatingLabel>,
-        ),
-    >,
     mut search_icon_query: Query<(&ChildOf, &mut IconNode), With<TextInputSearchIcon>>,
 ) {
     let blink_on = (time.elapsed_secs() * 2.0).fract() < 0.5;
-    let colors = theme.current.colors;
+    let palette = input_palette(theme.current.mode);
 
-    for (entity, input, focused, children, mut surface) in &mut inputs {
+    for (entity, input, focused, children, reject, mut surface) in &mut inputs {
         let is_focused = focused.is_some();
         let display_value = if input.kind == TextInputKind::Password {
-            "*".repeat(input.value.chars().count())
+            "*".repeat(grapheme_count(&input.value))
         } else {
             input.value.clone()
+        };
+        let display_value = if is_focused && !input.disabled && blink_on {
+            insert_text_cursor(&display_value, input.cursor)
+        } else {
+            display_value
         };
 
         for (parent, mut text, mut text_color) in &mut text_query {
             if parent.parent() == entity {
                 *text = Text::new(display_value.clone());
                 text_color.0 = if input.disabled {
-                    colors.text_disabled
+                    palette.disabled_ink
                 } else {
-                    colors.text
+                    palette.ink
                 };
             }
         }
@@ -705,7 +992,7 @@ fn update_text_input_visuals(
         {
             if parent.parent() == entity {
                 *placeholder_text = Text::new(input.placeholder.clone());
-                placeholder_color.0 = colors.text_muted;
+                placeholder_color.0 = palette.muted;
                 *visibility = if input.floating_label.is_some() {
                     Visibility::Hidden
                 } else {
@@ -721,11 +1008,11 @@ fn update_text_input_visuals(
                 if parent.parent() == entity {
                     *text = Text::new(label.clone());
                     text_color.0 = if input.disabled {
-                        colors.text_disabled
+                        palette.disabled_ink
                     } else if label_active {
-                        colors.focus
+                        palette.ink
                     } else {
-                        colors.text_muted
+                        palette.muted
                     };
                     font.font_size = FontSize::Px(if label_active { 12.0 } else { 16.0 });
                     node.top = if label_active { px(6.0) } else { px(20.0) };
@@ -738,53 +1025,31 @@ fn update_text_input_visuals(
             }
         }
 
-        let cursor_visibility = if is_focused && !input.disabled && blink_on {
-            Visibility::Inherited
+        // Persistent invalid state stays red; rejection feedback fades with its message.
+        let resting_outline = if is_focused && !input.disabled {
+            palette.ink
         } else {
-            Visibility::Hidden
+            palette.border
         };
-
-        for (parent, mut cursor_color, mut visibility) in &mut cursor_query {
-            if parent.parent() == entity {
-                cursor_color.0 = colors.focus;
-                *visibility = cursor_visibility;
-            }
-        }
-
-        if input.kind == TextInputKind::Search {
-            let is_dark = theme.current.mode == crate::theme::ThemeMode::Dark;
-            surface.fill = Paint::solid(if is_dark {
-                colors.surface.with_alpha(0.88)
-            } else {
-                colors.surface.with_alpha(0.96)
-            });
-            surface.border = Some(Border::new(
-                1.0,
-                Paint::solid(if is_focused {
-                    colors.focus.with_alpha(0.95)
-                } else if is_dark {
-                    colors.border.with_alpha(0.92)
-                } else {
-                    colors.border.with_alpha(0.72)
-                }),
-            ));
-        } else if input.disabled {
-            surface.fill = Paint::solid(colors.surface_elevated);
-            surface.border = Some(Border::new(1.0, Paint::solid(colors.border)));
-        } else if is_focused {
-            surface.fill = Paint::solid(colors.surface_elevated);
-            surface.border = Some(Border::new(1.0, Paint::solid(colors.focus)));
+        let outline = if input.invalid {
+            palette.error
         } else {
-            surface.fill = Paint::solid(colors.surface);
-            surface.border = Some(Border::new(1.0, Paint::solid(colors.border_strong)));
-        }
+            let error_alpha = reject.map_or(0.0, |reject| reject_error_alpha(reject.message_left));
+            resting_outline.mix(&palette.error, error_alpha)
+        };
+        surface.fill = Paint::solid(if input.disabled {
+            palette.disabled_fill
+        } else {
+            palette.paper
+        });
+        surface.border = Some(Border::new(1.0, Paint::solid(outline)));
 
         for (parent, mut icon_node) in &mut search_icon_query {
             if parent.parent() == entity {
                 icon_node.color = if input.disabled {
-                    colors.text_disabled
+                    palette.disabled_ink
                 } else {
-                    colors.text_muted
+                    palette.muted
                 };
             }
         }
@@ -795,14 +1060,33 @@ fn update_text_input_visuals(
 
 fn update_text_input_submit_button_visuals(
     theme: Res<ThemeResource>,
-    mut submit_buttons: Query<&mut Surface, With<TextInputSubmitButton>>,
+    mut submit_buttons: Query<(&mut Surface, &Children), With<TextInputSubmitButton>>,
+    mut icons: Query<&mut IconNode>,
 ) {
-    let colors = theme.current.colors;
+    let palette = input_palette(theme.current.mode);
 
-    for mut button_surface in &mut submit_buttons {
-        button_surface.fill = Paint::solid(colors.secondary);
-        button_surface.border = Some(Border::new(1.0, Paint::solid(colors.border)));
+    // Inverted pill: ink-colored circle with a paper-colored arrow.
+    for (mut button_surface, children) in &mut submit_buttons {
+        button_surface.fill = Paint::solid(palette.ink);
+        button_surface.border = Some(Border::new(1.0, Paint::solid(palette.ink)));
+
+        for child in children.iter() {
+            if let Ok(mut icon) = icons.get_mut(child) {
+                if icon.color != palette.paper {
+                    icon.color = palette.paper;
+                }
+            }
+        }
     }
+}
+
+fn insert_text_cursor(value: &str, cursor: usize) -> String {
+    let byte_index = byte_index_from_grapheme_index(value, cursor);
+    let mut with_cursor = String::with_capacity(value.len() + 1);
+    with_cursor.push_str(&value[..byte_index]);
+    with_cursor.push('|');
+    with_cursor.push_str(&value[byte_index..]);
+    with_cursor
 }
 
 fn should_show_placeholder(value: &str, is_focused: bool) -> bool {
@@ -812,7 +1096,7 @@ fn should_show_placeholder(value: &str, is_focused: bool) -> bool {
 fn allows_char(kind: TextInputKind, ch: char) -> bool {
     match kind {
         TextInputKind::Number => ch.is_ascii_digit(),
-        TextInputKind::Email => ch.is_ascii_alphanumeric() || ".-_@".contains(ch),
+        TextInputKind::Email => ch.is_ascii_alphanumeric() || ".-_+@".contains(ch),
         TextInputKind::Text | TextInputKind::Password | TextInputKind::Search => true,
     }
 }
@@ -855,10 +1139,126 @@ fn remove_char_at_cursor(value: &mut String, cursor: usize) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use bevy::prelude::*;
+
     use super::{
-        byte_index_from_grapheme_index, grapheme_count, remove_char_at_cursor,
-        remove_char_before_cursor, should_show_placeholder,
+        TextInputConfig, TextInputEvent, TextInputKind, TextInputSubmitButton,
+        TextInputSubmitWobble, allows_char, byte_index_from_grapheme_index, grapheme_count,
+        insert_text_cursor, reject_error_alpha, remove_char_at_cursor, remove_char_before_cursor,
+        should_show_placeholder, spawn_text_input, text_input_submit_button,
+        text_input_submit_wobble_system,
     };
+    use crate::components::button::ButtonMotionDisabled;
+
+    #[test]
+    fn clicking_search_submit_wobbles_the_whole_input() {
+        let mut app = App::new();
+        app.init_resource::<Time>()
+            .add_message::<TextInputEvent>()
+            .add_systems(
+                Update,
+                (text_input_submit_button, text_input_submit_wobble_system).chain(),
+            );
+        let parent = app.world_mut().spawn(Node::default()).id();
+        let mut input_entity = None;
+        {
+            let mut commands = app.world_mut().commands();
+            commands.entity(parent).with_children(|children| {
+                input_entity = Some(spawn_text_input(
+                    children,
+                    TextInputConfig::new("Search")
+                        .label("Search")
+                        .kind(TextInputKind::Search),
+                ));
+            });
+        }
+        app.world_mut().flush();
+        let input = input_entity.unwrap();
+        let submit = app
+            .world()
+            .get::<Children>(input)
+            .unwrap()
+            .iter()
+            .find(|entity| app.world().get::<TextInputSubmitButton>(*entity).is_some())
+            .unwrap();
+
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
+        *app.world_mut().get_mut::<Interaction>(submit).unwrap() = Interaction::Pressed;
+        app.update();
+
+        assert!(
+            app.world()
+                .get::<TextInputSubmitWobble>(input)
+                .unwrap()
+                .active
+        );
+        assert_ne!(
+            app.world().get::<UiTransform>(input).unwrap().rotation,
+            Rot2::IDENTITY
+        );
+    }
+
+    #[test]
+    fn search_field_stays_fixed_while_submit_button_keeps_shared_motion() {
+        let mut app = App::new();
+        let parent = app.world_mut().spawn(Node::default()).id();
+        let mut input_entity = None;
+        {
+            let mut commands = app.world_mut().commands();
+            commands.entity(parent).with_children(|children| {
+                input_entity = Some(spawn_text_input(
+                    children,
+                    TextInputConfig::new("Search")
+                        .label("Search")
+                        .kind(TextInputKind::Search),
+                ));
+            });
+        }
+        app.world_mut().flush();
+
+        let input = input_entity.unwrap();
+        assert!(app.world().get::<ButtonMotionDisabled>(input).is_some());
+        let submit = app
+            .world()
+            .get::<Children>(input)
+            .unwrap()
+            .iter()
+            .find(|entity| app.world().get::<TextInputSubmitButton>(*entity).is_some())
+            .unwrap();
+        assert!(app.world().get::<ButtonMotionDisabled>(submit).is_none());
+    }
+
+    #[test]
+    fn rejection_message_is_enabled_by_default_and_can_be_overridden() {
+        assert_eq!(
+            TextInputConfig::new("Name").error_message.as_deref(),
+            Some("This character is not allowed.")
+        );
+        assert_eq!(
+            TextInputConfig::new("Name")
+                .error_message("Letters only")
+                .error_message
+                .as_deref(),
+            Some("Letters only")
+        );
+    }
+
+    #[test]
+    fn rejection_feedback_uses_a_shared_fade_ramp() {
+        assert_eq!(reject_error_alpha(0.4), 1.0);
+        assert_eq!(reject_error_alpha(0.2), 0.5);
+        assert_eq!(reject_error_alpha(0.0), 0.0);
+    }
+
+    #[test]
+    fn text_inputs_accept_spaces() {
+        assert!(allows_char(TextInputKind::Text, ' '));
+        assert!(allows_char(TextInputKind::Password, ' '));
+        assert!(allows_char(TextInputKind::Search, ' '));
+        assert!(!allows_char(TextInputKind::Email, ' '));
+    }
 
     #[test]
     fn shows_placeholder_when_empty_and_unfocused() {
@@ -873,6 +1273,13 @@ mod tests {
     #[test]
     fn hides_placeholder_when_value_is_present() {
         assert!(!should_show_placeholder("hello", false));
+    }
+
+    #[test]
+    fn text_cursor_is_inserted_at_the_requested_grapheme() {
+        assert_eq!(insert_text_cursor("snack", 0), "|snack");
+        assert_eq!(insert_text_cursor("snack", 3), "sna|ck");
+        assert_eq!(insert_text_cursor("A👨‍👩‍👧‍👦B", 2), "A👨‍👩‍👧‍👦|B");
     }
 
     #[test]
@@ -912,7 +1319,10 @@ impl Plugin for TextInputPlugin {
                 (
                     text_input_focus,
                     text_input_submit_button,
+                    text_input_submit_wobble_system,
                     text_input_keyboard,
+                    text_input_reject_system,
+                    text_input_error_message_system,
                     update_text_input_visuals,
                     update_text_input_submit_button_visuals,
                 )

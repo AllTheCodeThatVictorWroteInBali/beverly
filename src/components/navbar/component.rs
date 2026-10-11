@@ -1,15 +1,18 @@
 use bevy::prelude::*;
 
-use crate::rendering::{GradientStop, LinearGradient, Paint, Surface};
+use crate::rendering::{Border, BorderWidths, OuterShadow, Paint, Surface};
+use crate::theme::{ThemeMode, ThemeResource};
 
 const NAVBAR_HEIGHT: f32 = 64.0;
 const NAVBAR_SIDE_PADDING: f32 = 24.0;
+// A fixed navbar overlays page content, so it must stack above it to receive hover and clicks.
+const NAVBAR_FIXED_Z_INDEX: i32 = 100;
 
 pub struct NavbarPlugin;
 
 impl Plugin for NavbarPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, navbar_fixed_system);
+        app.add_systems(Update, (navbar_fixed_system, navbar_theme_system));
     }
 }
 
@@ -52,6 +55,7 @@ pub struct NavbarSections {
 pub struct NavbarBundle {
     pub navbar: Navbar,
     pub node: Node,
+    pub z_index: ZIndex,
     pub background: BackgroundColor,
     pub surface: Surface,
 }
@@ -77,15 +81,15 @@ impl NavbarBundle {
 
                 ..default()
             },
+            z_index: navbar_z_index(fixed),
 
             background: BackgroundColor(Color::NONE),
-            surface: Surface::rounded_rect_fill(
-                0.0,
-                Paint::linear(LinearGradient::vertical(vec![
-                    GradientStop::new(0.0, Color::srgb(0.05, 0.05, 0.05)),
-                    GradientStop::new(1.0, Color::srgb(0.07, 0.07, 0.09)),
-                ])),
-            ),
+            surface: Surface::rounded_rect_fill(0.0, Paint::solid(Color::WHITE))
+                .border(Border::per_side(
+                    BorderWidths::sides(0.0, 0.0, 1.0, 0.0),
+                    Paint::solid(Color::srgb(0.84, 0.86, 0.88)),
+                ))
+                .outer_shadow(OuterShadow::small(Color::BLACK)),
         }
     }
 }
@@ -192,8 +196,13 @@ fn navbar_section(column: i16, justify_content: JustifyContent, padded: bool) ->
     }
 }
 
-fn navbar_fixed_system(mut query: Query<(&Navbar, &mut Node), Changed<Navbar>>) {
-    for (navbar, mut node) in &mut query {
+fn navbar_z_index(fixed: bool) -> ZIndex {
+    ZIndex(if fixed { NAVBAR_FIXED_Z_INDEX } else { 0 })
+}
+
+fn navbar_fixed_system(mut query: Query<(&Navbar, &mut Node, &mut ZIndex), Changed<Navbar>>) {
+    for (navbar, mut node, mut z_index) in &mut query {
+        *z_index = navbar_z_index(navbar.fixed);
         if navbar.fixed {
             node.position_type = PositionType::Absolute;
             node.top = Val::Px(0.0);
@@ -205,5 +214,78 @@ fn navbar_fixed_system(mut query: Query<(&Navbar, &mut Node), Changed<Navbar>>) 
             node.left = Val::Auto;
             node.right = Val::Auto;
         }
+    }
+}
+
+fn navbar_theme_system(theme: Res<ThemeResource>, mut navbars: Query<&mut Surface, With<Navbar>>) {
+    let color = match theme.current.mode {
+        ThemeMode::Light => Color::WHITE,
+        ThemeMode::Dark => Color::srgb(0.055, 0.055, 0.065),
+    };
+    let fill = Paint::solid(color);
+    let border = Border::per_side(
+        BorderWidths::sides(0.0, 0.0, 1.0, 0.0),
+        Paint::solid(theme.current.colors.border),
+    );
+
+    for mut surface in &mut navbars {
+        if surface.fill != fill {
+            surface.fill = fill.clone();
+        }
+        if surface.border.as_ref() != Some(&border) {
+            surface.border = Some(border.clone());
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::{dark_theme, light_theme};
+
+    #[test]
+    fn fixed_navbar_stacks_above_page_content() {
+        let mut app = App::new();
+        app.insert_resource(ThemeResource {
+            current: light_theme(),
+        })
+        .add_plugins(NavbarPlugin);
+        let fixed = app.world_mut().spawn(NavbarBundle::new(true)).id();
+        let flow = app.world_mut().spawn(NavbarBundle::new(false)).id();
+        app.update();
+
+        assert!(app.world().get::<ZIndex>(fixed).unwrap().0 > 0);
+        assert_eq!(app.world().get::<ZIndex>(flow).unwrap().0, 0);
+    }
+
+    #[test]
+    fn navbar_background_tracks_theme_mode() {
+        let mut app = App::new();
+        app.insert_resource(ThemeResource {
+            current: light_theme(),
+        })
+        .add_plugins(NavbarPlugin);
+        let navbar = app.world_mut().spawn(NavbarBundle::new(false)).id();
+        app.update();
+        assert_eq!(
+            app.world().get::<Surface>(navbar).unwrap().fill,
+            Paint::solid(Color::WHITE)
+        );
+        let surface = app.world().get::<Surface>(navbar).unwrap();
+        assert_eq!(
+            surface.border.as_ref().unwrap().width,
+            BorderWidths::sides(0.0, 0.0, 1.0, 0.0)
+        );
+        assert_eq!(
+            surface.effects.outer_shadow,
+            Some(OuterShadow::small(Color::BLACK))
+        );
+
+        app.world_mut().resource_mut::<ThemeResource>().current = dark_theme();
+        app.update();
+        assert_eq!(
+            app.world().get::<Surface>(navbar).unwrap().fill,
+            Paint::solid(Color::srgb(0.055, 0.055, 0.065))
+        );
     }
 }

@@ -1,8 +1,10 @@
 use bevy::prelude::*;
 
 use crate::components::nav_button::{
-    DrawerButton, DrawerLabel, DrawerToggle, DrawerToggleLabel, PageId, drawer_toggle, nav_button,
+    DrawerButton, DrawerLabel, DrawerToggle, DrawerToggleIconMotion, DrawerToggleLabel, PageId,
+    drawer_toggle, nav_button,
 };
+use crate::primitives::interaction::{InteractionAction, InteractionActionEvent};
 use crate::primitives::root::UiFonts;
 use crate::rendering::{GradientStop, LinearGradient, Paint, Surface};
 use crate::theme::ThemeResource;
@@ -16,6 +18,10 @@ const SIDEBAR_BUTTON_OPEN_HEIGHT: f32 = 58.0;
 const SIDEBAR_BUTTON_COLLAPSED_SIZE: f32 = 42.0;
 const SIDEBAR_BUTTON_OPEN_PADDING_X: f32 = 18.0;
 const SIDEBAR_LABEL_VISIBILITY_THRESHOLD: f32 = 16.0;
+const SIDEBAR_ICON_WOBBLE_SECS: f32 = 0.4;
+const SIDEBAR_ICON_WOBBLE_DEGREES: f32 = 3.0;
+const SIDEBAR_ICON_WOBBLE_HERTZ: f32 = 5.0;
+const SIDEBAR_ICON_WOBBLE_DECAY: f32 = 8.0;
 
 #[derive(Component)]
 pub struct Sidebar;
@@ -38,14 +44,18 @@ pub struct SidebarPlugin;
 
 impl Plugin for SidebarPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<SidebarState>().add_systems(
-            Update,
-            (
-                handle_sidebar_toggle_click,
-                animate_sidebar,
-                sidebar_theme_system,
-            ),
-        );
+        app.init_resource::<SidebarState>()
+            .add_message::<InteractionActionEvent>()
+            .add_systems(
+                Update,
+                (
+                    handle_sidebar_toggle_click,
+                    animate_sidebar,
+                    sidebar_theme_system,
+                    animate_drawer_toggle_icon,
+                )
+                    .chain(),
+            );
     }
 }
 
@@ -99,12 +109,14 @@ pub fn spawn_sidebar(
         .id()
 }
 
+// One `Activate` per tap or key press; `Interaction` flaps while the button moves under the cursor.
 fn handle_sidebar_toggle_click(
-    interaction_query: Query<&Interaction, (Changed<Interaction>, With<DrawerToggle>)>,
+    mut actions: MessageReader<InteractionActionEvent>,
+    toggles: Query<(), With<DrawerToggle>>,
     mut sidebar_state: ResMut<SidebarState>,
 ) {
-    for interaction in &interaction_query {
-        if *interaction == Interaction::Pressed {
+    for action in actions.read() {
+        if action.action == InteractionAction::Activate && toggles.contains(action.target) {
             sidebar_state.open = !sidebar_state.open;
         }
     }
@@ -181,6 +193,51 @@ fn animate_sidebar(
     }
 }
 
+fn animate_drawer_toggle_icon(
+    time: Res<Time>,
+    state: Res<SidebarState>,
+    toggles: Query<(&Interaction, &Children), With<DrawerToggle>>,
+    mut icons: Query<(&mut UiTransform, &mut DrawerToggleIconMotion)>,
+) {
+    let open_angle = if state.open {
+        std::f32::consts::FRAC_PI_2
+    } else {
+        0.0
+    };
+
+    for (interaction, children) in &toggles {
+        for child in children.iter() {
+            let Ok((mut transform, mut motion)) = icons.get_mut(child) else {
+                continue;
+            };
+
+            let hovered = *interaction == Interaction::Hovered;
+            let pressed = *interaction == Interaction::Pressed;
+            if (hovered && !motion.was_hovered) || (pressed && !motion.was_pressed) {
+                motion.elapsed = 0.0;
+                motion.wobbling = true;
+            }
+            motion.was_hovered = hovered;
+            motion.was_pressed = pressed;
+
+            let wobble = if motion.wobbling {
+                motion.elapsed += time.delta_secs();
+                if motion.elapsed >= SIDEBAR_ICON_WOBBLE_SECS {
+                    motion.wobbling = false;
+                    0.0
+                } else {
+                    SIDEBAR_ICON_WOBBLE_DEGREES.to_radians()
+                        * (std::f32::consts::TAU * SIDEBAR_ICON_WOBBLE_HERTZ * motion.elapsed).sin()
+                        * (-SIDEBAR_ICON_WOBBLE_DECAY * motion.elapsed).exp()
+                }
+            } else {
+                0.0
+            };
+            transform.rotation = Rot2::radians(open_angle + wobble);
+        }
+    }
+}
+
 fn sidebar_theme_system(
     theme: Res<ThemeResource>,
     mut background_queries: ParamSet<(
@@ -224,5 +281,103 @@ fn sidebar_theme_system(
 
     for mut color in &mut toggle_label_query {
         color.0 = colors.text;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn menu_icon_rotates_with_sidebar_state_and_wobbles_independently() {
+        let mut app = App::new();
+        app.init_resource::<Time>()
+            .init_resource::<SidebarState>()
+            .add_systems(Update, animate_drawer_toggle_icon);
+        let toggle = app
+            .world_mut()
+            .spawn((DrawerToggle, Interaction::None))
+            .id();
+        let icon = app
+            .world_mut()
+            .spawn((
+                DrawerToggleIconMotion::default(),
+                UiTransform::default(),
+                ChildOf(toggle),
+            ))
+            .id();
+
+        app.update();
+        assert_eq!(
+            app.world().get::<UiTransform>(icon).unwrap().rotation,
+            Rot2::radians(std::f32::consts::FRAC_PI_2)
+        );
+
+        app.world_mut().resource_mut::<SidebarState>().open = false;
+        app.update();
+        assert_eq!(
+            app.world().get::<UiTransform>(icon).unwrap().rotation,
+            Rot2::IDENTITY
+        );
+
+        *app.world_mut().get_mut::<Interaction>(toggle).unwrap() = Interaction::Hovered;
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_secs_f32(0.03));
+        app.update();
+        assert_ne!(
+            app.world().get::<UiTransform>(icon).unwrap().rotation,
+            Rot2::IDENTITY
+        );
+    }
+
+    fn activate(app: &mut App, target: Entity) {
+        app.world_mut().write_message(InteractionActionEvent {
+            action: InteractionAction::Activate,
+            target,
+            pointer_id: None,
+            source: crate::primitives::interaction::InteractionActionSource::Pointer,
+            consumed: false,
+        });
+        app.update();
+    }
+
+    #[test]
+    fn each_activation_toggles_the_sidebar_exactly_once() {
+        let mut app = App::new();
+        app.init_resource::<SidebarState>()
+            .add_message::<InteractionActionEvent>()
+            .add_systems(Update, handle_sidebar_toggle_click);
+        let toggle = app.world_mut().spawn(DrawerToggle).id();
+        let other = app.world_mut().spawn_empty().id();
+
+        activate(&mut app, toggle);
+        assert!(!app.world().resource::<SidebarState>().open);
+        activate(&mut app, toggle);
+        assert!(app.world().resource::<SidebarState>().open);
+        activate(&mut app, other);
+        assert!(app.world().resource::<SidebarState>().open);
+    }
+
+    #[test]
+    fn interaction_flapping_alone_does_not_toggle_the_sidebar() {
+        let mut app = App::new();
+        app.init_resource::<SidebarState>()
+            .add_message::<InteractionActionEvent>()
+            .add_systems(Update, handle_sidebar_toggle_click);
+        let toggle = app
+            .world_mut()
+            .spawn((DrawerToggle, Interaction::None))
+            .id();
+
+        for state in [
+            Interaction::Pressed,
+            Interaction::None,
+            Interaction::Pressed,
+        ] {
+            *app.world_mut().get_mut::<Interaction>(toggle).unwrap() = state;
+            app.update();
+        }
+        assert!(app.world().resource::<SidebarState>().open);
     }
 }

@@ -33,6 +33,7 @@ pub mod table;
 pub mod tabs;
 pub mod text;
 pub mod textarea;
+pub mod theme_toggle;
 pub mod title;
 pub mod toast;
 pub mod toggle;

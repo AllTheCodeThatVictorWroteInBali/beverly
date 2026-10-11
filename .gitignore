@@ -2,5 +2,9 @@
 Cargo.lock
 !Cargo.lock
 !apps/beverly-agent/Cargo.lock
+!/web/button-demo/Cargo.lock
 .DS_Store
 /dist
+/web/button-demo/target
+/web/button-demo/dist
+/docs/book/assets/button-demo

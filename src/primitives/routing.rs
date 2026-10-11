@@ -198,7 +198,7 @@ fn route_link_system(
         let Ok(link) = links.get(click.entity) else {
             continue;
         };
-        if link.target_path.is_none() {
+        if link.target_path.is_none() || link.external {
             continue;
         }
         let path = link.resolved_target();
@@ -472,5 +472,31 @@ mod tests {
         let late_context = app.world().get::<RouteContext>(late_child).unwrap();
         assert_eq!(late_context.param("id"), Some("42"));
         assert_eq!(late_context.query_value("tab"), Some("activity"));
+    }
+
+    #[test]
+    fn external_link_does_not_change_in_app_route() {
+        let mut app = App::new();
+        app.add_message::<LinkClicked>()
+            .insert_resource(RouteRegistry(vec![
+                page().route("https://www.beverlyui.com"),
+            ]))
+            .insert_resource(RouteState {
+                path: "/".to_string(),
+                ..default()
+            })
+            .add_systems(Update, route_link_system);
+        let link = app
+            .world_mut()
+            .spawn(
+                Link::new("Beverly")
+                    .to("https://www.beverlyui.com")
+                    .external(),
+            )
+            .id();
+        app.world_mut().write_message(LinkClicked { entity: link });
+        app.update();
+
+        assert_eq!(app.world().resource::<RouteState>().path, "/");
     }
 }

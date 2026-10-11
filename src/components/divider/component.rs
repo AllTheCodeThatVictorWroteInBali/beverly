@@ -1,9 +1,17 @@
 use bevy::prelude::*;
 
 use crate::rendering::{Paint, Surface};
-use crate::theme::ThemeResource;
+use crate::theme::{ThemeMode, ThemeResource};
 
-pub const DIVIDER_DEFAULT: Color = Color::srgb_u8(226, 232, 240);
+/// Same hairline as the default alert, button and avatar borders.
+fn themed_divider_color(mode: ThemeMode) -> Color {
+    match mode {
+        ThemeMode::Light => Color::srgb_u8(212, 212, 212),
+        ThemeMode::Dark => Color::srgb_u8(38, 38, 38),
+    }
+}
+
+pub const DIVIDER_DEFAULT: Color = Color::srgb_u8(212, 212, 212);
 
 /// A reusable UI divider/separator.
 ///
@@ -107,7 +115,7 @@ impl Divider {
 
     /// Spawn the divider as a Bevy UI node.
     pub fn build(self) -> impl Bundle {
-        let color = self.color.unwrap_or(DIVIDER_DEFAULT);
+        let color = self.color.unwrap_or(themed_divider_color(ThemeMode::Light));
 
         let style = match self.orientation {
             DividerOrientation::Horizontal => Node {
@@ -135,7 +143,7 @@ impl Divider {
 }
 
 fn divider_theme_system(theme: Res<ThemeResource>, mut query: Query<(&Divider, &mut Surface)>) {
-    let theme_color = theme.current.colors.border;
+    let theme_color = themed_divider_color(theme.current.mode);
 
     for (divider, mut surface) in &mut query {
         surface.fill = Paint::solid(divider.color.unwrap_or(theme_color));

@@ -45,13 +45,25 @@ anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 url = "2"
+webbrowser = "1"
 
 # Optional integrations, enabled via Cargo features.
 rfd = { version = "0.15", optional = true }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"], optional = true }
 
 [features]
-default = ["file_dialog"]
+default = ["file_dialog", "image_formats"]
+## Decoders for JPEG, WebP, GIF, BMP, TGA, TIFF and ICO, used by `FileInput` previews.
+## Bevy already bundles these; this only switches them on.
+image_formats = [
+    "bevy/jpeg",
+    "bevy/webp",
+    "bevy/gif",
+    "bevy/bmp",
+    "bevy/tga",
+    "bevy/tiff",
+    "bevy/ico",
+]
 ## Native file picker support for `FileInput`.
 file_dialog = ["dep:rfd"]
 ## HTTP form submission support for `Form`.

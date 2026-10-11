@@ -53,27 +53,37 @@ pub use crate::animation::skeleton::{Skeleton, SkeletonPlugin};
 
 // Components.
 pub use crate::components::alert::{Alert, AlertPlugin, AlertVariant};
-pub use crate::components::avatar::Avatar;
-pub use crate::components::badge::Badge;
+pub use crate::components::avatar::{Avatar, AvatarConfig, AvatarPlugin, AvatarSize, spawn_avatar_in};
+pub use crate::components::badge::{Badge, BadgeSize, spawn_badge};
 pub use crate::components::button::{
     BeverlyButton, ButtonChild, ButtonChildSetup, ButtonColor, ButtonCommand, ButtonEventType,
-    ButtonPlugin, button,
+    ButtonPlugin, ButtonSize, button,
 };
 pub use crate::components::button_group::{ButtonGroup, ButtonGroupPlugin};
-pub use crate::components::card::{Card, CardPlugin};
-pub use crate::components::checkbox::{Checkbox, CheckboxPlugin};
+pub use crate::components::card::{
+    Card, CardBody, CardFooter, CardHeader, CardPlugin, CardStyle, spawn_card,
+};
+pub use crate::components::checkbox::{Checkbox, CheckboxConfig, CheckboxPlugin, spawn_checkbox};
 pub use crate::components::container::Container;
 pub use crate::components::divider::{Divider, DividerPlugin};
 pub use crate::components::dots::{Dots, DotsPlugin};
-pub use crate::components::dropdown::{Dropdown, DropdownPlugin};
-pub use crate::components::file_input::{
-    FileInput, FileInputPlugin, FileInputSelectionState, FileType, SelectedFile,
+pub use crate::components::dropdown::{
+    Dropdown, DropdownConfig, DropdownPlugin, spawn_dropdown,
 };
-pub use crate::components::footer::{Footer, FooterPlugin};
+pub use crate::components::file_input::{
+    FileInput, FileInputCleared, FileInputPlugin, FileInputSelectionState, FileInputVariant, FileType, SelectedFile,
+    spawn_file_input_in,
+};
+pub use crate::components::footer::{
+    Footer, FooterConfig, FooterPlugin, FooterSections, add_to_center, add_to_left, add_to_right,
+    spawn_footer_with_sections,
+};
 pub use crate::components::form::{
     Form, FormEncoding, FormFieldName, FormMethod, FormPlugin, FormRequest, FormSubmitted,
 };
-pub use crate::components::input::{TextInput, TextInputPlugin};
+pub use crate::components::input::{
+    TextInput, TextInputConfig, TextInputKind, TextInputPlugin, spawn_text_input,
+};
 pub use crate::components::link::{Link, LinkPlugin, link};
 pub use crate::components::list_item::{ListItem, ListItemPlugin};
 pub use crate::components::modal::{Modal, ModalPlugin};
@@ -90,7 +100,11 @@ pub use crate::components::slider::{Slider, SliderPlugin};
 pub use crate::components::spinner::{Spinner, SpinnerPlugin};
 pub use crate::components::table::{Table, TablePlugin};
 pub use crate::components::tabs::{Tab, Tabs, TabsPlugin};
-pub use crate::components::text::{ThemedText, ThemedTextPlugin, text};
+pub use crate::components::theme_toggle::{
+    ThemeTogglePlugin, ThemedPage, spawn_theme_toggle, spawn_themed_page, theme_from_cli_args,
+    toggle_theme,
+};
+pub use crate::components::text::{TextRole, ThemedText, ThemedTextPlugin, text};
 pub use crate::components::textarea::{Textarea, TextareaPlugin};
 pub use crate::components::title::{ThemedTitle, TitleLevel, TitlePlugin};
 pub use crate::components::toast::{Toast, ToastKind, ToastPlugin, ToastPosition};

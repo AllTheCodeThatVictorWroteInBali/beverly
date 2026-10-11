@@ -24,6 +24,30 @@ app()
 `BeverlyPlugin` installs `ButtonPlugin`. If the component is used without the
 aggregate plugin, add `ButtonPlugin` yourself.
 
+## Live Demo
+
+<iframe
+	src="../../assets/button-demo/index.html"
+	title="Interactive Beverly button showcase"
+	loading="lazy"
+	allow="fullscreen"
+	style="display: block; width: 100%; height: 580px; border: 0; background: #101215;"
+></iframe>
+
+[Open the demo in a separate tab](../../assets/button-demo/index.html).
+The embedded canvas supports pointer interaction; use the top-right control to
+switch between light and dark themes.
+
+To regenerate the bundle locally, install the `wasm32-unknown-unknown` target
+and Trunk `0.21.14`, then run:
+
+```sh
+mdbook build docs
+bash web/button-demo/build.sh
+```
+
+The Pages workflow builds and publishes this bundle automatically.
+
 ## Content
 
 The convenience constructors remain available when the label is known at the

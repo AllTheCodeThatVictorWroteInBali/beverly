@@ -78,12 +78,12 @@ pub fn spawn_search(
             SemanticNode::new(SemanticRole::SearchBox).label("Search"),
             Node {
                 width: Val::Px(480.0),
-                height: Val::Px(36.0),
-                border_radius: BorderRadius::all(Val::Px(10.0)),
+                height: Val::Px(72.0),
+                border_radius: BorderRadius::MAX,
                 overflow: Overflow::visible(),
                 ..default()
             },
-            Surface::rounded_rect_fill(10.0, bg),
+            Surface::rounded_rect_fill(36.0, bg),
         ))
         .with_children(|search_bar| {
             let _ = spawn_text_input(
@@ -92,7 +92,7 @@ pub fn spawn_search(
                     .label("Search")
                     .kind(TextInputKind::Search)
                     .max_length(120)
-                    .border_radius(10.0),
+                    .border_radius(34.0),
             );
         })
         .id()

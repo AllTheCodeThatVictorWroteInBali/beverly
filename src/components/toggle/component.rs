@@ -3,12 +3,14 @@ use bevy::{
     shader::ShaderRef,
 };
 
+use crate::components::button::ButtonMotionDisabled;
 use crate::components::text::{TextRole, ThemedText};
 use crate::icons::{Icon, IconNode};
 use crate::primitives::a11y;
+use crate::primitives::interaction::DisabledInteraction;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::rendering::{InnerShadow, Paint, Surface};
-use crate::theme::{AccessibilityVisualPolicyResource, ThemeResource};
+use crate::theme::{AccessibilityVisualPolicyResource, ThemeMode, ThemeResource};
 
 // ============================================================
 // TOGGLE
@@ -218,6 +220,7 @@ pub fn spawn_toggle(
             press_consumed: false,
         },
         Button,
+        ButtonMotionDisabled,
         a11y::TabIndex(if config.disabled { -1 } else { 0 }),
         semantic,
         Node {
@@ -235,6 +238,10 @@ pub fn spawn_toggle(
             velocity: 0.0,
         },
     ));
+
+    if config.disabled {
+        toggle_entity.insert(DisabledInteraction);
+    }
 
     let toggle_id = toggle_entity.id();
 
@@ -312,6 +319,7 @@ pub fn spawn_toggle(
                         THUMB_SIZE * 0.5,
                         Paint::solid(thumb_color(
                             default_colors,
+                            theme.current.mode,
                             config.disabled,
                             Interaction::None,
                         )),
@@ -367,6 +375,7 @@ pub fn spawn_toggle(
                                     IconNode::new(thumb_icons.off).size(THUMB_ICON_SIZE).color(
                                         thumb_icon_color(
                                             default_colors,
+                                            theme.current.mode,
                                             config.disabled,
                                             thumb_icon_progress(
                                                 ToggleThumbIconKind::Off,
@@ -394,6 +403,7 @@ pub fn spawn_toggle(
                                     IconNode::new(thumb_icons.on).size(THUMB_ICON_SIZE).color(
                                         thumb_icon_color(
                                             default_colors,
+                                            theme.current.mode,
                                             config.disabled,
                                             thumb_icon_progress(
                                                 ToggleThumbIconKind::On,
@@ -576,7 +586,12 @@ fn toggle_visual_system(
         node.top = px(top_pos);
         node.border_radius = BorderRadius::all(px(THUMB_SIZE * 0.5));
 
-        surface.fill = Paint::solid(thumb_color(palette, toggle.disabled, *interaction));
+        surface.fill = Paint::solid(thumb_color(
+            palette,
+            theme.current.mode,
+            toggle.disabled,
+            *interaction,
+        ));
     }
 
     for (shadow, material_node) in &mut thumb_shadow_query {
@@ -608,7 +623,7 @@ fn toggle_visual_system(
         let size = THUMB_ICON_SIZE * (0.86 + icon_progress * 0.18);
         let offset = (1.0 - icon_progress) * 1.5;
         icon.size = size;
-        icon.color = thumb_icon_color(palette, toggle.disabled, icon_progress);
+        icon.color = thumb_icon_color(palette, theme.current.mode, toggle.disabled, icon_progress);
 
         node.width = px(size);
         node.height = px(size);
@@ -674,9 +689,13 @@ fn track_inner_highlight_border(disabled: bool, interaction: Interaction) -> Col
 
 fn thumb_color(
     colors: crate::theme::ThemeColors,
+    mode: ThemeMode,
     disabled: bool,
     interaction: Interaction,
 ) -> Color {
+    if mode == ThemeMode::Dark {
+        return Color::WHITE.with_alpha(if disabled { 0.82 } else { 1.0 });
+    }
     if disabled {
         colors.surface.with_alpha(0.82)
     } else {
@@ -708,8 +727,16 @@ fn thumb_icon_progress(kind: ToggleThumbIconKind, progress: f32) -> f32 {
     }
 }
 
-fn thumb_icon_color(colors: crate::theme::ThemeColors, disabled: bool, progress: f32) -> Color {
+fn thumb_icon_color(
+    colors: crate::theme::ThemeColors,
+    mode: ThemeMode,
+    disabled: bool,
+    progress: f32,
+) -> Color {
     let alpha = progress.clamp(0.0, 1.0);
+    if mode == ThemeMode::Dark {
+        return Color::BLACK.with_alpha(alpha);
+    }
     if disabled {
         colors.text_disabled.with_alpha(alpha)
     } else {
@@ -731,6 +758,71 @@ fn px(value: f32) -> Val {
 
 fn percent(value: i32) -> Val {
     Val::Percent(value as f32)
+}
+
+#[cfg(test)]
+mod interaction_feedback_tests {
+    use super::*;
+
+    #[test]
+    fn dark_toggle_thumb_is_white_and_icon_is_black_in_all_states() {
+        let colors = crate::theme::dark_theme().colors;
+        for disabled in [false, true] {
+            for interaction in [
+                Interaction::None,
+                Interaction::Hovered,
+                Interaction::Pressed,
+            ] {
+                assert_eq!(
+                    thumb_color(colors, ThemeMode::Dark, disabled, interaction),
+                    Color::WHITE.with_alpha(if disabled { 0.82 } else { 1.0 })
+                );
+            }
+            for progress in [0.0, 0.5, 1.0] {
+                assert_eq!(
+                    thumb_icon_color(colors, ThemeMode::Dark, disabled, progress),
+                    Color::BLACK.with_alpha(progress)
+                );
+            }
+        }
+        let light = crate::theme::light_theme().colors;
+        assert_eq!(
+            thumb_color(light, ThemeMode::Light, false, Interaction::None),
+            light.surface_elevated
+        );
+        assert_eq!(
+            thumb_icon_color(light, ThemeMode::Light, false, 1.0),
+            light.text
+        );
+    }
+
+    #[test]
+    fn toggles_disable_shared_motion_and_locked_toggle_uses_disabled_cursor() {
+        let mut world = World::new();
+        let theme = ThemeResource::default();
+        let mut materials = Assets::<ToggleShadowMaterial>::default();
+        world
+            .commands()
+            .spawn(Node::default())
+            .with_children(|parent| {
+                for disabled in [false, true] {
+                    spawn_toggle(
+                        parent,
+                        ToggleConfig::new().label("Safeguard").disabled(disabled),
+                        &theme,
+                        &mut materials,
+                    );
+                }
+            });
+        world.flush();
+        let mut toggles =
+            world.query::<(&Toggle, Has<ButtonMotionDisabled>, Has<DisabledInteraction>)>();
+        assert_eq!(toggles.iter(&world).count(), 2);
+        for (toggle, motion_disabled, cursor_disabled) in toggles.iter(&world) {
+            assert!(motion_disabled);
+            assert_eq!(cursor_disabled, toggle.disabled);
+        }
+    }
 }
 
 pub struct TogglePlugin;

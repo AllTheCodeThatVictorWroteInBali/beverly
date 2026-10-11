@@ -4,5 +4,5 @@ pub mod component;
 pub use component::{
     Footer, FooterBundle, FooterCenter, FooterConfig, FooterLeft, FooterPlugin, FooterRight,
     FooterSection, FooterSections, FooterTopDivider, add_to_center, add_to_left, add_to_right,
-    spawn_footer,
+    spawn_footer, spawn_footer_with_sections,
 };

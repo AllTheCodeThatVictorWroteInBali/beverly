@@ -2,11 +2,12 @@ use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 use bevy::window::{CursorIcon, PrimaryWindow, SystemCursorIcon};
 
+use crate::components::button::ButtonMotionDisabled;
 use crate::components::text::{TextRole, ThemedText};
 use crate::primitives::a11y;
-use crate::primitives::interaction::InteractionAction;
+use crate::primitives::interaction::{DisabledInteraction, InteractionAction};
 use crate::primitives::semantic::{SemanticNode, SemanticRole, SemanticValue};
-use crate::rendering::{OuterShadow, Paint, Surface};
+use crate::rendering::{Paint, Surface};
 use crate::theme::ThemeResource;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -179,6 +180,7 @@ pub fn spawn_slider(
 
     let mut slider_entity = parent.spawn((
         Button,
+        ButtonMotionDisabled,
         a11y::TabIndex(if slider.disabled { -1 } else { 0 }),
         semantic,
         Node {
@@ -186,7 +188,11 @@ pub fn spawn_slider(
             min_height: Val::Px(36.0),
             position_type: PositionType::Relative,
             align_items: AlignItems::Center,
-            column_gap: px(12.0),
+            column_gap: px(if style.show_value {
+                style.thumb_size + 14.0
+            } else {
+                12.0
+            }),
             ..default()
         },
         slider.clone(),
@@ -196,6 +202,10 @@ pub fn spawn_slider(
             thumb_base_size: style.thumb_size,
         },
     ));
+
+    if slider.disabled {
+        slider_entity.insert(DisabledInteraction);
+    }
 
     let slider_entity_id = slider_entity.id();
 
@@ -283,7 +293,6 @@ pub fn spawn_slider(
                         crate::rendering::Mask::rounded_rect(style.thumb_size * 0.5)
                             .with_opacity(1.0),
                     )
-                    .outer_shadow(OuterShadow::small(Color::BLACK).with_opacity(0.75))
                     .uniform_border(2.0, Paint::solid(colors.primary.with_alpha(0.7))),
                 RelativeCursorPosition::default(),
                 ZIndex(2),
@@ -385,6 +394,133 @@ fn slider_value_from_track_normalized(slider: &Slider, normalized_x: f32) -> f32
 // Update Visuals
 // ─────────────────────────────────────────────────────────────────────────────
 
+#[cfg(test)]
+mod circular_thumb_tests {
+    use super::*;
+
+    #[test]
+    fn value_gap_clears_the_expanded_thumb() {
+        let mut world = World::new();
+        world
+            .commands()
+            .spawn(Node::default())
+            .with_children(|parent| {
+                spawn_slider(
+                    parent,
+                    Slider::new(0.0, 60.0).value(60.0),
+                    SliderStyle {
+                        show_value: true,
+                        ..default()
+                    },
+                    &ThemeResource::default(),
+                );
+            });
+        world.flush();
+        let mut sliders = world.query_filtered::<&Node, With<Slider>>();
+        let node = sliders.single(&world).unwrap();
+        let Val::Px(gap) = node.column_gap else {
+            panic!("expected pixel value gap")
+        };
+        assert!(gap >= SliderStyle::default().thumb_size + 6.0 + 8.0);
+    }
+
+    #[test]
+    fn locked_slider_uses_disabled_cursor_gating() {
+        let mut world = World::new();
+        let theme = ThemeResource::default();
+        world
+            .commands()
+            .spawn(Node::default())
+            .with_children(|parent| {
+                spawn_slider(
+                    parent,
+                    Slider::new(0.0, 60.0).disabled(true),
+                    SliderStyle::default(),
+                    &theme,
+                );
+                spawn_slider(
+                    parent,
+                    Slider::new(0.0, 100.0),
+                    SliderStyle::default(),
+                    &theme,
+                );
+            });
+        world.flush();
+        let mut sliders = world.query::<(&Slider, Has<DisabledInteraction>)>();
+        let mut count = 0;
+        for (slider, disabled_cursor) in sliders.iter(&world) {
+            assert_eq!(disabled_cursor, slider.disabled);
+            count += 1;
+        }
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn thumb_stays_circular_in_every_interaction_state() {
+        let mut app = App::new();
+        app.init_resource::<Time>()
+            .init_resource::<ThemeResource>()
+            .add_systems(Update, update_slider_visuals);
+        let thumb = app
+            .world_mut()
+            .spawn((
+                SliderThumb,
+                Node {
+                    width: Val::Px(20.0),
+                    height: Val::Px(20.0),
+                    ..default()
+                },
+                Surface::rounded_rect_fill(10.0, Paint::solid(Color::WHITE))
+                    .with_mask(crate::rendering::Mask::rounded_rect(10.0)),
+            ))
+            .id();
+        let placeholder = app.world_mut().spawn_empty().id();
+        let slider = app
+            .world_mut()
+            .spawn((
+                Slider::new(0.0, 100.0).value(50.0),
+                SliderVisual {
+                    displayed_value: 50.0,
+                    thumb_base_size: 20.0,
+                },
+                SliderParts {
+                    track_slot: placeholder,
+                    fill: placeholder,
+                    thumb,
+                    value_text: None,
+                },
+                SliderInteraction::default(),
+            ))
+            .id();
+
+        for (hovered, dragging) in [(false, false), (true, false), (true, true), (false, false)] {
+            *app.world_mut()
+                .get_mut::<SliderInteraction>(slider)
+                .unwrap() = SliderInteraction { hovered, dragging };
+            app.world_mut()
+                .resource_mut::<Time>()
+                .advance_by(std::time::Duration::from_millis(100));
+            app.update();
+            let node = app.world().get::<Node>(thumb).unwrap();
+            let Val::Px(size) = node.width else {
+                panic!("expected pixel thumb size")
+            };
+            assert_eq!(node.height, node.width);
+            let Val::Px(top) = node.top else {
+                panic!("expected pixel thumb offset")
+            };
+            assert!((top + size * 0.5 - 16.0).abs() < 0.0001);
+            if dragging {
+                assert!(size > 20.0);
+            }
+            let surface = app.world().get::<Surface>(thumb).unwrap();
+            let circle = crate::rendering::Shape::rounded_rect(size * 0.5);
+            assert_eq!(surface.shape, circle);
+            assert_eq!(surface.mask.as_ref().unwrap().shape, circle);
+        }
+    }
+}
+
 fn update_slider_visuals(
     time: Res<Time>,
     theme: Res<ThemeResource>,
@@ -425,18 +561,14 @@ fn update_slider_visuals(
             let size = approach(current_size, target_size, 16.0, time.delta_secs());
             thumb_node.width = Val::Px(size);
             thumb_node.height = Val::Px(size);
+            thumb_node.top = Val::Px((32.0 - size) * 0.5);
             thumb_node.left = Val::Percent(percent);
 
+            surface.shape = crate::rendering::Shape::rounded_rect(size * 0.5);
+            if let Some(mask) = surface.mask.as_mut() {
+                mask.shape = crate::rendering::Shape::rounded_rect(size * 0.5);
+            }
             surface.fill = Paint::solid(colors.surface_elevated);
-            let shadow_opacity = if interaction.dragging {
-                0.34
-            } else if interaction.hovered {
-                0.28
-            } else {
-                0.20
-            };
-            surface.effects.outer_shadow =
-                Some(OuterShadow::small(Color::BLACK).with_opacity(shadow_opacity));
             if let Some(border) = surface.border.as_mut() {
                 border.paint = Paint::solid(if interaction.dragging {
                     colors.focus.with_alpha(0.60)
@@ -577,8 +709,14 @@ fn slider_cursor_icon(
         SystemCursorIcon::Grabbing
     } else if hovering_handle {
         SystemCursorIcon::Grab
-    } else {
+    } else if matches!(
+        &*icon,
+        CursorIcon::System(SystemCursorIcon::Grab | SystemCursorIcon::Grabbing)
+    ) {
         SystemCursorIcon::Default
+    } else {
+        // Not ours to reset; another component may own the cursor.
+        return;
     };
 
     let already_set = matches!(&*icon, CursorIcon::System(current) if *current == target);

@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::components::button::ButtonMotionDisabled;
 use crate::icons::{Icon, IconCommands};
 use crate::primitives::a11y;
 use crate::primitives::root::UiFonts;
@@ -106,6 +107,14 @@ pub struct DrawerToggleLabel;
 #[derive(Component)]
 pub struct DrawerIcon;
 
+#[derive(Component, Default)]
+pub struct DrawerToggleIconMotion {
+    pub(crate) elapsed: f32,
+    pub(crate) wobbling: bool,
+    pub(crate) was_hovered: bool,
+    pub(crate) was_pressed: bool,
+}
+
 #[derive(Component, Clone, Copy)]
 pub struct DrawerNavIcon {
     pub page: PageId,
@@ -118,6 +127,7 @@ pub fn drawer_toggle(parent: &mut ChildSpawnerCommands, ui_fonts: &UiFonts) {
     parent
         .spawn((
             Button,
+            ButtonMotionDisabled,
             DrawerButton,
             DrawerToggle,
             a11y::TabIndex(0),
@@ -139,6 +149,8 @@ pub fn drawer_toggle(parent: &mut ChildSpawnerCommands, ui_fonts: &UiFonts) {
             button
                 .spawn((
                     DrawerIcon,
+                    DrawerToggleIconMotion::default(),
+                    UiTransform::default(),
                     Node {
                         justify_content: JustifyContent::Center,
                         align_items: AlignItems::Center,

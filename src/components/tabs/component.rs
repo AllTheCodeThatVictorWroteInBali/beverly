@@ -1,4 +1,4 @@
-use bevy::input_focus::InputFocus;
+use bevy::input_focus::{InputFocus, InputFocusVisible};
 use bevy::prelude::*;
 
 use crate::animation::animation::{
@@ -8,7 +8,7 @@ use crate::animation::animation::{
 use crate::primitives::a11y::{self, FocusCause};
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::rendering::{Paint, Surface};
-use crate::theme::{ThemeColors, ThemeResource, dark_theme};
+use crate::theme::{ThemeColors, ThemeMode, ThemeResource, dark_theme};
 
 /// A single tab definition.
 #[derive(Clone, Debug)]
@@ -187,7 +187,7 @@ where
                 14.0,
                 Paint::solid(colors.surface_elevated.with_alpha(0.76)),
             )
-            .uniform_border(1.0, Paint::solid(colors.border.with_alpha(0.45))),
+            .uniform_border(1.0, Paint::solid(tabs_outline_color(ThemeMode::Dark))),
         ))
         .with_children(|bar| {
             for (index, tab) in config.tabs.iter().enumerate() {
@@ -210,9 +210,9 @@ where
                     BorderColor::all(Color::NONE),
                     Surface::rounded_rect_fill(
                         14.0,
-                        Paint::solid(tab_bg_color(colors, active, false)),
+                        Paint::solid(tab_bg_color(colors, ThemeMode::Dark, active, false)),
                     )
-                    .uniform_border(1.0, Paint::solid(tab_border_color(colors, active, false))),
+                    .uniform_border(1.0, Paint::solid(tabs_outline_color(ThemeMode::Dark))),
                     TabButton {
                         tabs_entity: tabs_entity,
                         index,
@@ -225,7 +225,7 @@ where
                             font_size: FontSize::Px(15.0),
                             ..default()
                         },
-                        TextColor(tab_text_color(colors, active, false)),
+                        TextColor(tab_text_color(colors, ThemeMode::Dark, active, false)),
                     ));
                 });
             }
@@ -250,7 +250,7 @@ where
             BackgroundColor(Color::NONE),
             BorderColor::all(Color::NONE),
             Surface::rounded_rect_fill(20.0, Paint::solid(colors.surface.with_alpha(0.62)))
-                .uniform_border(1.0, Paint::solid(colors.border.with_alpha(0.40))),
+                .uniform_border(1.0, Paint::solid(tabs_outline_color(ThemeMode::Dark))),
         ))
         .with_children(|content| {
             for (index, tab) in config.tabs.iter().enumerate() {
@@ -332,7 +332,7 @@ where
                 14.0,
                 Paint::solid(colors.surface_elevated.with_alpha(0.76)),
             )
-            .uniform_border(1.0, Paint::solid(colors.border.with_alpha(0.45))),
+            .uniform_border(1.0, Paint::solid(tabs_outline_color(ThemeMode::Dark))),
         ))
         .with_children(|bar| {
             for (index, tab) in config.tabs.iter().enumerate() {
@@ -355,9 +355,9 @@ where
                     BorderColor::all(Color::NONE),
                     Surface::rounded_rect_fill(
                         14.0,
-                        Paint::solid(tab_bg_color(colors, active, false)),
+                        Paint::solid(tab_bg_color(colors, ThemeMode::Dark, active, false)),
                     )
-                    .uniform_border(1.0, Paint::solid(tab_border_color(colors, active, false))),
+                    .uniform_border(1.0, Paint::solid(tabs_outline_color(ThemeMode::Dark))),
                     TabButton {
                         tabs_entity: tabs_entity,
                         index,
@@ -370,7 +370,7 @@ where
                             font_size: FontSize::Px(15.0),
                             ..default()
                         },
-                        TextColor(tab_text_color(colors, active, false)),
+                        TextColor(tab_text_color(colors, ThemeMode::Dark, active, false)),
                     ));
                 });
             }
@@ -403,7 +403,7 @@ where
             BackgroundColor(Color::NONE),
             BorderColor::all(Color::NONE),
             Surface::rounded_rect_fill(20.0, Paint::solid(colors.surface.with_alpha(0.62)))
-                .uniform_border(1.0, Paint::solid(colors.border.with_alpha(0.40))),
+                .uniform_border(1.0, Paint::solid(tabs_outline_color(ThemeMode::Dark))),
         ))
         .with_children(|content| {
             for (index, tab) in config.tabs.iter().enumerate() {
@@ -478,7 +478,7 @@ where
                 ..default()
             },
             BackgroundColor(colors.surface_elevated.with_alpha(0.76)),
-            BorderColor::all(colors.border.with_alpha(0.45)),
+            BorderColor::all(tabs_outline_color(ThemeMode::Dark)),
         ))
         .with_children(|bar| {
             for (index, tab) in config.tabs.iter().enumerate() {
@@ -497,8 +497,8 @@ where
                         border_radius: BorderRadius::all(Val::Px(14.0)),
                         ..default()
                     },
-                    BackgroundColor(tab_bg_color(colors, active, false)),
-                    BorderColor::all(tab_border_color(colors, active, false)),
+                    BackgroundColor(tab_bg_color(colors, ThemeMode::Dark, active, false)),
+                    BorderColor::all(tabs_outline_color(ThemeMode::Dark)),
                     TabButton {
                         tabs_entity: tabs_entity,
                         index,
@@ -511,7 +511,7 @@ where
                             font_size: FontSize::Px(15.0),
                             ..default()
                         },
-                        TextColor(tab_text_color(colors, active, false)),
+                        TextColor(tab_text_color(colors, ThemeMode::Dark, active, false)),
                     ));
                 });
             }
@@ -534,7 +534,7 @@ where
                 ..default()
             },
             BackgroundColor(colors.surface.with_alpha(0.62)),
-            BorderColor::all(colors.border.with_alpha(0.40)),
+            BorderColor::all(tabs_outline_color(ThemeMode::Dark)),
         ))
         .with_children(|content| {
             for (index, tab) in config.tabs.iter().enumerate() {
@@ -574,6 +574,7 @@ where
 fn tabs_roving_nav_system(
     keys: Res<ButtonInput<KeyCode>>,
     mut focus: ResMut<InputFocus>,
+    mut focus_visible: ResMut<InputFocusVisible>,
     tab_buttons: Query<(Entity, &TabButton)>,
     mut tabs_query: Query<&mut Tabs>,
     mut changed: MessageWriter<TabChanged>,
@@ -628,6 +629,9 @@ fn tabs_roving_nav_system(
     }
 
     focus.set(next_entity, FocusCause::Navigated);
+    if !focus_visible.0 {
+        focus_visible.0 = true;
+    }
 }
 
 /// Keeps each tab button's tab stop and semantic selected state in sync
@@ -719,7 +723,7 @@ fn update_tab_visuals(
         let mut target = (*surface).clone();
         target.fill = Paint::solid(colors.surface_elevated.with_alpha(0.76));
         if let Some(border) = target.border.as_mut() {
-            border.paint = Paint::solid(colors.border.with_alpha(0.45));
+            border.paint = Paint::solid(tabs_outline_color(theme.current.mode));
         }
 
         if should_animate_target(&current_target.map(|value| value.target.clone()), &target) {
@@ -733,7 +737,7 @@ fn update_tab_visuals(
         let mut target = (*surface).clone();
         target.fill = Paint::solid(colors.surface.with_alpha(0.62));
         if let Some(border) = target.border.as_mut() {
-            border.paint = Paint::solid(colors.border.with_alpha(0.40));
+            border.paint = Paint::solid(tabs_outline_color(theme.current.mode));
         }
 
         if should_animate_target(&current_target.map(|value| value.target.clone()), &target) {
@@ -755,9 +759,9 @@ fn update_tab_visuals(
             let hovered =
                 *interaction == Interaction::Hovered || *interaction == Interaction::Pressed;
 
-            let bg = tab_bg_color(colors, active, hovered);
-            let border = tab_border_color(colors, active, hovered);
-            let text = tab_text_color(colors, active, hovered);
+            let bg = tab_bg_color(colors, theme.current.mode, active, hovered);
+            let border = tabs_outline_color(theme.current.mode);
+            let text = tab_text_color(colors, theme.current.mode, active, hovered);
 
             let mut target = (*surface).clone();
             target.fill = Paint::solid(bg);
@@ -785,9 +789,45 @@ fn update_tab_visuals(
     }
 }
 
-fn tab_bg_color(colors: ThemeColors, active: bool, hovered: bool) -> Color {
+#[cfg(test)]
+mod active_color_tests {
+    use super::*;
+
+    #[test]
+    fn tab_outlines_use_opaque_neutral_greys_in_both_themes() {
+        assert_eq!(
+            tabs_outline_color(ThemeMode::Light),
+            Color::srgb_u8(228, 228, 231)
+        );
+        assert_eq!(
+            tabs_outline_color(ThemeMode::Dark),
+            Color::srgb_u8(63, 63, 70)
+        );
+    }
+
+    #[test]
+    fn active_tabs_use_monochrome_colors_even_when_hovered() {
+        for (theme, fill, text) in [
+            (crate::theme::light_theme(), Color::BLACK, Color::WHITE),
+            (dark_theme(), Color::WHITE, Color::BLACK),
+        ] {
+            for hovered in [false, true] {
+                assert_eq!(tab_bg_color(theme.colors, theme.mode, true, hovered), fill);
+                assert_eq!(
+                    tab_text_color(theme.colors, theme.mode, true, hovered),
+                    text
+                );
+            }
+        }
+    }
+}
+
+fn tab_bg_color(colors: ThemeColors, mode: ThemeMode, active: bool, hovered: bool) -> Color {
     if active {
-        colors.primary.with_alpha(0.98)
+        match mode {
+            ThemeMode::Light => Color::BLACK,
+            ThemeMode::Dark => Color::WHITE,
+        }
     } else if hovered {
         colors.secondary.with_alpha(0.78)
     } else {
@@ -795,19 +835,19 @@ fn tab_bg_color(colors: ThemeColors, active: bool, hovered: bool) -> Color {
     }
 }
 
-fn tab_border_color(colors: ThemeColors, active: bool, hovered: bool) -> Color {
-    if active {
-        colors.border_strong.with_alpha(0.76)
-    } else if hovered {
-        colors.border.with_alpha(0.58)
-    } else {
-        colors.border.with_alpha(0.38)
+fn tabs_outline_color(mode: ThemeMode) -> Color {
+    match mode {
+        ThemeMode::Light => Color::srgb_u8(228, 228, 231),
+        ThemeMode::Dark => Color::srgb_u8(63, 63, 70),
     }
 }
 
-fn tab_text_color(colors: ThemeColors, active: bool, hovered: bool) -> Color {
+fn tab_text_color(colors: ThemeColors, mode: ThemeMode, active: bool, hovered: bool) -> Color {
     if active {
-        Color::WHITE
+        match mode {
+            ThemeMode::Light => Color::WHITE,
+            ThemeMode::Dark => Color::BLACK,
+        }
     } else if hovered {
         colors.text
     } else {

@@ -1,5 +1,6 @@
 mod action;
 mod capture;
+mod cursor;
 mod debug;
 mod event;
 pub mod gesture;
@@ -19,6 +20,7 @@ pub use action::{
 pub use capture::{
     CapturedPointer, PointerCaptureMap, PointerCaptureRequest, PointerReleaseRequest,
 };
+pub use cursor::{DefaultCursorOnHover, PointerCursorOnHover};
 pub use debug::{InteractionDebugSettings, InteractionDebugSnapshot};
 pub use event::{
     InteractionEventContext, InteractionEventPhase, InteractionEventType, PointerButtonState,

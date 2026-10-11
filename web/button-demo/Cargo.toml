@@ -1,0 +1,19 @@
+[package]
+name = "beverly-button-demo"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+members = []
+
+[dependencies]
+bevy = { version = "0.19", default-features = false, features = ["2d", "ui"] }
+beverly = { path = "../..", default-features = false }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = "symbols"
+panic = "abort"

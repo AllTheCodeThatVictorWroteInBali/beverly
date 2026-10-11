@@ -423,6 +423,16 @@ pub struct Theme {
     pub transitions: ThemeTransitions,
 }
 
+impl Theme {
+    /// Returns the opposite light/dark theme.
+    pub fn toggle_mode(self) -> Self {
+        match self.mode {
+            ThemeMode::Light => dark_theme(),
+            ThemeMode::Dark => light_theme(),
+        }
+    }
+}
+
 #[derive(Resource, Clone, Copy, Debug)]
 pub struct ThemeResource {
     pub current: Theme,

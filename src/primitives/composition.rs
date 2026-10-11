@@ -8,7 +8,7 @@ use crate::components::card::{CardBody, CardFooter, CardHeader, CardStyle, spawn
 use crate::components::checkbox::{CheckboxConfig, spawn_checkbox};
 use crate::components::divider::Divider;
 use crate::components::dropdown::{DropdownConfig, spawn_dropdown};
-use crate::components::file_input::{FileInput, FileInputDragState, FileInputSelectionState};
+use crate::components::file_input::{FileInput, spawn_file_input};
 use crate::components::footer::{FooterConfig, spawn_footer};
 use crate::components::form::{Form, spawn_form};
 use crate::components::input::TextInputKind;
@@ -323,6 +323,13 @@ impl UiElement {
     pub fn to(mut self, path: impl Into<String>) -> Self {
         if let Self::Link(link) = &mut self {
             link.target_path = Some(path.into());
+        }
+        self
+    }
+
+    pub fn external(mut self) -> Self {
+        if let Self::Link(link) = &mut self {
+            link.external = true;
         }
         self
     }
@@ -1118,15 +1125,13 @@ impl UiElement {
                     spawn_searchbox(parent, fonts.text, &theme, placeholder)
                 })
             }
-            Self::FileInput(value) => context
-                .world
-                .spawn((
-                    value,
-                    FileInputDragState::default(),
-                    FileInputSelectionState::default(),
-                    ChildOf(context.parent),
-                ))
-                .id(),
+            Self::FileInput(value) => {
+                let mut commands = context.world.commands();
+                let entity = spawn_file_input(&mut commands, value);
+                commands.entity(entity).insert(ChildOf(context.parent));
+                context.world.flush();
+                entity
+            }
             Self::Navbar { fixed } => {
                 let mut commands = context.world.commands();
                 let entity = spawn_navbar(&mut commands, fixed);

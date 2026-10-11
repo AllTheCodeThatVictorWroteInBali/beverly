@@ -291,4 +291,6 @@ pub(crate) fn embed_feather_icons(app: &mut App) {
     embedded_asset!(app, "feather/zap-off.svg");
     embedded_asset!(app, "feather/zoom-in.svg");
     embedded_asset!(app, "feather/zoom-out.svg");
+    // Not part of Feather; added for the light/dark toggle.
+    embedded_asset!(app, "feather/theme-toggle.svg");
 }

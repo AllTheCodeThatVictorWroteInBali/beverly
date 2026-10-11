@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::components::button::ButtonMotionDisabled;
 use crate::components::text::{TextRole, ThemedText};
 use crate::rendering::{Paint, Surface};
 
@@ -30,6 +31,7 @@ pub(crate) fn spawn_row(
             },
             SemanticNode::new(SemanticRole::Row).label(row.id.clone()),
             Button,
+            ButtonMotionDisabled,
             Node {
                 width: Val::Percent(100.0),
                 min_height: Val::Px(config.row_min_height),
@@ -58,6 +60,7 @@ pub(crate) fn spawn_row(
                         },
                         SemanticNode::new(SemanticRole::Cell).label(cell.text.clone()),
                         Button,
+                        ButtonMotionDisabled,
                         Node {
                             width: Val::Percent(column.width),
                             min_height: Val::Percent(100.0),

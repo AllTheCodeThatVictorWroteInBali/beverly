@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 
+use crate::components::button::ButtonMotionDisabled;
 use crate::components::text::{TextRole, ThemedText};
 use crate::primitives::a11y;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
@@ -16,6 +17,8 @@ pub struct Textarea {
 
     /// Shows the spinning border, e.g. while a response is being generated.
     pub busy: bool,
+
+    pub error_feedback_elapsed: Option<f32>,
 
     /// Character index of the cursor.
     pub cursor: usize,
@@ -64,6 +67,7 @@ impl Textarea {
 
             focused: false,
             busy: false,
+            error_feedback_elapsed: None,
 
             cursor: 0,
             selection_anchor: None,
@@ -203,6 +207,9 @@ impl Textarea {
         };
 
         if remaining == 0 {
+            if !text.is_empty() {
+                self.error_feedback_elapsed = Some(0.0);
+            }
             return false;
         }
 
@@ -229,6 +236,7 @@ impl Textarea {
         }
 
         self.value = result;
+        self.error_feedback_elapsed = None;
         self.cursor += text.chars().count();
 
         self.reset_caret();
@@ -341,6 +349,8 @@ pub fn spawn_textarea(parent: &mut ChildSpawnerCommands, config: TextareaConfig)
     parent
         .spawn((
             Button,
+            ButtonMotionDisabled,
+            UiTransform::default(),
             a11y::TabIndex(0),
             semantic,
             textarea,
@@ -352,6 +362,7 @@ pub fn spawn_textarea(parent: &mut ChildSpawnerCommands, config: TextareaConfig)
                 padding: UiRect::all(px(14.0)),
                 border: UiRect::all(px(1.0)),
                 border_radius: BorderRadius::all(px(8.0)),
+                overflow: Overflow::clip(),
                 ..default()
             },
             BackgroundColor(Color::NONE),
@@ -364,6 +375,7 @@ pub fn spawn_textarea(parent: &mut ChildSpawnerCommands, config: TextareaConfig)
             textarea_node.spawn((
                 ThemedText::new(TextRole::Body),
                 Text::new(""),
+                TextLayout::linebreak(LineBreak::WordOrCharacter),
                 TextFont {
                     font_size: FontSize::Px(18.0),
                     ..default()
@@ -382,6 +394,7 @@ pub fn spawn_textarea(parent: &mut ChildSpawnerCommands, config: TextareaConfig)
             textarea_node.spawn((
                 ThemedText::new(TextRole::Muted),
                 Text::new(config.placeholder),
+                TextLayout::linebreak(LineBreak::WordOrCharacter),
                 TextFont {
                     font_size: FontSize::Px(18.0),
                     ..default()

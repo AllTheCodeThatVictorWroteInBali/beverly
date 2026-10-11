@@ -74,7 +74,7 @@ pub fn textarea_focus_system(
 pub fn textarea_visual_system(
     time: Res<Time>,
     theme: Res<ThemeResource>,
-    textareas: Query<(Entity, &Textarea), With<TextareaSurface>>,
+    mut textareas: Query<(Entity, &mut Textarea, Option<&mut UiTransform>), With<TextareaSurface>>,
     mut text_query: Query<
         (&ChildOf, &mut Text, &mut TextColor),
         (With<TextareaText>, Without<TextareaPlaceholder>),
@@ -88,7 +88,19 @@ pub fn textarea_visual_system(
     let blink_on = (time.elapsed_secs() * 2.0).fract() < 0.5;
     let colors = theme.current.colors;
 
-    for (entity, textarea) in &textareas {
+    for (entity, mut textarea, transform) in &mut textareas {
+        if let Some(elapsed) = textarea.error_feedback_elapsed {
+            let elapsed = elapsed + time.delta_secs();
+            textarea.error_feedback_elapsed = (elapsed < 0.4).then_some(elapsed);
+        }
+        if let Some(mut transform) = transform {
+            transform.rotation =
+                Rot2::radians(textarea.error_feedback_elapsed.map_or(0.0, |elapsed| {
+                    2.0_f32.to_radians()
+                        * (std::f32::consts::TAU * 5.0 * elapsed).sin()
+                        * (-8.0 * elapsed).exp()
+                }));
+        }
         let mut display_value = textarea.value.clone();
 
         if textarea.focused && blink_on {
@@ -123,7 +135,9 @@ pub fn textarea_visual_system(
                 colors.surface_elevated
             });
             if let Some(border) = surface.border.as_mut() {
-                border.paint = if textarea.busy {
+                border.paint = if textarea.error_feedback_elapsed.is_some() {
+                    Paint::solid(colors.error)
+                } else if textarea.busy {
                     Paint::spinning(SpinningGradient::default())
                 } else if textarea.focused {
                     Paint::solid(colors.focus)
@@ -265,6 +279,92 @@ mod tests {
     use super::*;
     use crate::components::textarea::component::TextareaSurface;
     use crate::rendering::Surface;
+
+    #[test]
+    fn textarea_wraps_long_words_and_wobbles_only_on_rejection() {
+        let mut app = App::new();
+        app.init_resource::<Time>()
+            .init_resource::<ThemeResource>()
+            .add_systems(Update, textarea_visual_system);
+        let mut field = None;
+        app.world_mut()
+            .commands()
+            .spawn(Node::default())
+            .with_children(|parent| {
+                field = Some(crate::components::textarea::spawn_textarea(
+                    parent,
+                    crate::components::textarea::TextareaConfig::new("Evidence")
+                        .label("Evidence")
+                        .max_length(3),
+                ));
+            });
+        app.world_mut().flush();
+        let field = field.unwrap();
+        assert!(
+            app.world()
+                .get::<crate::components::button::ButtonMotionDisabled>(field)
+                .is_some()
+        );
+        let mut layouts = app
+            .world_mut()
+            .query_filtered::<&TextLayout, Or<(With<TextareaText>, With<TextareaPlaceholder>)>>();
+        assert_eq!(layouts.iter(app.world()).count(), 2);
+        assert!(
+            layouts
+                .iter(app.world())
+                .all(|layout| layout.linebreak == LineBreak::WordOrCharacter)
+        );
+        assert!(
+            app.world_mut()
+                .get_mut::<Textarea>(field)
+                .unwrap()
+                .insert_text("\n")
+        );
+        app.update();
+        assert_eq!(
+            app.world().get::<UiTransform>(field).unwrap().rotation,
+            Rot2::IDENTITY
+        );
+        assert!(
+            app.world_mut()
+                .get_mut::<Textarea>(field)
+                .unwrap()
+                .insert_text("ab")
+        );
+        assert!(
+            !app.world_mut()
+                .get_mut::<Textarea>(field)
+                .unwrap()
+                .insert_text("x")
+        );
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_millis(50));
+        app.update();
+        assert_ne!(
+            app.world().get::<UiTransform>(field).unwrap().rotation,
+            Rot2::IDENTITY
+        );
+        assert_eq!(
+            border_paint(&app, field),
+            Paint::solid(app.world().resource::<ThemeResource>().current.colors.error)
+        );
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_millis(500));
+        app.update();
+        assert_eq!(
+            app.world().get::<UiTransform>(field).unwrap().rotation,
+            Rot2::IDENTITY
+        );
+        assert!(
+            app.world()
+                .get::<Textarea>(field)
+                .unwrap()
+                .error_feedback_elapsed
+                .is_none()
+        );
+    }
 
     fn border_paint(app: &App, entity: Entity) -> Paint {
         app.world()

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::{ProgressBar, ProgressBarFill};
 use crate::rendering::{Paint, Surface};
-use crate::theme::ThemeResource;
+use crate::theme::{ThemeMode, ThemeResource};
 
 pub fn update_progress_bars(
     time: Res<Time>,
@@ -16,7 +16,11 @@ pub fn update_progress_bars(
         (With<ProgressBarFill>, Without<ProgressBar>),
     >,
 ) {
-    let colors = theme.current.colors;
+    // Same neutral palette as the default alert, button and avatar.
+    let (track, fill_color) = match theme.current.mode {
+        ThemeMode::Light => (Color::srgb_u8(229, 229, 229), Color::srgb_u8(23, 23, 23)),
+        ThemeMode::Dark => (Color::srgb_u8(51, 51, 51), Color::WHITE),
+    };
 
     for (bar, children, mut track_surface) in &mut bars {
         for child in children.iter() {
@@ -34,12 +38,12 @@ pub fn update_progress_bars(
             node.width = Val::Percent(fill.current * 100.0);
 
             if bar.use_theme_colors {
-                fill_surface.fill = Paint::solid(colors.primary);
+                fill_surface.fill = Paint::solid(fill_color);
             }
         }
 
         if bar.use_theme_colors {
-            track_surface.fill = Paint::solid(colors.surface_elevated);
+            track_surface.fill = Paint::solid(track);
         }
     }
 }

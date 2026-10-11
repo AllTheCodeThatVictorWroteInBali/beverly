@@ -582,49 +582,26 @@ fn sample_backdrop_blurred(screen_uv: vec2<f32>, blur_px: f32, quality: f32) -> 
 
     let size = vec2<f32>(textureDimensions(backdrop_texture));
     let texel = vec2<f32>(1.0) / max(size, vec2<f32>(1.0));
-    let uv = screen_uv;
 
-    let radius = blur_px * texel;
-    let axis_x = vec2<f32>(radius.x, 0.0);
-    let axis_y = vec2<f32>(0.0, radius.y);
-    let diag = radius;
-
-    var accum = sample_backdrop_source(uv) * 0.227027;
-    var total = 0.227027;
-
-    var pair_weight_a = 0.1945946;
-    if quality < 0.5 {
-        pair_weight_a = 0.316216;
-    }
-
-    var pair_weight_b = 0.1216216;
-    if quality < 1.5 {
-        pair_weight_b = 0.070270;
-    }
-
-    accum += sample_backdrop_source(uv + axis_x) * pair_weight_a;
-    accum += sample_backdrop_source(uv - axis_x) * pair_weight_a;
-    accum += sample_backdrop_source(uv + axis_y) * pair_weight_a;
-    accum += sample_backdrop_source(uv - axis_y) * pair_weight_a;
-    total += pair_weight_a * 4.0;
-
-    accum += sample_backdrop_source(uv + diag) * pair_weight_b;
-    accum += sample_backdrop_source(uv - diag) * pair_weight_b;
-    accum += sample_backdrop_source(uv + vec2<f32>(diag.x, -diag.y)) * pair_weight_b;
-    accum += sample_backdrop_source(uv - vec2<f32>(diag.x, -diag.y)) * pair_weight_b;
-    total += pair_weight_b * 4.0;
-
+    var count = 8;
     if quality > 1.5 {
-        let far = radius * 2.0;
-        let far_weight = 0.054054;
-        accum += sample_backdrop_source(uv + vec2<f32>(far.x, 0.0)) * far_weight;
-        accum += sample_backdrop_source(uv - vec2<f32>(far.x, 0.0)) * far_weight;
-        accum += sample_backdrop_source(uv + vec2<f32>(0.0, far.y)) * far_weight;
-        accum += sample_backdrop_source(uv - vec2<f32>(0.0, far.y)) * far_weight;
-        total += far_weight * 4.0;
+        count = 32;
+    } else if quality > 0.5 {
+        count = 16;
     }
 
-    return accum / max(total, 1e-4);
+    // A golden-angle spiral covers the disk evenly; a sparse cross pattern ghosts hard edges.
+    var accum = sample_backdrop_source(screen_uv);
+    var total = 1.0;
+    for (var i = 0; i < count; i = i + 1) {
+        let t = (f32(i) + 0.5) / f32(count);
+        let angle = f32(i) * 2.39996323;
+        let offset = vec2<f32>(cos(angle), sin(angle)) * sqrt(t) * blur_px * texel;
+        accum += sample_backdrop_source(screen_uv + offset);
+        total += 1.0;
+    }
+
+    return accum / total;
 }
 
 fn process_backdrop_color(sample: vec4<f32>) -> vec4<f32> {

@@ -212,13 +212,40 @@ struct ToastCard;
 #[derive(Component)]
 struct ToastDismissButton;
 
+#[derive(Component, Default)]
+struct ToastAnimation {
+    exit: Option<f32>,
+}
+
+#[derive(Component, Default)]
+struct ToastStackMotion {
+    current: Option<f32>,
+    from: f32,
+    target: f32,
+    elapsed: f32,
+}
+
+const TOAST_SLIDE_SECONDS: f32 = 0.28;
+const TOAST_FADE_SECONDS: f32 = 0.24;
+
+#[derive(Component)]
+struct ToastStackOrder(u64);
+
+const TOAST_STACK_GAP: f32 = 12.0;
+
 pub struct ToastPlugin;
 
 impl Plugin for ToastPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (spawn_toast_ui, update_toast_timers, dismiss_toasts),
+            (spawn_toast_ui, update_toast_timers, dismiss_toasts).chain(),
+        )
+        .add_systems(
+            PostUpdate,
+            (stack_toasts, animate_toasts)
+                .chain()
+                .before(bevy::ui::UiSystems::Prepare),
         );
     }
 }
@@ -233,6 +260,7 @@ fn spawn_toast_ui(
     mut commands: Commands,
     toasts: Query<(Entity, &Toast, Option<&ToastSections>), Added<Toast>>,
     theme: Res<ThemeResource>,
+    mut next_order: Local<u64>,
 ) {
     let colors = theme.current.colors;
 
@@ -252,6 +280,11 @@ fn spawn_toast_ui(
 
         root.insert((
             ToastLane,
+            ToastStackOrder(*next_order),
+            ToastStackMotion::default(),
+            Visibility::Hidden,
+            ToastAnimation::default(),
+            UiTransform::default(),
             semantic,
             Node {
                 display: Display::Flex,
@@ -276,6 +309,7 @@ fn spawn_toast_ui(
             BackgroundColor(Color::NONE),
             ZIndex(1000),
         ));
+        *next_order += 1;
 
         root.with_children(|lane| {
             lane.spawn((
@@ -408,24 +442,111 @@ fn spawn_toast_section(
         });
 }
 
-fn update_toast_timers(
+fn stack_toasts(
     time: Res<Time>,
-    mut commands: Commands,
-    mut toasts: Query<(Entity, &mut Toast)>,
+    policy: Res<crate::theme::AccessibilityVisualPolicyResource>,
+    mut lanes: Query<
+        (
+            Entity,
+            &Toast,
+            &ToastStackOrder,
+            Option<&ChildOf>,
+            &ComputedNode,
+            &mut Node,
+            &mut Visibility,
+            &mut ToastStackMotion,
+        ),
+        With<ToastLane>,
+    >,
 ) {
-    for (entity, mut toast) in &mut toasts {
+    let mut ordered: Vec<_> = lanes
+        .iter()
+        .map(|(entity, toast, order, parent, computed, _, _, _)| {
+            (
+                entity,
+                toast.position,
+                order.0,
+                parent.map(ChildOf::parent),
+                computed.size().y * computed.inverse_scale_factor(),
+            )
+        })
+        .collect();
+    ordered.sort_by_key(|entry| std::cmp::Reverse(entry.2));
+    let mut offsets: Vec<(ToastPosition, Option<Entity>, f32)> = Vec::new();
+    for (entity, position, _, parent, height) in ordered {
+        let group = if let Some(index) = offsets
+            .iter()
+            .position(|entry| entry.0 == position && entry.1 == parent)
+        {
+            index
+        } else {
+            offsets.push((position, parent, 16.0));
+            offsets.len() - 1
+        };
+        let Ok((_, _, _, _, _, mut node, mut visibility, mut motion)) = lanes.get_mut(entity)
+        else {
+            continue;
+        };
+        *visibility = if height > 0.0 {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+        if height <= 0.0 {
+            continue;
+        }
+        let target = offsets[group].2;
+        if motion.current.is_none() {
+            motion.current = Some(-height - TOAST_STACK_GAP);
+            motion.target = f32::NAN;
+        }
+        if motion.target != target {
+            motion.from = motion.current.unwrap();
+            motion.target = target;
+            motion.elapsed = 0.0;
+        }
+        motion.elapsed = (motion.elapsed + time.delta_secs()).min(TOAST_SLIDE_SECONDS);
+        let progress = if policy.current.reduced_motion {
+            1.0
+        } else {
+            motion.elapsed / TOAST_SLIDE_SECONDS
+        };
+        let offset = motion.from + (target - motion.from) * (1.0 - (1.0 - progress).powi(3));
+        motion.current = Some(offset);
+        let top = if position.is_top() {
+            Val::Px(offset)
+        } else {
+            Val::Auto
+        };
+        let bottom = if position.is_top() {
+            Val::Auto
+        } else {
+            Val::Px(offset)
+        };
+        if node.top != top {
+            node.top = top;
+        }
+        if node.bottom != bottom {
+            node.bottom = bottom;
+        }
+        offsets[group].2 += height + TOAST_STACK_GAP;
+    }
+}
+
+fn update_toast_timers(time: Res<Time>, mut toasts: Query<(&mut Toast, &mut ToastAnimation)>) {
+    for (mut toast, mut animation) in &mut toasts {
         if let Some(timer) = &mut toast.timer {
             timer.tick(time.delta());
 
             if timer.is_finished() {
-                commands.entity(entity).despawn();
+                animation.exit.get_or_insert(0.0);
             }
         }
     }
 }
 
 fn dismiss_toasts(
-    mut commands: Commands,
+    mut animations: Query<&mut ToastAnimation>,
     interactions: Query<(&Interaction, &ChildOf), (Changed<Interaction>, With<ToastDismissButton>)>,
     cards: Query<&ChildOf, With<ToastCard>>,
 ) {
@@ -440,6 +561,258 @@ fn dismiss_toasts(
             continue;
         };
 
-        commands.entity(lane_parent.0).despawn();
+        if let Ok(mut animation) = animations.get_mut(lane_parent.0) {
+            animation.exit.get_or_insert(0.0);
+        }
+    }
+}
+
+#[cfg(test)]
+mod animation_tests {
+    use super::*;
+
+    #[test]
+    fn new_toast_enters_from_outside_and_pushes_existing_toast_inward() {
+        for position in [ToastPosition::TopLeft, ToastPosition::BottomRight] {
+            let mut app = App::new();
+            app.init_resource::<Time>()
+                .init_resource::<crate::theme::AccessibilityVisualPolicyResource>()
+                .add_systems(Update, stack_toasts);
+            let spawn = |world: &mut World, order, height| {
+                world
+                    .spawn((
+                        Toast::info("Tea").position(position),
+                        ToastLane,
+                        ToastStackOrder(order),
+                        ToastStackMotion::default(),
+                        ComputedNode {
+                            size: Vec2::new(360.0, height),
+                            ..default()
+                        },
+                        Node::default(),
+                        Visibility::Hidden,
+                    ))
+                    .id()
+            };
+            let old = spawn(app.world_mut(), 0, 80.0);
+            app.update();
+            assert_eq!(
+                app.world().get::<ToastStackMotion>(old).unwrap().current,
+                Some(-92.0)
+            );
+            app.world_mut()
+                .resource_mut::<Time>()
+                .advance_by(Duration::from_secs_f32(TOAST_SLIDE_SECONDS));
+            app.update();
+            assert_eq!(
+                app.world().get::<ToastStackMotion>(old).unwrap().current,
+                Some(16.0)
+            );
+            let new = spawn(app.world_mut(), 1, 120.0);
+            app.world_mut()
+                .resource_mut::<Time>()
+                .advance_by(Duration::ZERO);
+            app.update();
+            assert_eq!(
+                app.world().get::<ToastStackMotion>(new).unwrap().current,
+                Some(-132.0)
+            );
+            assert_eq!(
+                app.world().get::<ToastStackMotion>(old).unwrap().current,
+                Some(16.0)
+            );
+            app.world_mut()
+                .resource_mut::<Time>()
+                .advance_by(Duration::from_millis(140));
+            app.update();
+            let offset = app
+                .world()
+                .get::<ToastStackMotion>(old)
+                .unwrap()
+                .current
+                .unwrap();
+            assert!(offset > 16.0 && offset < 148.0);
+            app.update();
+            assert_eq!(
+                app.world().get::<ToastStackMotion>(new).unwrap().current,
+                Some(16.0)
+            );
+            assert_eq!(
+                app.world().get::<ToastStackMotion>(old).unwrap().current,
+                Some(148.0)
+            );
+        }
+    }
+
+    #[test]
+    fn same_position_toasts_stack_by_height_and_close_gaps_after_removal() {
+        for position in [ToastPosition::TopLeft, ToastPosition::BottomRight] {
+            let mut app = App::new();
+            app.init_resource::<Time>()
+                .insert_resource(crate::theme::AccessibilityVisualPolicyResource {
+                    current: crate::theme::AccessibilityVisualPolicy {
+                        reduced_motion: true,
+                        ..default()
+                    },
+                })
+                .add_systems(Update, stack_toasts);
+            let mut entities = Vec::new();
+            for (order, height) in [(0, 80.0), (1, 120.0), (2, 60.0)] {
+                entities.push(
+                    app.world_mut()
+                        .spawn((
+                            Toast::info("Tea").position(position),
+                            ToastLane,
+                            ToastStackOrder(order),
+                            ToastStackMotion::default(),
+                            ComputedNode {
+                                size: Vec2::new(360.0, height),
+                                ..default()
+                            },
+                            Node::default(),
+                            Visibility::Hidden,
+                        ))
+                        .id(),
+                );
+            }
+            let other = app
+                .world_mut()
+                .spawn((
+                    Toast::info("Other corner").position(ToastPosition::TopRight),
+                    ToastLane,
+                    ToastStackOrder(3),
+                    ToastStackMotion::default(),
+                    ComputedNode {
+                        size: Vec2::new(360.0, 80.0),
+                        ..default()
+                    },
+                    Node::default(),
+                    Visibility::Hidden,
+                ))
+                .id();
+            app.update();
+            for (entity, offset) in entities.iter().zip([220.0, 88.0, 16.0]) {
+                let node = app.world().get::<Node>(*entity).unwrap();
+                assert_eq!(
+                    if position.is_top() {
+                        node.top
+                    } else {
+                        node.bottom
+                    },
+                    Val::Px(offset)
+                );
+                assert_eq!(
+                    *app.world().get::<Visibility>(*entity).unwrap(),
+                    Visibility::Inherited
+                );
+            }
+            assert_eq!(app.world().get::<Node>(other).unwrap().top, Val::Px(16.0));
+            app.world_mut().despawn(entities[2]);
+            app.update();
+            let node = app.world().get::<Node>(entities[1]).unwrap();
+            assert_eq!(
+                if position.is_top() {
+                    node.top
+                } else {
+                    node.bottom
+                },
+                Val::Px(16.0)
+            );
+            let node = app.world().get::<Node>(entities[0]).unwrap();
+            assert_eq!(
+                if position.is_top() {
+                    node.top
+                } else {
+                    node.bottom
+                },
+                Val::Px(148.0)
+            );
+        }
+    }
+
+    #[test]
+    fn timeout_starts_fade_before_despawning() {
+        let mut app = App::new();
+        app.init_resource::<Time>()
+            .init_resource::<crate::theme::AccessibilityVisualPolicyResource>()
+            .add_systems(Update, (update_toast_timers, animate_toasts).chain());
+        let toast = app
+            .world_mut()
+            .spawn((
+                Toast::info("Tea ready")
+                    .duration(10)
+                    .position(ToastPosition::TopLeft),
+                ToastAnimation::default(),
+                UiTransform::default(),
+            ))
+            .id();
+        let label = app
+            .world_mut()
+            .spawn((TextColor(Color::WHITE), ChildOf(toast)))
+            .id();
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(Duration::from_millis(20));
+        app.update();
+        assert!(
+            app.world()
+                .get::<ToastAnimation>(toast)
+                .unwrap()
+                .exit
+                .is_some()
+        );
+        assert!(app.world().get::<TextColor>(label).unwrap().0.alpha() < 1.0);
+        assert!(app.world().get::<TextColor>(label).unwrap().0.alpha() > 0.0);
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(Duration::from_millis(250));
+        app.update();
+        assert!(app.world().get_entity(toast).is_err());
+    }
+}
+
+fn animate_toasts(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut toasts: Query<(Entity, &mut ToastAnimation), With<Toast>>,
+    parents: Query<&ChildOf>,
+    mut visuals: Query<(
+        Entity,
+        Option<&mut Surface>,
+        Option<&mut TextColor>,
+        Option<&mut crate::icons::IconNode>,
+    )>,
+) {
+    for (entity, mut animation) in &mut toasts {
+        let Some(elapsed) = animation.exit.as_mut() else {
+            continue;
+        };
+        *elapsed += time.delta_secs();
+        let alpha = (1.0 - *elapsed / TOAST_FADE_SECONDS).clamp(0.0, 1.0);
+        for (visual, surface, text, icon) in &mut visuals {
+            let mut ancestor = visual;
+            while ancestor != entity {
+                let Ok(parent) = parents.get(ancestor) else {
+                    break;
+                };
+                ancestor = parent.parent();
+            }
+            if ancestor != entity {
+                continue;
+            }
+            if let Some(mut surface) = surface {
+                surface.mask =
+                    Some(crate::rendering::Mask::new(surface.shape.clone()).with_opacity(alpha));
+            }
+            if let Some(mut text) = text {
+                text.0 = text.0.with_alpha(alpha);
+            }
+            if let Some(mut icon) = icon {
+                icon.color = icon.color.with_alpha(alpha);
+            }
+        }
+        if alpha <= 0.0 {
+            commands.entity(entity).despawn();
+        }
     }
 }

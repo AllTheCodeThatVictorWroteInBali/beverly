@@ -18,7 +18,7 @@ The best loading states maintain orientation and avoid surprising the user.
 ## Recommended behaviors
 
 - prefer lightweight, non-blocking feedback for short actions
-- use skeleton or placeholder structure for larger content surfaces
+- use skeleton or placeholder structure for larger content surfaces (see [Loading Skeleton](skeleton.md))
 - show progress when a task has a meaningful duration or expected completion
 - keep the existing layout stable so the user does not lose their place
 - explain what is loading when the state is not otherwise obvious

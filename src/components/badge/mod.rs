@@ -1,3 +1,3 @@
 pub mod component;
 
-pub use component::{Badge, spawn_badge};
+pub use component::{Badge, BadgeSize, spawn_badge};

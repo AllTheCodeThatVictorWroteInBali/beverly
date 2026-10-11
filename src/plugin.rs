@@ -33,6 +33,7 @@ impl Plugin for BeverlyPlugin {
             .add_plugins(crate::icons::FeatherIconsPlugin)
             // Components.
             .add_plugins(crate::components::alert::AlertPlugin)
+            .add_plugins(crate::components::avatar::AvatarPlugin)
             .add_plugins(crate::components::button::ButtonPlugin)
             .add_plugins(crate::components::button_group::ButtonGroupPlugin)
             .add_plugins(crate::components::card::CardPlugin)
@@ -63,6 +64,7 @@ impl Plugin for BeverlyPlugin {
             .add_plugins(crate::components::tabs::TabsPlugin)
             .add_plugins(crate::components::text::ThemedTextPlugin)
             .add_plugins(crate::components::textarea::TextareaPlugin)
+            .add_plugins(crate::components::theme_toggle::ThemeTogglePlugin)
             .add_plugins(crate::components::title::TitlePlugin)
             .add_plugins(crate::components::toast::ToastPlugin)
             .add_plugins(crate::components::toggle::TogglePlugin)
@@ -70,7 +72,19 @@ impl Plugin for BeverlyPlugin {
     }
 }
 
-fn ensure_default_ui_camera(mut commands: Commands, cameras: Query<(), With<Camera2d>>) {
+// Icon proxy cameras are Camera2d too, but they must render above the UI, so a
+// separate default UI camera is still needed when the app brings none of its own.
+fn ensure_default_ui_camera(
+    mut commands: Commands,
+    cameras: Query<
+        (),
+        (
+            With<Camera2d>,
+            Without<crate::icons::component::UiIconProxyCamera>,
+            Without<crate::icons::component::UiIconContentClipCamera>,
+        ),
+    >,
+) {
     if cameras.is_empty() {
         commands.spawn((Camera2d, bevy::ui::IsDefaultUiCamera));
     }
