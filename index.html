@@ -1122,6 +1122,41 @@
           transition-duration: 0.01ms !important;
         }
       }
+
+      /* =========================================================
+     Download Section
+     ========================================================= */
+
+      .download-options {
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+        gap: 1rem;
+        width: 100%;
+      }
+
+      .download-option {
+        flex: 1 1 0;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        white-space: nowrap;
+      }
+
+      .download-note {
+        margin-top: 1.25rem;
+        text-align: center;
+      }
+
+      @media (max-width: 576px) {
+        .download-options {
+          flex-direction: column;
+        }
+
+        .download-option {
+          width: 100%;
+        }
+      }
     </style>
   </head>
 
@@ -1430,64 +1465,67 @@
      DOWNLOAD
      ======================================================= -->
 
+    <section id="download" class="download-section">
+      <div class="download-container">
+        <span class="section-label">Try It Locally</span>
 
-    <div class="jumbotron-actions download-actions download-options">
-      <!-- macOS app -->
-      <a
-        href="https://github.com/AllTheCodeThatVictorWroteInBali/beverly/releases/download/bev-test-v0.2.0/BeverlyAgent-macOS.zip"
-        class="btn btn-primary btn-lg px-4 py-3 fw-semibold shadow-sm download-option"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          fill="currentColor"
-          class="bi bi-apple me-2 align-text-bottom"
-          viewBox="0 0 16 16"
-        >
-          <path
-            d="M11.182.008C11.148-.03 9.923.023 8.857 1.18c-1.066 1.156-.902 2.482-.878 2.516.024.034 1.52.087 2.475-1.258.955-1.345.762-2.391.728-2.43Zm3.314 11.733c-.048-.096-2.325-1.234-2.113-3.422.212-2.189 1.675-2.789 1.698-2.8-.012-.012-.975-1.109-2.554-1.109-1.579 0-2.14.887-2.922.887-.783 0-1.748-.84-2.85-.84-1.848 0-3.328 1.488-3.328 3.52 0 3.033 2.112 6.787 3.521 6.787.783 0 1.252-.422 2.164-.422.912 0 1.32.422 2.215.422 1.34 0 2.222-1.353 2.769-2.162.193-.289.41-.611.41-.861Z"
-          />
-        </svg>
-        Download for macOS
-      </a>
+        <h2>Beverly Agent for macOS</h2>
 
-      <!-- Browser demo -->
-      <a
-        href="/demo"
-        class="btn btn-primary btn-lg px-4 py-3 fw-semibold shadow-sm download-option"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          fill="currentColor"
-          class="me-2 align-text-bottom"
-          viewBox="0 0 16 16"
-        >
-          <path
-            d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4Zm1 0v1h14V4a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1Zm14 2H1v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6Z"
-          />
-        </svg>
-        Try in Your Browser
-      </a>
-    </div>
+        <p class="download-copy">
+          Your domain expertise and institutional knowledge are your most
+          valuable assets. Cloud AI APIs risk handing those hard-won insights
+          over to future competitors who can reverse engineer your products and
+          services. Beverly Agent brings AI compute to the machines you already
+          own. Run open-source models locally for free, and protect your most
+          sensitive information.
+        </p>
 
-    <p class="download-note">
-      macOS: Runs models locally on your Mac.
-      &nbsp;·&nbsp;
-      Browser: No installation required; performance may be slower.
-    </p>
-
-        <p class="download-contact">
-          Building an AI app of your own?
+        <div class="jumbotron-actions download-actions download-options">
+          <!-- Download the macOS app -->
           <a
-            href="https://github.com/AllTheCodeThatVictorWroteInBali/beverly/issues/new?title=Custom%20app%20inquiry"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="https://github.com/AllTheCodeThatVictorWroteInBali/beverly/releases/download/bev-test-v0.2.0/BeverlyAgent-macOS.zip"
+            class="btn btn-primary btn-lg px-4 py-3 fw-semibold shadow-sm download-option"
           >
-            Tell us what you're building.
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              fill="currentColor"
+              class="me-2 align-text-bottom"
+              viewBox="0 0 16 16"
+              aria-hidden="true"
+            >
+              <path
+                d="M11.182.008C11.148-.03 9.923.023 8.857 1.18c-1.066 1.156-.902 2.482-.878 2.516.024.034 1.52.087 2.475-1.258.955-1.345.762-2.391.728-2.43Zm3.314 11.733c-.048-.096-2.325-1.234-2.113-3.422.212-2.189 1.675-2.789 1.698-2.8-.012-.012-.975-1.109-2.554-1.109-1.579 0-2.14.887-2.922.887-.783 0-1.748-.84-2.85-.84-1.848 0-3.328 1.488-3.328 3.52 0 3.033 2.112 6.787 3.521 6.787.783 0 1.252-.422 2.164-.422.912 0 1.32.422 2.215.422 1.34 0 2.222-1.353 2.769-2.162.193-.289.41-.611.41-.861Z"
+              />
+            </svg>
+            Download for macOS
           </a>
+
+          <!-- Launch the browser demo -->
+          <a
+            href="/demo"
+            class="btn btn-primary btn-lg px-4 py-3 fw-semibold shadow-sm download-option"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              fill="currentColor"
+              class="me-2 align-text-bottom"
+              viewBox="0 0 16 16"
+              aria-hidden="true"
+            >
+              <path
+                d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM6.52 1.66A13.2 13.2 0 0 0 5.2 4.5H2.7a6.53 6.53 0 0 1 3.82-2.84ZM1.5 8c0-.7.11-1.38.32-2h3.04a14.6 14.6 0 0 0 0 4H1.82A6.5 6.5 0 0 1 1.5 8Zm1.2 3.5h2.5a13.2 13.2 0 0 0 1.32 2.84A6.53 6.53 0 0 1 2.7 11.5ZM7 11.5h2a11.8 11.8 0 0 1-1 2.7 11.8 11.8 0 0 1-1-2.7ZM9 10H7a13 13 0 0 1 0-4h2a13 13 0 0 1 0 4Zm0-5.5H7a11.8 11.8 0 0 1 1-2.7 11.8 11.8 0 0 1 1 2.7Zm.48 8.34A13.2 13.2 0 0 0 10.8 10.5h2.5a6.53 6.53 0 0 1-3.82 2.84ZM11.14 10a14.6 14.6 0 0 0 0-4h3.04a6.5 6.5 0 0 1 0 4h-3.04Zm-.34-5.5a13.2 13.2 0 0 0-1.32-2.84A6.53 6.53 0 0 1 13.3 4.5h-2.5Z"
+              />
+            </svg>
+            Try in Your Browser
+          </a>
+        </div>
+
+        <p class="download-note">
+          <a href="mailto:victor@beverlyui.com">What are you building?</a>
         </p>
       </div>
     </section>
