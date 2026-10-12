@@ -33,6 +33,13 @@ jobs:
         with:
           version: v0.21.14
 
+      - name: Cache embedded button demo
+        id: button-demo-cache
+        uses: actions/cache@v4
+        with:
+          path: web/button-demo/dist
+          key: button-demo-${{ runner.os }}-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'beverly-macros/Cargo.toml', 'beverly-macros/src/**', 'src/**', 'examples/button.rs', 'web/button-demo/Cargo.toml', 'web/button-demo/Cargo.lock', 'web/button-demo/Trunk.toml', 'web/button-demo/build.sh', 'web/button-demo/index.html', 'web/button-demo/src/**') }}
+
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v2
         with:
@@ -41,7 +48,9 @@ jobs:
       - name: Build documentation
         run: mdbook build docs
 
-      - name: Build embedded button demo
+      - name: Build or reuse embedded button demo
+        env:
+          SKIP_TRUNK_BUILD: ${{ steps.button-demo-cache.outputs.cache-hit == 'true' }}
         run: TRUNK_PUBLIC_URL=/docs/assets/button-demo/ bash web/button-demo/build.sh
 
       - name: Assemble site
