@@ -1,5 +1,11 @@
 # Glow
 
+## Live Demo
+
+<iframe src="../assets/demos/index.html?demo=glow" title="Interactive Beverly glow demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=glow" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 `OuterGlow` adds a shader-rendered halo outside a `Surface`. Unlike a [drop shadow](shadows.md), it has no directional offset: the glow surrounds the surface's shape.
 
 Use it for restrained emphasis, luminous accents, or an active surface. `BeverlyPlugin` installs the renderer required for these examples.

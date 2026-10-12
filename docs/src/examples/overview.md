@@ -1,5 +1,17 @@
 # Examples Overview
 
+## Live Demo: Components
+
+<iframe src="../assets/demos/index.html?demo=components" title="Interactive Beverly components demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=components" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
+## Live Demo: Showcase
+
+<iframe src="../assets/demos/index.html?demo=showcase" title="Interactive Beverly showcase demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=showcase" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 The examples below are intentionally more complete than minimal snippets. Each pattern includes an application shell, a realistic hierarchy of containers and widgets, and a likely composition flow for a Bevy app that uses Beverly for a full screen or panel-based experience.
 
 These examples are not merely visual arrangements. They are practical demonstrations of the design system in real product contexts: where hierarchy should be strongest, which surfaces should absorb density, and where motion, glass, or semantics should be used to reinforce understanding instead of decoration.

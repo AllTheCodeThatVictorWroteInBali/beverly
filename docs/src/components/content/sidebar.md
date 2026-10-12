@@ -1,5 +1,11 @@
 # Sidebar
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=sidebar" title="Interactive Beverly sidebar demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=sidebar" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 A Sidebar is a layout primitive for organizing content along the side of an interface.
 
 A Sidebar can be positioned on either the **left** or **right** side of its containing layout.

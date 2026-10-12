@@ -10,7 +10,11 @@ use bevy::prelude::*;
 #[derive(Component)]
 struct PageCopy;
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -19,13 +23,16 @@ fn main() {
         })
         .add_systems(Startup, setup)
         .add_systems(Update, update_page_copy)
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(760.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(760.0),
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Stretch,
             row_gap: Val::Px(22.0),
@@ -49,7 +56,7 @@ fn setup(mut commands: Commands) {
                     ..default()
                 },
             ));
-            spawn_pagination(
+            let pagination = spawn_pagination(
                 content,
                 PaginationConfig {
                     page_size: 3,
@@ -59,6 +66,18 @@ fn setup(mut commands: Commands) {
                     max_page_buttons: 5,
                 },
             );
+            content
+                .commands()
+                .entity(pagination)
+                .queue(|mut entity: EntityWorldMut| {
+                    if let Some(mut node) = entity.get_mut::<Node>() {
+                        node.max_width = Val::Percent(100.0);
+                        node.min_width = Val::Px(0.0);
+                        node.flex_wrap = FlexWrap::Wrap;
+                        node.flex_shrink = 0.0;
+                        node.row_gap = Val::Px(6.0);
+                    }
+                });
         });
     });
 }

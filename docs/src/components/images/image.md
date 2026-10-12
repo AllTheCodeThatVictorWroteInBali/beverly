@@ -1,5 +1,11 @@
 # Image
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=photo" title="Interactive Beverly photo demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=photo" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 An Image is a visual presentation primitive for displaying image content.
 
 Images are used throughout an application to communicate information, establish visual hierarchy, represent people or objects, display media, and provide visual context.

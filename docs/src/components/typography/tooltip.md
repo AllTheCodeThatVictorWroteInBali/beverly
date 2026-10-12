@@ -1,5 +1,11 @@
 # Tooltip
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=tooltip" title="Interactive Beverly tooltip demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=tooltip" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 A Tooltip is a small text primitive that provides additional context about another UI element.
 
 Tooltips are useful for explaining unfamiliar controls, providing concise descriptions, revealing secondary information, or giving additional context without permanently occupying interface space.

@@ -8,7 +8,11 @@ use beverly::icons::IconCommands;
 use beverly::prelude::*;
 use bevy::prelude::*;
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -16,14 +20,16 @@ fn main() {
             current: theme_from_cli_args(),
         })
         .add_systems(Startup, setup)
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(620.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(620.0),
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(18.0),
             ..default()
@@ -41,6 +47,8 @@ fn setup(mut commands: Commands) {
                 .spawn(Node {
                     width: Val::Percent(100.0),
                     height: Val::Px(320.0),
+                    min_width: Val::Px(0.0),
+                    flex_shrink: 0.0,
                     ..default()
                 })
                 .with_children(build_departments);
@@ -49,7 +57,7 @@ fn setup(mut commands: Commands) {
 }
 
 fn build_departments(parent: &mut ChildSpawnerCommands) {
-    spawn_tabs_in_with_bar(
+    let tabs = spawn_tabs_in_with_bar(
         parent,
         TabsConfig::new(vec![
             Tab::new("biscuits", "Biscuits"),
@@ -57,6 +65,17 @@ fn build_departments(parent: &mut ChildSpawnerCommands) {
             Tab::new("toast", "Toast"),
         ]),
         |bar| {
+            let bar_entity = bar.target_entity();
+            bar.commands()
+                .entity(bar_entity)
+                .queue(|mut entity: EntityWorldMut| {
+                    if let Some(mut node) = entity.get_mut::<Node>() {
+                        node.flex_wrap = FlexWrap::Wrap;
+                        node.flex_shrink = 0.0;
+                        node.min_width = Val::Px(0.0);
+                        node.row_gap = Val::Px(8.0);
+                    }
+                });
             bar.spawn((ThemedText::new(TextRole::Muted), Text::new("3 on duty")));
         },
         |zone, index, _tab| {
@@ -94,6 +113,8 @@ fn build_departments(parent: &mut ChildSpawnerCommands) {
             };
             zone.spawn(Node {
                 width: Val::Percent(100.0),
+                min_width: Val::Px(0.0),
+                flex_shrink: 0.0,
                 flex_direction: FlexDirection::Column,
                 padding: UiRect::all(Val::Px(22.0)),
                 row_gap: Val::Px(16.0),
@@ -102,6 +123,7 @@ fn build_departments(parent: &mut ChildSpawnerCommands) {
             .with_children(|panel| {
                 panel
                     .spawn(Node {
+                        min_width: Val::Px(0.0),
                         align_items: AlignItems::Center,
                         column_gap: Val::Px(12.0),
                         ..default()
@@ -120,6 +142,26 @@ fn build_departments(parent: &mut ChildSpawnerCommands) {
             });
         },
     );
+    parent
+        .commands()
+        .entity(tabs)
+        .queue(|mut entity: EntityWorldMut| {
+            if let Some(mut node) = entity.get_mut::<Node>() {
+                node.min_width = Val::Px(0.0);
+                node.flex_shrink = 0.0;
+            }
+        });
+    parent.commands().queue(move |world: &mut World| {
+        let children: Vec<_> = world
+            .get::<Children>(tabs)
+            .map(|children| children.iter().collect())
+            .unwrap_or_default();
+        for child in children {
+            if world.get::<ScrollPosition>(child).is_some() {
+                world.entity_mut(child).insert(bevy::ui_widgets::ScrollArea);
+            }
+        }
+    });
 }
 
 #[cfg(test)]

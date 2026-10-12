@@ -1,5 +1,11 @@
 # Blur
 
+## Live Demo
+
+<iframe src="../assets/demos/index.html?demo=backdrop_blur" title="Interactive Beverly backdrop blur demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=backdrop_blur" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 <img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
 
 Blur is one of the most effective ways to show depth and separation in a layered interface. Used sparingly, it helps create readable glass or ambient surfaces without reducing legibility. In a product UI, blur is most useful when it reinforces hierarchy and layering rather than when it becomes a decorative effect on its own.

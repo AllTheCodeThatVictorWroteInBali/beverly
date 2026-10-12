@@ -1,5 +1,11 @@
 # Rounded Corners
 
+## Live Demo
+
+<iframe src="../assets/demos/index.html?demo=rounded_corners" title="Interactive Beverly rounded corners demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=rounded_corners" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 Beverly renders rounded corners through the `Shape` attached to a `Surface`. Corner radii are measured in logical UI pixels; the Bevy `Node` supplies the surface's dimensions.
 
 `BeverlyPlugin` installs the renderer needed for these examples.

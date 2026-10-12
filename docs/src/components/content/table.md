@@ -1,5 +1,11 @@
 # Table
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=table" title="Interactive Beverly table demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=table" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 The `Table` is Beverly's primitive for displaying tabular data.
 
 At its core, a Table is simply a two-dimensional collection of values:

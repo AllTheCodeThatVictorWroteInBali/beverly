@@ -12,6 +12,10 @@ use beverly::rendering::{
 use beverly::theme::AccessibilityVisualPolicyResource;
 use bevy::prelude::*;
 
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
 const BORDER: Color = Color::srgb(0.18, 0.55, 0.94);
 const TARGETS: [(&str, NoiseTarget); 3] = [
     ("Surface", NoiseTarget::Surface),
@@ -55,7 +59,7 @@ enum NoisePreview {
     Frosted,
 }
 
-fn main() {
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -65,14 +69,15 @@ fn main() {
         .init_resource::<NoiseSettings>()
         .add_systems(Startup, setup)
         .add_systems(Update, (update_settings, update_previews).chain())
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(760.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(760.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(16.0),
             ..default()
@@ -106,6 +111,8 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                         controls
                             .spawn(Node {
                                 width: Val::Px(232.0),
+                                max_width: Val::Percent(100.0),
+                                flex_shrink: 0.0,
                                 flex_direction: FlexDirection::Column,
                                 row_gap: Val::Px(4.0),
                                 ..default()
@@ -126,6 +133,11 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                                     &theme,
                                 );
                                 row.commands().entity(slider).insert(NoiseControl(index));
+                                row.commands().queue(move |world: &mut World| {
+                                    if let Some(mut node) = world.get_mut::<Node>(slider) {
+                                        node.max_width = Val::Percent(100.0);
+                                    }
+                                });
                             });
                     }
                 });
@@ -176,6 +188,9 @@ fn spawn_previews(previews: &mut ChildSpawnerCommands) {
     let noise = configured_noise(&NoiseSettings::default(), true);
     previews
         .spawn(Node {
+            width: Val::Px(300.0),
+            max_width: Val::Percent(100.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(8.0),
             ..default()
@@ -189,6 +204,8 @@ fn spawn_previews(previews: &mut ChildSpawnerCommands) {
                 NoisePreview::Main,
                 Node {
                     width: Val::Px(300.0),
+                    max_width: Val::Percent(100.0),
+                    flex_shrink: 0.0,
                     height: Val::Px(170.0),
                     ..default()
                 },
@@ -197,6 +214,9 @@ fn spawn_previews(previews: &mut ChildSpawnerCommands) {
         });
     previews
         .spawn(Node {
+            width: Val::Px(300.0),
+            max_width: Val::Percent(100.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(8.0),
             ..default()
@@ -206,6 +226,8 @@ fn spawn_previews(previews: &mut ChildSpawnerCommands) {
             sample
                 .spawn(Node {
                     column_gap: Val::Px(12.0),
+                    row_gap: Val::Px(12.0),
+                    flex_wrap: FlexWrap::Wrap,
                     ..default()
                 })
                 .with_children(|row| {
@@ -215,6 +237,7 @@ fn spawn_previews(previews: &mut ChildSpawnerCommands) {
                         (NoisePreview::Black, "Black"),
                     ] {
                         row.spawn(Node {
+                            flex_shrink: 0.0,
                             flex_direction: FlexDirection::Column,
                             row_gap: Val::Px(6.0),
                             ..default()
@@ -240,6 +263,9 @@ fn spawn_previews(previews: &mut ChildSpawnerCommands) {
         });
     previews
         .spawn(Node {
+            width: Val::Px(300.0),
+            max_width: Val::Percent(100.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(8.0),
             ..default()
@@ -249,6 +275,8 @@ fn spawn_previews(previews: &mut ChildSpawnerCommands) {
             sample
                 .spawn(Node {
                     width: Val::Px(300.0),
+                    max_width: Val::Percent(100.0),
+                    flex_shrink: 0.0,
                     height: Val::Px(170.0),
                     position_type: PositionType::Relative,
                     overflow: Overflow::clip(),

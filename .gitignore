@@ -8,3 +8,7 @@ Cargo.lock
 /web/button-demo/target
 /web/button-demo/dist
 /docs/book/assets/button-demo
+/web/demos/target
+/web/demos/dist
+/docs/book/assets/demos
+!/web/demos/Cargo.lock

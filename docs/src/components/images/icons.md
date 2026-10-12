@@ -1,5 +1,11 @@
 # Icons
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=icons" title="Interactive Beverly icons demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=icons" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 Beverly includes the fabulous [Feather icons](https://feathericons.com/): a clean, open-source set of outline icons designed by [Cole Bemis and the Feather contributors](https://github.com/feathericons/feather). Feather is distributed under the [MIT license](https://github.com/feathericons/feather/blob/main/LICENSE).
 
 The bundled icons are **SVG vector assets**, not bitmap images or an icon font. They scale cleanly and can be recolored and animated. Beverly embeds them at compile time, so applications do not need to copy an icon assets folder.

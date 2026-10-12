@@ -58,7 +58,11 @@ const STOCK: [(&str, &str, &str, &str, &str); 6] = [
 #[derive(Component)]
 struct InventoryReadout;
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -67,7 +71,7 @@ fn main() {
         })
         .add_systems(Startup, setup)
         .add_systems(Update, update_readout)
-        .run();
+        .run_demo();
 }
 
 fn inventory_config() -> TableConfig {
@@ -107,8 +111,10 @@ fn inventory_config() -> TableConfig {
 fn setup(mut commands: Commands) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(820.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(820.0),
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Stretch,
             row_gap: Val::Px(18.0),
@@ -123,7 +129,31 @@ fn setup(mut commands: Commands) {
                 ThemedText::new(TextRole::Muted),
                 Text::new("Six supplies. Five departments. One deeply suspicious crumb."),
             ));
-            Table::spawn_into(content, inventory_config());
+            content
+                .spawn((
+                    bevy::ui_widgets::ScrollArea,
+                    ScrollPosition::default(),
+                    Node {
+                        width: Val::Percent(100.0),
+                        min_width: Val::Px(0.0),
+                        flex_shrink: 0.0,
+                        overflow: Overflow::scroll_x(),
+                        ..default()
+                    },
+                ))
+                .with_children(|viewport| {
+                    viewport
+                        .spawn(Node {
+                            width: Val::Px(820.0),
+                            min_width: Val::Px(820.0),
+                            flex_shrink: 0.0,
+                            flex_direction: FlexDirection::Column,
+                            ..default()
+                        })
+                        .with_children(|table| {
+                            Table::spawn_into(table, inventory_config());
+                        });
+                });
             content.spawn((
                 InventoryReadout,
                 ThemedText::new(TextRole::Body),

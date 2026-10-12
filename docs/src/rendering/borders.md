@@ -1,5 +1,11 @@
 # Borders
 
+## Live Demo
+
+<iframe src="../assets/demos/index.html?demo=borders" title="Interactive Beverly borders demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=borders" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 Beverly's `Surface` renderer paints borders around a surface's shape. A border combines widths in pixels with a `Paint`, which can be a solid color or a gradient.
 
 `BeverlyPlugin` includes the rendering plugin required for these examples. For shared design values rather than rendering APIs, see [Border Tokens](../foundations/borders.md).

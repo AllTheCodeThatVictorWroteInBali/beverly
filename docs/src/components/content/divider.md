@@ -1,5 +1,11 @@
 # Divider
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=divider" title="Interactive Beverly divider demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=divider" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 A Divider is a visual separation primitive, similar to the HTML `<hr>` element.
 
 It creates a visible line between pieces of content and can be oriented horizontally or vertically.

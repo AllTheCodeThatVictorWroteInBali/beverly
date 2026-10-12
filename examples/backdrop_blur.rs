@@ -8,6 +8,10 @@ use beverly::prelude::*;
 use beverly::rendering::{Backdrop, BackdropQuality, Paint, Surface};
 use bevy::prelude::*;
 
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
 const STRIPE_WIDTH: f32 = 64.0;
 
 #[derive(Component)]
@@ -19,7 +23,7 @@ struct FrostedWindow;
 #[derive(Component)]
 struct MovingStripe(usize);
 
-fn main() {
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -28,14 +32,15 @@ fn main() {
         })
         .add_systems(Startup, setup)
         .add_systems(Update, update_preview)
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(760.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(760.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(20.0),
             ..default()
@@ -68,6 +73,7 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                         controls
                             .spawn(Node {
                                 width: Val::Px(240.0),
+                                max_width: Val::Percent(100.0),
                                 flex_direction: FlexDirection::Column,
                                 row_gap: Val::Px(6.0),
                                 ..default()
@@ -88,13 +94,28 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                                     &theme,
                                 );
                                 row.commands().entity(slider).insert(BlurControl(index));
+                                row.commands().queue(move |world: &mut World| {
+                                    if let Some(mut node) = world.get_mut::<Node>(slider) {
+                                        node.max_width = Val::Percent(100.0);
+                                    }
+                                });
                             });
                     }
                 });
             content
                 .spawn(Node {
                     width: Val::Percent(100.0),
-                    height: Val::Px(320.0),
+                    min_height: Val::Px(320.0),
+                    flex_shrink: 0.0,
+                    flex_wrap: FlexWrap::Wrap,
+                    column_gap: Val::Px(60.0),
+                    row_gap: Val::Px(20.0),
+                    padding: UiRect {
+                        top: Val::Px(90.0),
+                        bottom: Val::Px(50.0),
+                        left: Val::Px(24.0),
+                        right: Val::Px(24.0),
+                    },
                     position_type: PositionType::Relative,
                     overflow: Overflow::clip(),
                     ..default()
@@ -139,6 +160,7 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                         Node {
                             position_type: PositionType::Absolute,
                             left: Val::Px(24.0),
+                            right: Val::Px(24.0),
                             top: Val::Px(24.0),
                             ..default()
                         },
@@ -147,9 +169,7 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                             .color(Color::WHITE),
                         Text::new("BISCUITS / TEA / TOAST"),
                     ));
-                    for (left, label, frosted) in
-                        [(40.0, "Clear view", false), (410.0, "Frosted view", true)]
-                    {
+                    for (label, frosted) in [("Clear view", false), ("Frosted view", true)] {
                         let surface = Surface::rounded_rect_fill(8.0, Paint::solid(Color::NONE))
                             .uniform_border(1.0, Paint::solid(Color::WHITE.with_alpha(0.65)))
                             .with_backdrop(if frosted {
@@ -164,10 +184,9 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                             });
                         let mut window = scene.spawn((
                             Node {
-                                position_type: PositionType::Absolute,
-                                left: Val::Px(left),
-                                top: Val::Px(90.0),
                                 width: Val::Px(310.0),
+                                max_width: Val::Percent(100.0),
+                                flex_shrink: 0.0,
                                 height: Val::Px(180.0),
                                 padding: UiRect::all(Val::Px(22.0)),
                                 align_items: AlignItems::Center,

@@ -18,6 +18,9 @@ event! {
 #[derive(Component)]
 struct ThemeToggleButton;
 
+#[derive(Component)]
+struct PageContent;
+
 struct NavbarThemeController;
 
 impl Plugin for NavbarThemeController {
@@ -27,7 +30,11 @@ impl Plugin for NavbarThemeController {
     }
 }
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -37,15 +44,20 @@ fn main() {
         })
         .add_systems(Startup, setup)
         .add_systems(Update, populate_navbar)
-        .run();
+        .add_systems(Update, inset_page_content)
+        .run_demo();
 }
 
 fn setup(mut commands: Commands) {
     let page = commands
         .spawn((
+            bevy::ui_widgets::ScrollArea,
+            ScrollPosition::default(),
             Node {
                 width: percent(100),
                 height: percent(100),
+                min_width: px(0),
+                overflow: Overflow::scroll_y(),
                 flex_direction: FlexDirection::Column,
                 ..default()
             },
@@ -54,18 +66,38 @@ fn setup(mut commands: Commands) {
         .id();
 
     let navbar = spawn_navbar(&mut commands, true);
-    commands.entity(navbar).insert(ChildOf(page));
+    commands.entity(navbar).insert((
+        ChildOf(page),
+        Node {
+            width: percent(100),
+            min_width: px(0),
+            min_height: px(64),
+            flex_wrap: FlexWrap::Wrap,
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::SpaceBetween,
+            padding: UiRect::all(px(16)),
+            column_gap: px(12),
+            row_gap: px(8),
+            ..default()
+        },
+    ));
 
     commands.entity(page).with_children(|root| {
-        root.spawn(Node {
-            width: percent(100),
-            flex_grow: 1.0,
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
-            row_gap: px(12.0),
-            ..default()
-        })
+        root.spawn((
+            PageContent,
+            Node {
+                width: percent(100),
+                min_width: px(0),
+                flex_grow: 1.0,
+                flex_shrink: 0.0,
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                row_gap: px(12.0),
+                padding: UiRect::all(px(16)),
+                ..default()
+            },
+        ))
         .with_children(|content| {
             content.spawn((
                 ThemedTitle::new(TitleLevel::H1),
@@ -84,6 +116,18 @@ fn populate_navbar(
     sections: Query<&NavbarSections, Added<NavbarSections>>,
 ) {
     for sections in &sections {
+        for section in [sections.left, sections.center, sections.right] {
+            commands.entity(section).insert(Node {
+                max_width: percent(100),
+                min_width: px(0),
+                flex_wrap: FlexWrap::Wrap,
+                flex_shrink: 0.0,
+                align_items: AlignItems::Center,
+                column_gap: px(8),
+                row_gap: px(8),
+                ..default()
+            });
+        }
         add_to_left(
             &mut commands,
             sections,
@@ -116,6 +160,17 @@ fn populate_navbar(
                 ThemeToggleButton,
             ),
         );
+    }
+}
+
+fn inset_page_content(
+    navbars: Query<&ComputedNode, With<beverly::components::navbar::Navbar>>,
+    mut content: Query<&mut Node, With<PageContent>>,
+) {
+    for navbar in &navbars {
+        for mut node in &mut content {
+            node.padding.top = px(navbar.size().y * navbar.inverse_scale_factor() + 16.0);
+        }
     }
 }
 

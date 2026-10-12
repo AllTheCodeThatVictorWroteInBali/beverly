@@ -11,6 +11,10 @@ use beverly::primitives::semantic::{SemanticNode, SemanticRole};
 use beverly::rendering::{Border, BorderWidths, GradientStop, LinearGradient, Paint, Surface};
 use bevy::prelude::*;
 
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
 const COLORS: [(&str, Color); 4] = [
     ("Mint", Color::srgb(0.12, 0.68, 0.48)),
     ("Coral", Color::srgb(0.94, 0.30, 0.34)),
@@ -50,7 +54,7 @@ enum BorderPreview {
     Gradient,
 }
 
-fn main() {
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -60,14 +64,15 @@ fn main() {
         .init_resource::<BorderSettings>()
         .add_systems(Startup, setup)
         .add_systems(Update, (update_settings, update_previews).chain())
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(760.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(760.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(20.0),
             ..default()
@@ -84,6 +89,8 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
             content
                 .spawn(Node {
                     column_gap: Val::Px(20.0),
+                    row_gap: Val::Px(12.0),
+                    flex_wrap: FlexWrap::Wrap,
                     ..default()
                 })
                 .with_children(|palette| {
@@ -141,6 +148,12 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                 &theme,
             );
             content.commands().entity(slider).insert(ThicknessControl);
+            content.commands().queue(move |world: &mut World| {
+                if let Some(mut node) = world.get_mut::<Node>(slider) {
+                    node.max_width = Val::Percent(100.0);
+                    node.flex_shrink = 0.0;
+                }
+            });
             content.spawn((
                 BorderReadout,
                 ThemedText::new(TextRole::Body),
@@ -175,6 +188,8 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                         previews
                             .spawn(Node {
                                 width: Val::Px(370.0),
+                                max_width: Val::Percent(100.0),
+                                flex_shrink: 0.0,
                                 flex_direction: FlexDirection::Column,
                                 row_gap: Val::Px(8.0),
                                 ..default()

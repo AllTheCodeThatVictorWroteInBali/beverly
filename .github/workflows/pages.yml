@@ -40,6 +40,20 @@ jobs:
           path: web/button-demo/dist
           key: button-demo-${{ runner.os }}-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'beverly-macros/Cargo.toml', 'beverly-macros/src/**', 'src/**', 'examples/button.rs', 'web/button-demo/Cargo.toml', 'web/button-demo/Cargo.lock', 'web/button-demo/Trunk.toml', 'web/button-demo/build.sh', 'web/button-demo/index.html', 'web/button-demo/src/**') }}
 
+      - name: Cache shared demo bundle
+        id: demos-cache
+        uses: actions/cache@v4
+        with:
+          path: web/demos/dist
+          key: demos-${{ runner.os }}-${{ hashFiles('Cargo.toml', 'beverly-macros/Cargo.toml', 'beverly-macros/src/**', 'src/**', 'examples/**', 'assets/avatars/**', 'web/demos/Cargo.toml', 'web/demos/Cargo.lock', 'web/demos/Trunk.toml', 'web/demos/build.rs', 'web/demos/build.sh', 'web/demos/index.html', 'web/demos/manifest.json', 'web/demos/src/**') }}
+
+      - name: Cache Rust compilation
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            web/button-demo -> target
+            web/demos -> target
+
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v2
         with:
@@ -48,10 +62,15 @@ jobs:
       - name: Build documentation
         run: mdbook build docs
 
-      - name: Build or reuse embedded button demo
+      - name: Build or reuse embedded demos
         env:
-          SKIP_TRUNK_BUILD: ${{ steps.button-demo-cache.outputs.cache-hit == 'true' }}
-        run: TRUNK_PUBLIC_URL=/docs/assets/button-demo/ bash web/button-demo/build.sh
+          BUTTON_CACHED: ${{ steps.button-demo-cache.outputs.cache-hit == 'true' }}
+          DEMOS_CACHED: ${{ steps.demos-cache.outputs.cache-hit == 'true' }}
+        run: |
+          SKIP_TRUNK_BUILD="$BUTTON_CACHED" TRUNK_PUBLIC_URL=/docs/assets/button-demo/ bash web/button-demo/build.sh &
+          button_pid=$!
+          SKIP_TRUNK_BUILD="$DEMOS_CACHED" TRUNK_PUBLIC_URL=/docs/assets/demos/ bash web/demos/build.sh
+          wait "$button_pid"
 
       - name: Assemble site
         run: |

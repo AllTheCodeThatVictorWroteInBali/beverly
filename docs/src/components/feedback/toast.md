@@ -1,5 +1,11 @@
 # Toast
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=toast" title="Interactive Beverly toast demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=toast" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 Toast supports the same fluent `.header(...)`, `.body(...)`, and
 `.footer(...)` section helpers as Card. The standalone `footer(...)` function
 creates the separate Footer component.

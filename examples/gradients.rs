@@ -13,6 +13,10 @@ use beverly::rendering::{
 };
 use bevy::prelude::*;
 
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
 const PALETTES: [(&str, [Color; 3]); 3] = [
     (
         "Fresh",
@@ -72,7 +76,7 @@ enum GradientPreview {
     Angular,
 }
 
-fn main() {
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -82,14 +86,15 @@ fn main() {
         .init_resource::<GradientSettings>()
         .add_systems(Startup, setup)
         .add_systems(Update, (update_settings, update_previews).chain())
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(760.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(760.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(20.0),
             ..default()
@@ -106,6 +111,8 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
             content
                 .spawn(Node {
                     column_gap: Val::Px(20.0),
+                    row_gap: Val::Px(12.0),
+                    flex_wrap: FlexWrap::Wrap,
                     ..default()
                 })
                 .with_children(|palette| {
@@ -164,6 +171,8 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                         controls
                             .spawn(Node {
                                 width: Val::Px(240.0),
+                                max_width: Val::Percent(100.0),
+                                flex_shrink: 0.0,
                                 flex_direction: FlexDirection::Column,
                                 row_gap: Val::Px(6.0),
                                 ..default()
@@ -187,6 +196,11 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                                     &theme,
                                 );
                                 row.commands().entity(entity).insert(GradientControl(index));
+                                row.commands().queue(move |world: &mut World| {
+                                    if let Some(mut node) = world.get_mut::<Node>(entity) {
+                                        node.max_width = Val::Percent(100.0);
+                                    }
+                                });
                             });
                     }
                 });
@@ -206,6 +220,7 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                         previews
                             .spawn(Node {
                                 width: Val::Px(240.0),
+                                flex_shrink: 0.0,
                                 flex_direction: FlexDirection::Column,
                                 row_gap: Val::Px(10.0),
                                 ..default()

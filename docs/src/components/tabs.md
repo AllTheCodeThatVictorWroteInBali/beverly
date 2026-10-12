@@ -1,5 +1,11 @@
 # Tabs
 
+## Live Demo
+
+<iframe src="../assets/demos/index.html?demo=tabs" title="Interactive Beverly tabs demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=tabs" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 <img src="../assets/tabs.svg" alt="Tabs component illustration" width="860" />
 
 Tabs organize several related views within the same area. They are useful for settings, dashboards, or content sections that share a common context and need to switch without leaving the parent surface.

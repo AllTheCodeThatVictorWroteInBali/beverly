@@ -1,5 +1,11 @@
 # 15.1 Hello World
 
+## Live Demo
+
+<iframe src="../assets/demos/index.html?demo=hello_world" title="Interactive Beverly hello world demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=hello_world" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 This is the smallest useful Beverly app: a root `Ui` composition with a centered,
 themed text node.
 

@@ -1,5 +1,11 @@
 # Clipping and Masking
 
+## Live Demo
+
+<iframe src="../assets/demos/index.html?demo=clip_mask" title="Interactive Beverly clipping and masking demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=clip_mask" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 `Clip` and `Mask` trim or fade a `Surface`'s own paint with a rounded-rectangle shape. Both are applied by the surface shader, so they follow the surface's rounded corners and antialiasing. `BeverlyPlugin` installs the renderer needed for the examples below.
 
 They affect the **surface**, not its child nodes. Neither one clips child text, images, or icons. For that, use Bevy's `Node::overflow` on the parent.

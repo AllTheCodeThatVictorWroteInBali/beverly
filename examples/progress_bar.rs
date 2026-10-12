@@ -7,7 +7,11 @@ use beverly::components::title::{ThemedTitle, TitleLevel};
 use beverly::prelude::*;
 use bevy::prelude::*;
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -15,13 +19,16 @@ fn main() {
             current: theme_from_cli_args(),
         })
         .add_systems(Startup, setup)
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(560.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(560.0),
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Stretch,
             row_gap: Val::Px(22.0),
@@ -47,6 +54,8 @@ fn setup(mut commands: Commands) {
 fn progress_row(parent: &mut ChildSpawnerCommands, label: &str, progress: f32) {
     parent
         .spawn(Node {
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(8.0),
             ..default()
@@ -56,6 +65,18 @@ fn progress_row(parent: &mut ChildSpawnerCommands, label: &str, progress: f32) {
                 ThemedText::new(TextRole::Body),
                 Text::new(format!("{label} · {}%", (progress * 100.0).round() as u32)),
             ));
-            spawn_progress_bar_into(row, ProgressBar::new().progress(progress).size(560.0, 12.0));
+            let bar = spawn_progress_bar_into(
+                row,
+                ProgressBar::new().progress(progress).size(560.0, 12.0),
+            );
+            row.commands()
+                .entity(bar)
+                .queue(|mut entity: EntityWorldMut| {
+                    if let Some(mut node) = entity.get_mut::<Node>() {
+                        node.width = Val::Percent(100.0);
+                        node.min_width = Val::Px(0.0);
+                        node.flex_shrink = 0.0;
+                    }
+                });
         });
 }

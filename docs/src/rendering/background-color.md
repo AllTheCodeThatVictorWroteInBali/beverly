@@ -1,5 +1,11 @@
 # Background Color
 
+## Live Demo
+
+<iframe src="../assets/demos/index.html?demo=background_color" title="Interactive Beverly background color demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=background_color" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 Background fills are the starting point for Beverly's shader-backed surfaces. Use `Surface` with `Paint::solid` for a flat color, adjust its alpha for transparency, and overlap surfaces to compose layers.
 
 `BeverlyPlugin` includes `UiRenderingPlugin`, which renders these surfaces. No custom shader or material registration is needed for the examples below.

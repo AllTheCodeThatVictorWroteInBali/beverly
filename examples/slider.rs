@@ -17,7 +17,11 @@ enum ToastSetting {
 #[derive(Component)]
 struct Readout(ToastSetting);
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -26,13 +30,16 @@ fn main() {
         })
         .add_systems(Startup, setup)
         .add_systems(Update, update_readouts)
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(480.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(480.0),
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Stretch,
             row_gap: Val::Px(24.0),
@@ -78,6 +85,8 @@ fn slider_row(
 ) {
     parent
         .spawn(Node {
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(8.0),
             ..default()
@@ -102,6 +111,16 @@ fn slider_row(
                 theme,
             );
             row.commands().entity(entity).insert(setting);
+            row.commands()
+                .entity(entity)
+                .queue(|mut entity: EntityWorldMut| {
+                    if let Some(mut node) = entity.get_mut::<Node>() {
+                        node.width = Val::Percent(100.0);
+                        node.max_width = Val::Px(460.0);
+                        node.min_width = Val::Px(0.0);
+                        node.flex_shrink = 0.0;
+                    }
+                });
         });
 }
 

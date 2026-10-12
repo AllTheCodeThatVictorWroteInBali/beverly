@@ -1,5 +1,11 @@
 # Noise and Texture
 
+## Live Demo
+
+<iframe src="../assets/demos/index.html?demo=noise" title="Interactive Beverly noise demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=noise" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 `Noise` adds procedural grain to a `Surface`. It varies the surface's brightness across its area, which breaks up flat fills and gradients and adds tactile character. The shader generates it, so no texture asset is needed. `BeverlyPlugin` installs the renderer used by the examples below.
 
 ## Basic Usage

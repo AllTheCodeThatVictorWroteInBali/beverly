@@ -1,5 +1,11 @@
 # Dots
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=dots" title="Interactive Beverly dots demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=dots" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 Dots is an animated run of trailing periods that signals ongoing work. It
 cycles through no dots, `.`, `..`, and `...`, then returns to no dots,
 repeating for as long as the entity exists.

@@ -1,5 +1,11 @@
 # Gradients
 
+## Live Demo
+
+<iframe src="../assets/demos/index.html?demo=gradients" title="Interactive Beverly gradients demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=gradients" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 <img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
 
 Gradients add polish and visual hierarchy to surfaces without requiring custom widget logic. They are often used for hero panels, accent areas, and interactive emphasis. In a design system, gradients are best treated as a controlled surface tool rather than as a free-form visual flourish layered onto every card.

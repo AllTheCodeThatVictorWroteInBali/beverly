@@ -1,5 +1,11 @@
 # Text Input
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=input" title="Interactive Beverly text input demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=input" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 > **Current status:** `.bind(...)` examples describe planned model-setter
 > integration and are not currently executable against the crate.
 

@@ -1,5 +1,11 @@
 # Alert
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=alert" title="Interactive Beverly alert demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=alert" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 An Alert is a pre-styled Card used to communicate information to the user.
 
 Alerts follow the familiar contextual pattern popularized by Bootstrap: a common surface with a predefined visual treatment for different kinds of information, such as success, warning, error, and informational messages.

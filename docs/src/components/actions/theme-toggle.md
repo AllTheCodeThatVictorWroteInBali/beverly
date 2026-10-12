@@ -1,5 +1,11 @@
 # Theme Toggle
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=theme_toggle" title="Interactive Beverly theme toggle demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=theme_toggle" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 The theme toggle switches between Beverly's light and dark themes. The active theme lives in `ThemeResource`; themed text, icons, and component surfaces follow that resource.
 
 `BeverlyPlugin` installs `ThemeTogglePlugin` alongside the button, icon, and theme systems.

@@ -1,5 +1,11 @@
 # Search
 
+## Live Demo
+
+<iframe src="../assets/demos/index.html?demo=search" title="Interactive Beverly search demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=search" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 <img src="../assets/search.svg" alt="Search component illustration" width="860" />
 
 Search controls help users filter or locate items in a data-heavy interface. They are especially useful when a user is trying to find an item quickly without scanning a long list manually.

@@ -62,7 +62,11 @@ struct ActionButton(Action);
 #[derive(Component)]
 struct DirectionButton(SkeletonDirection);
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -83,14 +87,16 @@ fn main() {
             )
                 .chain(),
         )
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(520.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(520.0),
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(16.0),
             ..default()
@@ -159,6 +165,9 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                         controls
                             .spawn(Node {
                                 width: Val::Px(240.0),
+                                max_width: Val::Percent(100.0),
+                                min_width: Val::Px(0.0),
+                                flex_shrink: 0.0,
                                 flex_direction: FlexDirection::Column,
                                 row_gap: Val::Px(4.0),
                                 ..default()
@@ -179,6 +188,15 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                                     &theme,
                                 );
                                 row.commands().entity(slider).insert(DockControl(index));
+                                row.commands().entity(slider).queue(
+                                    |mut entity: EntityWorldMut| {
+                                        if let Some(mut node) = entity.get_mut::<Node>() {
+                                            node.width = Val::Percent(100.0);
+                                            node.min_width = Val::Px(0.0);
+                                            node.flex_shrink = 0.0;
+                                        }
+                                    },
+                                );
                             });
                     }
                 });
@@ -187,6 +205,8 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                     CardSurface,
                     Node {
                         width: Val::Percent(100.0),
+                        min_width: Val::Px(0.0),
+                        flex_shrink: 0.0,
                         padding: UiRect::all(Val::Px(24.0)),
                         ..default()
                     },
@@ -283,6 +303,7 @@ fn spawn_skeleton(body: &mut ChildSpawnerCommands, state: &DockState) {
             .spawn(Node {
                 align_items: AlignItems::Center,
                 column_gap: Val::Px(16.0),
+                min_width: Val::Px(0.0),
                 ..default()
             })
             .with_children(|header| {
@@ -290,6 +311,7 @@ fn spawn_skeleton(body: &mut ChildSpawnerCommands, state: &DockState) {
                 header
                     .spawn(Node {
                         flex_grow: 1.0,
+                        min_width: Val::Px(0.0),
                         flex_direction: FlexDirection::Column,
                         row_gap: Val::Px(10.0),
                         ..default()
@@ -323,6 +345,7 @@ fn spawn_content(body: &mut ChildSpawnerCommands) {
             .spawn(Node {
                 align_items: AlignItems::Center,
                 column_gap: Val::Px(16.0),
+                min_width: Val::Px(0.0),
                 ..default()
             })
             .with_children(|header| {
@@ -331,6 +354,7 @@ fn spawn_content(body: &mut ChildSpawnerCommands) {
                         Node {
                             width: Val::Px(56.0),
                             height: Val::Px(56.0),
+                            flex_shrink: 0.0,
                             align_items: AlignItems::Center,
                             justify_content: JustifyContent::Center,
                             ..default()
@@ -348,6 +372,7 @@ fn spawn_content(body: &mut ChildSpawnerCommands) {
                     });
                 header
                     .spawn(Node {
+                        min_width: Val::Px(0.0),
                         flex_direction: FlexDirection::Column,
                         row_gap: Val::Px(4.0),
                         ..default()

@@ -1,5 +1,11 @@
 # Loading Skeleton
 
+## Live Demo
+
+<iframe src="../assets/demos/index.html?demo=skeleton" title="Interactive Beverly loading skeleton demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=skeleton" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 A skeleton is a placeholder silhouette that stands in for content while it loads. It keeps the layout stable and shows where content will appear. `Skeleton` is decorative and non-interactive, and `SkeletonGroup` marks a whole loading region as busy for assistive technology.
 
 `BeverlyPlugin` installs `SkeletonPlugin`. Skeletons are not progress indicators: they say that something is loading, not how far along it is. For that, see [Loading](loading.md).

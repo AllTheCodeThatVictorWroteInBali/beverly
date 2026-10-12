@@ -1,5 +1,11 @@
 # Liquid Glass
 
+## Live Demo
+
+<iframe src="../assets/demos/index.html?demo=liquid_glass" title="Interactive Beverly liquid glass demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=liquid_glass" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 <img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
 
 The liquid-glass pattern is the most advanced visual treatment in a modern UI system. It adds translucency, refraction, highlight response, and a distinctive layered feel while preserving readability. This is the style most closely associated with theblocks_studio reference work: a single Surface model is given a glass-like material, a blur treatment, and optical highlight calculations rather than a one-off hack.

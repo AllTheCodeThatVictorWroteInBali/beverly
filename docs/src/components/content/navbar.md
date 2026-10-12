@@ -1,5 +1,11 @@
 # Navbar
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=navbar" title="Interactive Beverly navbar demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=navbar" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 A Navbar is a horizontal layout primitive for organizing content across the top or edge of an interface.
 
 It provides three named sections:

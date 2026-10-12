@@ -37,7 +37,11 @@ fn page_count() -> usize {
     icon_names().len().div_ceil(PER_PAGE)
 }
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -47,14 +51,16 @@ fn main() {
         .init_resource::<GalleryPage>()
         .add_systems(Startup, setup)
         .add_systems(Update, rebuild_grid)
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(1000.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(1000.0),
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(16.0),
             ..default()
@@ -72,6 +78,7 @@ fn setup(mut commands: Commands) {
                 IconGrid,
                 Node {
                     width: Val::Percent(100.0),
+                    flex_shrink: 0.0,
                     flex_direction: FlexDirection::Row,
                     flex_wrap: FlexWrap::Wrap,
                     column_gap: Val::Px(8.0),
@@ -81,8 +88,10 @@ fn setup(mut commands: Commands) {
             ));
             content
                 .spawn(Node {
+                    flex_wrap: FlexWrap::Wrap,
                     align_items: AlignItems::Center,
                     column_gap: Val::Px(14.0),
+                    row_gap: Val::Px(14.0),
                     ..default()
                 })
                 .with_children(|pager| {
@@ -134,6 +143,7 @@ fn rebuild_grid(
                     grid.spawn(Node {
                         width: Val::Px(104.0),
                         height: Val::Px(84.0),
+                        flex_shrink: 0.0,
                         flex_direction: FlexDirection::Column,
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::Center,

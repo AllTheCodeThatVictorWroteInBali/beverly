@@ -4,7 +4,11 @@
 use beverly::prelude::*;
 use bevy::prelude::*;
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -12,7 +16,7 @@ fn main() {
             current: theme_from_cli_args(),
         })
         .add_systems(Startup, setup)
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands) {
@@ -27,8 +31,13 @@ fn setup(mut commands: Commands) {
 
         for dark in [false, true] {
             root.spawn(Node {
+                max_width: Val::Percent(100.0),
+                min_width: Val::Px(0.0),
+                flex_shrink: 0.0,
+                flex_wrap: FlexWrap::Wrap,
                 align_items: AlignItems::Center,
                 column_gap: Val::Px(16.0),
+                row_gap: Val::Px(16.0),
                 ..default()
             })
             .with_children(|row| {

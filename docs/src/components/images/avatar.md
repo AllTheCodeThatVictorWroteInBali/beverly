@@ -1,5 +1,11 @@
 # Avatar
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=avatar" title="Interactive Beverly avatar demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=avatar" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 An Avatar is a circular image used to represent a person, account, or other identity.
 
 It is intentionally a very small abstraction over the Image primitive. It does not introduce a new image system, state system, or composition model.

@@ -19,7 +19,11 @@ enum Swatch {
     Border,
 }
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -28,14 +32,16 @@ fn main() {
         })
         .add_systems(Startup, setup)
         .add_systems(Update, update_shift)
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(480.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(480.0),
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Center,
             row_gap: Val::Px(22.0),
@@ -61,7 +67,12 @@ fn setup(mut commands: Commands) {
             content.spawn((ShiftLabel, ThemedText::new(TextRole::Body), Text::new("")));
             content
                 .spawn(Node {
+                    max_width: Val::Percent(100.0),
+                    min_width: Val::Px(0.0),
+                    flex_shrink: 0.0,
+                    flex_wrap: FlexWrap::Wrap,
                     column_gap: Val::Px(24.0),
+                    row_gap: Val::Px(16.0),
                     margin: UiRect::top(Val::Px(12.0)),
                     ..default()
                 })

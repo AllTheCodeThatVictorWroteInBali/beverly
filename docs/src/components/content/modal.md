@@ -1,5 +1,11 @@
 # Modal
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=modal" title="Interactive Beverly modal demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=modal" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 > **Current status:** Modal header/body/footer examples below describe the
 > planned fluent section API. The current source uses `BasicModalContent` and
 > `spawn_modal_with_surface(...)` for specialized modal construction.

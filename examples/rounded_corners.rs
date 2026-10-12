@@ -8,6 +8,10 @@ use beverly::prelude::*;
 use beverly::rendering::{Paint, Shape, Surface};
 use bevy::prelude::*;
 
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
 #[derive(Component)]
 struct RadiusControl(usize);
 
@@ -19,7 +23,7 @@ enum CornerPreview {
     Circle,
 }
 
-fn main() {
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -28,14 +32,15 @@ fn main() {
         })
         .add_systems(Startup, setup)
         .add_systems(Update, update_previews)
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(760.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(760.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(18.0),
             ..default()
@@ -70,6 +75,8 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                         controls
                             .spawn(Node {
                                 width: Val::Px(232.0),
+                                max_width: Val::Percent(100.0),
+                                flex_shrink: 0.0,
                                 flex_direction: FlexDirection::Column,
                                 row_gap: Val::Px(4.0),
                                 ..default()
@@ -90,6 +97,11 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                                     &theme,
                                 );
                                 row.commands().entity(slider).insert(RadiusControl(index));
+                                row.commands().queue(move |world: &mut World| {
+                                    if let Some(mut node) = world.get_mut::<Node>(slider) {
+                                        node.max_width = Val::Percent(100.0);
+                                    }
+                                });
                             });
                     }
                 });
@@ -130,6 +142,8 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                         previews
                             .spawn(Node {
                                 width: Val::Px(370.0),
+                                max_width: Val::Percent(100.0),
+                                flex_shrink: 0.0,
                                 flex_direction: FlexDirection::Column,
                                 row_gap: Val::Px(8.0),
                                 ..default()
@@ -156,6 +170,8 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                                                     },
                                                 ),
                                                 height: Val::Px(120.0),
+                                                max_width: Val::Percent(100.0),
+                                                flex_shrink: 0.0,
                                                 padding: UiRect::all(Val::Px(20.0)),
                                                 align_items: AlignItems::Center,
                                                 justify_content: JustifyContent::Center,

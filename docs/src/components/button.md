@@ -48,6 +48,12 @@ bash web/button-demo/build.sh
 
 The Pages workflow builds and publishes this bundle automatically.
 
+## Live Demo: Buttons
+
+<iframe src="../assets/demos/index.html?demo=buttons" title="Interactive Beverly buttons demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=buttons" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 ## Content
 
 The convenience constructors remain available when the label is known at the

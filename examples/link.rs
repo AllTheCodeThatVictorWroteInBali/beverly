@@ -5,7 +5,11 @@ use beverly::components::link::LinkClicked;
 use beverly::prelude::*;
 use bevy::prelude::*;
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_systems(Update, log_link_clicks)
         .ui(ui()
@@ -17,7 +21,7 @@ fn main() {
                 .aria("Opens the Beverly website in your web browser")
                 .to("https://www.beverlyui.com")
                 .external()]))
-        .run();
+        .run_demo();
 }
 
 fn log_link_clicks(mut clicks: MessageReader<LinkClicked>) {

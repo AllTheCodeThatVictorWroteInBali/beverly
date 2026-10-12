@@ -13,6 +13,10 @@ use beverly::rendering::{
 };
 use bevy::prelude::*;
 
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
 const INTENTS: [&str; 3] = ["Default", "Selected", "Invalid"];
 const PLACEMENTS: [(&str, FocusRingPlacement); 3] = [
     ("Outside", FocusRingPlacement::Outside),
@@ -65,7 +69,7 @@ enum RingPreview {
     Inside,
 }
 
-fn main() {
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -78,14 +82,15 @@ fn main() {
             Update,
             (read_sliders, update_previews, style_buttons).chain(),
         )
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(760.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(760.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(16.0),
             ..default()
@@ -132,6 +137,7 @@ fn spawn_focus_targets(content: &mut ChildSpawnerCommands) {
             Node {
                 width: Val::Percent(100.0),
                 height: Val::Px(72.0),
+                flex_shrink: 0.0,
                 padding: UiRect::all(Val::Px(8.0)),
                 ..default()
             },
@@ -169,6 +175,8 @@ fn spawn_controls(content: &mut ChildSpawnerCommands, theme: &ThemeResource) {
                 controls
                     .spawn(Node {
                         width: Val::Px(232.0),
+                        max_width: Val::Percent(100.0),
+                        flex_shrink: 0.0,
                         flex_direction: FlexDirection::Column,
                         row_gap: Val::Px(4.0),
                         ..default()
@@ -189,6 +197,11 @@ fn spawn_controls(content: &mut ChildSpawnerCommands, theme: &ThemeResource) {
                             theme,
                         );
                         row.commands().entity(slider).insert(RingControl(index));
+                        row.commands().queue(move |world: &mut World| {
+                            if let Some(mut node) = world.get_mut::<Node>(slider) {
+                                node.max_width = Val::Percent(100.0);
+                            }
+                        });
                     });
             }
         });
@@ -254,6 +267,8 @@ fn spawn_previews(content: &mut ChildSpawnerCommands, theme: &ThemeResource) {
                     RingPreview::Main,
                     Node {
                         width: Val::Px(260.0),
+                        max_width: Val::Percent(100.0),
+                        flex_shrink: 0.0,
                         height: Val::Px(100.0),
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::Center,
@@ -274,6 +289,7 @@ fn spawn_previews(content: &mut ChildSpawnerCommands, theme: &ThemeResource) {
                         kind,
                         Node {
                             width: Val::Px(96.0),
+                            flex_shrink: 0.0,
                             height: Val::Px(64.0),
                             align_items: AlignItems::Center,
                             justify_content: JustifyContent::Center,

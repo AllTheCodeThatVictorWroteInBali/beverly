@@ -7,7 +7,11 @@ use beverly::icons::IconCommands;
 use beverly::prelude::*;
 use bevy::prelude::*;
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -15,13 +19,16 @@ fn main() {
             current: theme_from_cli_args(),
         })
         .add_systems(Startup, setup)
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(500.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(500.0),
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Stretch,
             row_gap: Val::Px(24.0),
@@ -62,6 +69,8 @@ fn loading_row(parent: &mut ChildSpawnerCommands, size: f32, label: &str, detail
     parent
         .spawn(Node {
             min_height: Val::Px(72.0),
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             align_items: AlignItems::Center,
             column_gap: Val::Px(18.0),
             ..default()

@@ -3,6 +3,7 @@
 
 use beverly::components::text::{TextRole, ThemedText};
 use beverly::components::title::{ThemedTitle, TitleLevel};
+use beverly::components::toggle::component::{ToggleLabel, ToggleTrack};
 use beverly::components::toggle::{Toggle, ToggleConfig, ToggleShadowMaterial, spawn_toggle};
 use beverly::icons::Icon;
 use beverly::prelude::*;
@@ -14,7 +15,11 @@ struct DeskSetting;
 #[derive(Component)]
 struct SafeguardReadout;
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -23,7 +28,20 @@ fn main() {
         })
         .add_systems(Startup, setup)
         .add_systems(Update, update_readout)
-        .run();
+        .add_systems(Update, fit_toggle_parts)
+        .run_demo();
+}
+
+fn fit_toggle_parts(
+    mut labels: Query<&mut Node, (Added<ToggleLabel>, Without<ToggleTrack>)>,
+    mut tracks: Query<&mut Node, (Added<ToggleTrack>, Without<ToggleLabel>)>,
+) {
+    for mut node in &mut labels {
+        node.min_width = Val::Px(0.0);
+    }
+    for mut node in &mut tracks {
+        node.flex_shrink = 0.0;
+    }
 }
 
 fn setup(
@@ -33,8 +51,10 @@ fn setup(
 ) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(500.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(500.0),
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(18.0),
             ..default()
@@ -75,6 +95,8 @@ fn setup(
             ] {
                 content
                     .spawn(Node {
+                        min_width: Val::Px(0.0),
+                        flex_shrink: 0.0,
                         flex_direction: FlexDirection::Column,
                         row_gap: Val::Px(4.0),
                         ..default()

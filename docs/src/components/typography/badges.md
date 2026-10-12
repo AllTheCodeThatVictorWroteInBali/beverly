@@ -1,5 +1,11 @@
 # Badge
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=badge" title="Interactive Beverly badge demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=badge" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 A Badge is a compact text primitive used to communicate a short piece of contextual information.
 
 Badges are useful for statuses, categories, counts, labels, states, and other small pieces of information that benefit from visual emphasis.

@@ -8,7 +8,11 @@ use beverly::components::toast::{Toast, ToastKind, ToastPosition};
 use beverly::prelude::*;
 use bevy::prelude::*;
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -16,14 +20,45 @@ fn main() {
             current: theme_from_cli_args(),
         })
         .add_systems(Startup, setup)
-        .run();
+        .add_systems(PostUpdate, fit_toasts.before(bevy::ui::UiSystems::Prepare))
+        .run_demo();
+}
+
+fn fit_toasts(
+    lanes: Query<&Children, With<Toast>>,
+    children: Query<&Children, Without<Toast>>,
+    mut nodes: Query<&mut Node>,
+) {
+    for lane in &lanes {
+        for card in lane.iter() {
+            if let Ok(mut node) = nodes.get_mut(card) {
+                node.width = Val::Px(360.0);
+                node.max_width = Val::Percent(100.0);
+                node.min_width = Val::Px(0.0);
+                node.flex_shrink = 0.0;
+            }
+            if let Ok(parts) = children.get(card) {
+                for part in parts.iter() {
+                    if let Ok(mut node) = nodes.get_mut(part) {
+                        if node.flex_direction == FlexDirection::Column {
+                            node.min_width = Val::Px(0.0);
+                        } else {
+                            node.flex_shrink = 0.0;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn setup(mut commands: Commands) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(480.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(480.0),
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(18.0),
             ..default()

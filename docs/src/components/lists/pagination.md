@@ -1,5 +1,11 @@
 # Pagination
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=pagination" title="Interactive Beverly pagination demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=pagination" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 <img src="../assets/pagination.svg" alt="Pagination component illustration" width="860" />
 
 Pagination helps users move through large result sets or multi-page collections. It is valuable when the data set is too large to display in a single pass but still benefits from clear page boundaries.

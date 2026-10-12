@@ -8,7 +8,11 @@ use beverly::prelude::*;
 use beverly::primitives::root::UiFonts;
 use bevy::prelude::*;
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -16,7 +20,31 @@ fn main() {
             current: theme_from_cli_args(),
         })
         .add_systems(Startup, setup)
-        .run();
+        .add_systems(PostUpdate, fit_sidebar.before(bevy::ui::UiSystems::Prepare))
+        .run_demo();
+}
+
+fn fit_sidebar(
+    state: Res<beverly::components::sidebar::SidebarState>,
+    mut sidebars: Query<&mut Node, With<beverly::components::sidebar::Sidebar>>,
+    mut buttons: Query<
+        &mut Node,
+        (
+            With<beverly::components::nav_button::DrawerButton>,
+            Without<beverly::components::sidebar::Sidebar>,
+        ),
+    >,
+) {
+    for mut node in &mut sidebars {
+        node.min_width = px(if state.open { 220.0 } else { 58.0 });
+        node.max_width = percent(100);
+        node.height = px(520);
+        node.flex_shrink = 0.0;
+        node.overflow = Overflow::scroll_y();
+    }
+    for mut node in &mut buttons {
+        node.flex_shrink = 0.0;
+    }
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -27,17 +55,28 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     spawn_themed_page(&mut commands, move |root| {
         root.spawn(Node {
             width: percent(100),
-            height: percent(100),
+            min_height: px(520),
+            min_width: px(0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Row,
+            flex_wrap: FlexWrap::Wrap,
             align_items: AlignItems::Stretch,
             ..default()
         })
         .with_children(|shell| {
-            spawn_sidebar(shell, &ui_fonts, 0.0);
+            let sidebar = spawn_sidebar(shell, &ui_fonts, 0.0);
+            shell
+                .commands()
+                .entity(sidebar)
+                .insert((bevy::ui_widgets::ScrollArea, ScrollPosition::default()));
             shell
                 .spawn(Node {
-                    width: percent(70),
-                    height: percent(100),
+                    flex_basis: px(240),
+                    flex_grow: 1.0,
+                    min_width: px(0),
+                    max_width: percent(100),
+                    min_height: px(240),
+                    flex_shrink: 0.0,
                     flex_direction: FlexDirection::Column,
                     justify_content: JustifyContent::Center,
                     align_items: AlignItems::Center,

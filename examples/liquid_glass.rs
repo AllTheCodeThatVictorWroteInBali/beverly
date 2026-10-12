@@ -9,6 +9,10 @@ use beverly::prelude::*;
 use beverly::rendering::{Backdrop, BackdropQuality, GlassProfile, LiquidGlass, Paint, Surface};
 use bevy::prelude::*;
 
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
 const STRIPE_WIDTH: f32 = 64.0;
 const PROFILES: [(&str, GlassProfile); 4] = [
     ("Convex", GlassProfile::Convex),
@@ -44,7 +48,7 @@ struct GlassLens;
 #[derive(Component)]
 struct MovingStripe(usize);
 
-fn main() {
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -54,14 +58,15 @@ fn main() {
         .init_resource::<GlassSettings>()
         .add_systems(Startup, setup)
         .add_systems(Update, (update_controls, update_scene).chain())
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(760.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(760.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(18.0),
             ..default()
@@ -96,6 +101,8 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                         controls
                             .spawn(Node {
                                 width: Val::Px(232.0),
+                                max_width: Val::Percent(100.0),
+                                flex_shrink: 0.0,
                                 flex_direction: FlexDirection::Column,
                                 row_gap: Val::Px(4.0),
                                 ..default()
@@ -116,12 +123,18 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                                     &theme,
                                 );
                                 row.commands().entity(slider).insert(GlassControl(index));
+                                row.commands().queue(move |world: &mut World| {
+                                    if let Some(mut node) = world.get_mut::<Node>(slider) {
+                                        node.max_width = Val::Percent(100.0);
+                                    }
+                                });
                             });
                     }
                 });
             content
                 .spawn(Node {
                     column_gap: Val::Px(8.0),
+                    row_gap: Val::Px(8.0),
                     flex_wrap: FlexWrap::Wrap,
                     ..default()
                 })
@@ -136,7 +149,18 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
             content
                 .spawn(Node {
                     width: Val::Percent(100.0),
-                    height: Val::Px(320.0),
+                    min_height: Val::Px(320.0),
+                    flex_shrink: 0.0,
+                    flex_wrap: FlexWrap::Wrap,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(110.0),
+                    row_gap: Val::Px(20.0),
+                    padding: UiRect {
+                        top: Val::Px(80.0),
+                        bottom: Val::Px(80.0),
+                        left: Val::Px(24.0),
+                        right: Val::Px(24.0),
+                    },
                     position_type: PositionType::Relative,
                     overflow: Overflow::clip(),
                     ..default()
@@ -193,6 +217,7 @@ fn spawn_scene(scene: &mut ChildSpawnerCommands) {
         Node {
             position_type: PositionType::Absolute,
             left: Val::Px(24.0),
+            right: Val::Px(24.0),
             top: Val::Px(24.0),
             ..default()
         },
@@ -201,17 +226,13 @@ fn spawn_scene(scene: &mut ChildSpawnerCommands) {
             .color(Color::WHITE),
         Text::new("BISCUITS / TEA / TOAST"),
     ));
-    for (left, top, width, height, radius) in [
-        (60.0, 90.0, 300.0, 140.0, 70.0),
-        (470.0, 80.0, 160.0, 160.0, 80.0),
-    ] {
+    for (width, height, radius) in [(300.0, 140.0, 70.0), (160.0, 160.0, 80.0)] {
         scene.spawn((
             GlassLens,
             Node {
-                position_type: PositionType::Absolute,
-                left: Val::Px(left),
-                top: Val::Px(top),
                 width: Val::Px(width),
+                max_width: Val::Percent(100.0),
+                flex_shrink: 0.0,
                 height: Val::Px(height),
                 ..default()
             },

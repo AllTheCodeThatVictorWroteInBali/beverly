@@ -1,5 +1,11 @@
 # Text
 
+## Live Demo
+
+<iframe src="../../assets/demos/index.html?demo=text" title="Interactive Beverly text demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../../assets/demos/index.html?demo=text" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 Use `text("...")` as the canonical way to create ordinary text in a Beverly
 application:
 

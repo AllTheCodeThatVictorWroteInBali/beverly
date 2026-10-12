@@ -1,9 +1,13 @@
 //! Minimal example demonstrating Beverly buttons and button groups.
 
-use bevy::prelude::*;
 use beverly::prelude::*;
+use bevy::prelude::*;
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -11,23 +15,33 @@ fn main() {
             current: light_theme(),
         })
         .add_systems(Startup, setup)
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands) {
     commands
-        .spawn(Node {
-            display: Display::Flex,
-            flex_direction: FlexDirection::Column,
-            row_gap: Val::Px(16.0),
-            padding: UiRect::all(Val::Px(24.0)),
-            ..default()
-        })
+        .spawn((
+            bevy::ui_widgets::ScrollArea,
+            ScrollPosition::default(),
+            Node {
+                width: Val::Percent(100.0),
+                max_width: Val::Px(960.0),
+                min_width: Val::Px(0.0),
+                max_height: Val::Percent(100.0),
+                overflow: Overflow::scroll_y(),
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(16.0),
+                padding: UiRect::all(Val::Px(24.0)),
+                ..default()
+            },
+        ))
         .with_children(|root| {
             // Solid color variants.
             root.spawn(Node {
                 display: Display::Flex,
                 flex_wrap: FlexWrap::Wrap,
+                flex_shrink: 0.0,
                 column_gap: Val::Px(12.0),
                 row_gap: Val::Px(12.0),
                 ..default()
@@ -48,6 +62,7 @@ fn setup(mut commands: Commands) {
             root.spawn(Node {
                 display: Display::Flex,
                 flex_wrap: FlexWrap::Wrap,
+                flex_shrink: 0.0,
                 column_gap: Val::Px(12.0),
                 row_gap: Val::Px(12.0),
                 ..default()
@@ -67,7 +82,10 @@ fn setup(mut commands: Commands) {
             // as disabled to screen readers, not just visually muted.
             root.spawn(Node {
                 display: Display::Flex,
+                flex_wrap: FlexWrap::Wrap,
+                flex_shrink: 0.0,
                 column_gap: Val::Px(12.0),
+                row_gap: Val::Px(12.0),
                 ..default()
             })
             .with_children(|row| {

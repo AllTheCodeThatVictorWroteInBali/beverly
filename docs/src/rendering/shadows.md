@@ -1,5 +1,17 @@
 # Shadows
 
+## Live Demo: Outer Shadow
+
+<iframe src="../assets/demos/index.html?demo=outer_shadow" title="Interactive Beverly outer shadow demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=outer_shadow" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
+## Live Demo: Inner Shadow
+
+<iframe src="../assets/demos/index.html?demo=inner_shadow" title="Interactive Beverly inner shadow demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>
+
+<a href="../assets/demos/index.html?demo=inner_shadow" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
+
 <img src="../assets/beverly_logo_final.png" alt="Beverly brand mark" width="280" />
 
 Shadows help show elevation and surface separation. They are best when subtle and consistent, and they should support the interface without becoming decoration. In a well-designed system, shadows are not a visual gimmick; they are a way to communicate depth, layering, and separation in a controlled, readable way.

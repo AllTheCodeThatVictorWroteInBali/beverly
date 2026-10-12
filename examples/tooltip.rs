@@ -11,7 +11,11 @@ use bevy::prelude::*;
 #[derive(Component)]
 struct DispatchReadout;
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -19,14 +23,16 @@ fn main() {
             current: theme_from_cli_args(),
         })
         .add_systems(Startup, setup)
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(540.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(540.0),
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(22.0),
             ..default()
@@ -43,6 +49,8 @@ fn setup(mut commands: Commands) {
             content
                 .spawn(Node {
                     width: Val::Percent(100.0),
+                    min_width: Val::Px(0.0),
+                    flex_shrink: 0.0,
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Center,
                     row_gap: Val::Px(56.0),
@@ -92,6 +100,9 @@ fn build_actions(parent: &mut ChildSpawnerCommands) {
     ] {
         parent
             .spawn(Node {
+                max_width: Val::Percent(100.0),
+                min_width: Val::Px(0.0),
+                flex_shrink: 0.0,
                 column_gap: Val::Px(24.0),
                 flex_wrap: FlexWrap::Wrap,
                 row_gap: Val::Px(24.0),

@@ -6,7 +6,11 @@ use beverly::components::title::{ThemedTitle, TitleLevel};
 use beverly::prelude::*;
 use bevy::prelude::*;
 
-fn main() {
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -14,14 +18,16 @@ fn main() {
             current: theme_from_cli_args(),
         })
         .add_systems(Startup, setup)
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(640.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(640.0),
+            min_width: Val::Px(0.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(20.0),
             ..default()
@@ -43,8 +49,12 @@ fn setup(mut commands: Commands) {
                 content
                     .spawn(Node {
                         width: Val::Percent(100.0),
+                        min_width: Val::Px(0.0),
+                        flex_shrink: 0.0,
+                        flex_wrap: FlexWrap::Wrap,
                         align_items: AlignItems::Baseline,
                         column_gap: Val::Px(20.0),
+                        row_gap: Val::Px(8.0),
                         ..default()
                     })
                     .with_children(|row| {
@@ -62,6 +72,7 @@ fn setup(mut commands: Commands) {
                             Text::new(title),
                             TextLayout::linebreak(LineBreak::WordOrCharacter),
                             Node {
+                                flex_basis: Val::Px(240.0),
                                 flex_grow: 1.0,
                                 min_width: Val::Px(0.0),
                                 ..default()

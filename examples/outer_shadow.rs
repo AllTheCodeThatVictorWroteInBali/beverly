@@ -9,6 +9,10 @@ use beverly::prelude::*;
 use beverly::rendering::{OuterShadow, Paint, ShadowFalloff, Surface};
 use bevy::prelude::*;
 
+#[path = "support/mod.rs"]
+mod demo_support;
+use demo_support::DemoAppExt;
+
 #[derive(Resource)]
 struct ShadowSettings {
     values: [f32; 5],
@@ -36,7 +40,7 @@ struct PresetSurface;
 #[derive(Component)]
 struct FalloffButton(ShadowFalloff);
 
-fn main() {
+pub fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(BeverlyPlugin)
@@ -46,14 +50,15 @@ fn main() {
         .init_resource::<ShadowSettings>()
         .add_systems(Startup, setup)
         .add_systems(Update, (update_controls, update_surfaces).chain())
-        .run();
+        .run_demo();
 }
 
 fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
     spawn_themed_page(&mut commands, |root| {
         root.spawn(Node {
-            width: Val::Px(760.0),
-            max_width: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            max_width: Val::Px(760.0),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(18.0),
             ..default()
@@ -88,6 +93,8 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                         controls
                             .spawn(Node {
                                 width: Val::Px(232.0),
+                                max_width: Val::Percent(100.0),
+                                flex_shrink: 0.0,
                                 flex_direction: FlexDirection::Column,
                                 row_gap: Val::Px(4.0),
                                 ..default()
@@ -108,12 +115,18 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                                     &theme,
                                 );
                                 row.commands().entity(slider).insert(ShadowControl(index));
+                                row.commands().queue(move |world: &mut World| {
+                                    if let Some(mut node) = world.get_mut::<Node>(slider) {
+                                        node.max_width = Val::Percent(100.0);
+                                    }
+                                });
                             });
                     }
                 });
             content
                 .spawn(Node {
                     column_gap: Val::Px(8.0),
+                    row_gap: Val::Px(8.0),
                     flex_wrap: FlexWrap::Wrap,
                     ..default()
                 })
@@ -133,6 +146,7 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                 .spawn(Node {
                     width: Val::Percent(100.0),
                     height: Val::Px(240.0),
+                    flex_shrink: 0.0,
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,
                     ..default()
@@ -143,6 +157,8 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                             ShadowPreview,
                             Node {
                                 width: Val::Px(300.0),
+                                max_width: Val::Percent(100.0),
+                                flex_shrink: 0.0,
                                 height: Val::Px(120.0),
                                 align_items: AlignItems::Center,
                                 justify_content: JustifyContent::Center,
@@ -181,6 +197,7 @@ fn setup(mut commands: Commands, theme: Res<ThemeResource>) {
                                 PresetSurface,
                                 Node {
                                     width: Val::Px(200.0),
+                                    flex_shrink: 0.0,
                                     height: Val::Px(70.0),
                                     align_items: AlignItems::Center,
                                     justify_content: JustifyContent::Center,
