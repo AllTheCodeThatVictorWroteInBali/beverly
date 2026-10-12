@@ -900,6 +900,45 @@
         color: #cbd5e1;
       }
 
+      .download-option {
+        gap: 10px;
+      }
+
+      .download-note {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 26px;
+        color: #94a3b8;
+        font-size: 0.95rem;
+        line-height: 1.7;
+      }
+
+      .download-note a {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #c7d2fe;
+        font-weight: 600;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(165, 180, 252, 0.55);
+        transition:
+          color 0.2s ease,
+          border-color 0.2s ease;
+      }
+
+      .download-note a::after {
+        content: "\2197";
+        font-size: 0.9em;
+      }
+
+      .download-note a:hover {
+        color: #fff;
+        border-color: #fff;
+      }
+
       /* =========================================================
      FOOTER
      ========================================================= */
@@ -1491,7 +1530,7 @@
               width="20"
               height="20"
               fill="currentColor"
-              class="me-2 align-text-bottom"
+              class="align-text-bottom"
               viewBox="0 0 16 16"
               aria-hidden="true"
             >
@@ -1512,7 +1551,7 @@
               width="20"
               height="20"
               fill="currentColor"
-              class="me-2 align-text-bottom"
+              class="align-text-bottom"
               viewBox="0 0 16 16"
               aria-hidden="true"
             >
@@ -1525,6 +1564,7 @@
         </div>
 
         <p class="download-note">
+          <span>Want to build with Beverly?</span>
           <a href="mailto:victor@beverlyui.com">What are you building?</a>
         </p>
       </div>
