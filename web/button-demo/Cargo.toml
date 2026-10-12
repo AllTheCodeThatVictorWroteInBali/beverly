@@ -12,7 +12,7 @@ bevy = { version = "0.19", default-features = false, features = ["2d", "ui"] }
 beverly = { path = "../..", default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-web-sys = { version = "0.3", features = ["Window"] }
+web-sys = { version = "0.3", features = ["Document", "Element", "Window"] }
 
 [profile.release]
 opt-level = "z"

@@ -11,7 +11,7 @@
         height: 100%;
         margin: 0;
         overflow: hidden;
-        background: #101215;
+        background: #fff;
       }
 
       #bevy {
@@ -20,9 +20,46 @@
         height: 100%;
         outline: none;
       }
+
+      #loading-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 2;
+        display: grid;
+        place-items: center;
+        background: #fff;
+      }
+
+      #loading-screen[hidden] {
+        display: none;
+      }
+
+      .loading-spinner {
+        width: 34px;
+        height: 34px;
+        border: 3px solid #e4e4e7;
+        border-top-color: #27272a;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .loading-spinner {
+          animation-duration: 1.8s;
+        }
+      }
     </style>
   </head>
   <body>
+    <div id="loading-screen" role="status" aria-label="Loading button demo">
+      <span class="loading-spinner" aria-hidden="true"></span>
+    </div>
     <canvas id="bevy" tabindex="0" aria-label="Interactive Beverly button showcase"></canvas>
     <link
       data-trunk

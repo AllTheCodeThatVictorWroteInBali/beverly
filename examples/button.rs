@@ -24,7 +24,7 @@ pub fn main() {
         .insert_resource(ThemeResource {
             current: initial_theme,
         })
-        .add_systems(Startup, setup)
+        .add_systems(Startup, (setup, hide_loading_screen).chain())
         .run();
 }
 
@@ -116,3 +116,18 @@ fn setup(mut commands: Commands) {
         });
     });
 }
+
+#[cfg(target_arch = "wasm32")]
+fn hide_loading_screen() {
+    let Some(loading_screen) = web_sys::window()
+        .and_then(|window| window.document())
+        .and_then(|document| document.get_element_by_id("loading-screen"))
+    else {
+        return;
+    };
+
+    let _ = loading_screen.set_attribute("hidden", "");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn hide_loading_screen() {}
