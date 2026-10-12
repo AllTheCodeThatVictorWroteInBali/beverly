@@ -31,7 +31,7 @@ aggregate plugin, add `ButtonPlugin` yourself.
 	title="Interactive Beverly button showcase"
 	loading="lazy"
 	allow="fullscreen"
-	style="display: block; width: 100%; height: 580px; border: 0; background: #101215;"
+	style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0; background: #101215;"
 ></iframe>
 
 [Open the demo in a separate tab](../assets/button-demo/index.html).
