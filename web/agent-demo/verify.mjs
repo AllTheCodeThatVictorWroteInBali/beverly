@@ -24,7 +24,7 @@ try {
     await page.frameLocator('#browser-demo-frame').locator('#loading-screen').waitFor({ state: 'hidden', timeout: 120000 });
     assert.equal(modelRequests.length, 0, 'Model download must wait for explicit selection.');
     assert.match(await page.locator('#browser-demo-notice .browser-demo-modal-title').textContent(), /Easy there, speed racer\./);
-    assert.match(await page.locator('#browser-demo-notice .browser-demo-modal-text').textContent(), /TinyLlama locally in your browser using WASM/);
+    assert.match(await page.locator('#browser-demo-notice .browser-demo-modal-text').textContent(), /TinyLlama locally in your browser using\s+WASM/);
     assert.match(await page.locator('#browser-demo-notice .browser-demo-modal-text').textContent(), /trying its little heart out\. 🐢/);
     assert.match(await page.locator('#browser-demo-dismiss-notice').textContent(), /I’m In No Rush/);
     assert.match(await page.locator('#browser-demo-modal-close-popup').textContent(), /try the desktop version/);
