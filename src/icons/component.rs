@@ -713,4 +713,15 @@ mod clip_tests {
             Overflow::visible()
         ));
     }
+
+    #[test]
+    fn turtle_icon_path_resolves_and_is_embedded() {
+        let icon = Icon::feather("turtle");
+        assert_eq!(icon.path(), "embedded://beverly/icons/feather/turtle.svg");
+
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::asset::AssetPlugin::default());
+        super::super::embed_feather_icons(&mut app);
+    }
 }

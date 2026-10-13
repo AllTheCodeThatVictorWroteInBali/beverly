@@ -954,14 +954,145 @@
         border: 0;
         background: #fff;
         color: #18181b;
+        isolation: isolate;
       }
 
       .browser-demo-dialog::backdrop {
         background: #fff;
       }
 
+      .browser-demo-dialog[open] {
+        display: block;
+      }
+      .browser-demo-frame {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+      .browser-demo-notice {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+      }
+      .browser-demo-notice[hidden] {
+        display: none;
+      }
+
+      .browser-demo-modal-card {
+        width: 100%;
+        max-width: 440px;
+        padding: 32px 24px 24px;
+        border: 1px solid #e4e4e7;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow:
+          0 20px 25px -5px rgba(0, 0, 0, 0.15),
+          0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        text-align: center;
+      }
+
+      .browser-demo-modal-icon {
+        display: grid;
+        place-items: center;
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 16px;
+        border-radius: 50%;
+        background: #f4f4f5;
+        color: #27272a;
+      }
+
+      .browser-demo-modal-icon svg {
+        width: 44px;
+        height: 44px;
+      }
+
+      .browser-demo-modal-title {
+        margin: 0 0 12px;
+        font-size: 20px;
+        font-weight: 600;
+        line-height: 1.3;
+        color: #18181b;
+        text-align: center;
+      }
+
+      .browser-demo-modal-text {
+        margin: 0 0 24px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: #52525b;
+        text-align: left;
+      }
+
+      .browser-demo-modal-actions {
+        margin-bottom: 16px;
+      }
+
+      .browser-demo-modal-btn {
+        display: block;
+        width: 100%;
+        padding: 12px 20px;
+        border: 0;
+        border-radius: 9999px;
+        background: #18181b;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+      }
+
+      .browser-demo-modal-btn:hover {
+        background: #27272a;
+      }
+
+      .browser-demo-modal-footer {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.5;
+        text-align: center;
+      }
+
+      .browser-demo-modal-close-link {
+        border: 0;
+        padding: 0;
+        margin: 0;
+        background: none;
+        color: #71717a;
+        font-size: 13px;
+        line-height: 1.5;
+        cursor: pointer;
+        transition: color 0.15s ease;
+      }
+
+      .browser-demo-modal-close-link:hover {
+        color: #18181b;
+      }
+
+      .browser-demo-modal-link-text {
+        color: #18181b;
+        font-weight: 500;
+        text-decoration: underline;
+      }
+
+      .browser-demo-modal-link-text:hover {
+        color: #000;
+      }
+
       .browser-demo-close {
-        position: fixed;
+        position: absolute;
+        z-index: 25;
         top: max(16px, env(safe-area-inset-top));
         right: max(16px, env(safe-area-inset-right));
         display: grid;
@@ -1318,7 +1449,7 @@
         </div>
 
         <p class="hero-download-link">
-          <a href="#download"> Try the macOS app &rarr; </a>
+          <a href="#download"> Try the demo &rarr; </a>
         </p>
       </div>
     </section>
@@ -1599,7 +1730,7 @@
 
           <!-- Launch the browser demo -->
           <a
-            href="/demo"
+            href="/assets/agent-demo/index.html"
             data-browser-demo-trigger
             class="btn btn-primary btn-lg px-4 py-3 fw-semibold shadow-sm download-option"
           >
@@ -1616,7 +1747,7 @@
                 d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM6.52 1.66A13.2 13.2 0 0 0 5.2 4.5H2.7a6.53 6.53 0 0 1 3.82-2.84ZM1.5 8c0-.7.11-1.38.32-2h3.04a14.6 14.6 0 0 0 0 4H1.82A6.5 6.5 0 0 1 1.5 8Zm1.2 3.5h2.5a13.2 13.2 0 0 0 1.32 2.84A6.53 6.53 0 0 1 2.7 11.5ZM7 11.5h2a11.8 11.8 0 0 1-1 2.7 11.8 11.8 0 0 1-1-2.7ZM9 10H7a13 13 0 0 1 0-4h2a13 13 0 0 1 0 4Zm0-5.5H7a11.8 11.8 0 0 1 1-2.7 11.8 11.8 0 0 1 1 2.7Zm.48 8.34A13.2 13.2 0 0 0 10.8 10.5h2.5a6.53 6.53 0 0 1-3.82 2.84ZM11.14 10a14.6 14.6 0 0 0 0-4h3.04a6.5 6.5 0 0 1 0 4h-3.04Zm-.34-5.5a13.2 13.2 0 0 0-1.32-2.84A6.53 6.53 0 0 1 13.3 4.5h-2.5Z"
               />
             </svg>
-            Try in Your Browser
+            Try in Browser
           </a>
         </div>
 
@@ -1755,8 +1886,68 @@
     <dialog
       id="browser-demo-dialog"
       class="browser-demo-dialog"
-      aria-label="Beverly browser demo"
+      aria-label="Beverly Agent browser demo"
     >
+      <div
+        class="browser-demo-notice"
+        id="browser-demo-notice"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="browser-demo-modal-title"
+      >
+        <div class="browser-demo-modal-card">
+          <div class="browser-demo-modal-icon" aria-hidden="true">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="44"
+              height="44"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path
+                d="M 19.536 5.664 c -0.403 0.048 -0.979 0.245 -1.306 0.437 -0.365 0.221 -0.878 0.734 -1.094 1.099 -0.259 0.427 -0.461 1.08 -0.533 1.68 -0.034 0.278 -0.062 0.509 -0.067 0.518 -0.005 0.005 -0.139 -0.024 -0.293 -0.062 -0.154 -0.043 -0.432 -0.072 -0.619 -0.067 l -0.336 0.005 -0.413 -0.403 c -1.042 -1.008 -2.424 -1.728 -3.979 -2.059 -0.691 -0.149 -2.342 -0.163 -2.976 -0.024 -1.997 0.432 -3.634 1.546 -4.766 3.245 -0.518 0.778 -0.878 1.622 -1.181 2.765 -0.048 0.182 -0.067 0.202 -0.25 0.23 -0.494 0.077 -0.859 0.518 -0.859 1.042 0 0.283 0.091 0.523 0.264 0.696 l 0.125 0.125 -0.149 0.235 c -0.182 0.283 -0.398 0.475 -0.749 0.677 -0.163 0.086 -0.283 0.197 -0.312 0.274 -0.053 0.139 -0.019 0.322 0.077 0.418 0.115 0.12 0.552 0.178 1.138 0.154 l 0.562 -0.024 -0.139 0.202 c -0.23 0.336 -0.528 0.931 -0.528 1.061 0 0.144 0.082 0.307 0.187 0.389 0.058 0.043 0.73 0.058 2.784 0.062 l 2.707 -0 0.154 -0.115 c 0.134 -0.106 0.25 -0.322 0.379 -0.72 0.024 -0.067 0.062 -0.082 0.187 -0.058 1.464 0.269 3.178 0.014 4.478 -0.658 l 0.408 -0.216 0.158 0.25 c 0.418 0.648 0.763 0.96 1.248 1.138 0.221 0.082 0.451 0.096 2.189 0.12 l 1.944 0.034 0.134 -0.106 c 0.096 -0.082 0.13 -0.149 0.13 -0.278 0 -0.192 0.01 -0.178 -1.507 -2.294 -0.547 -0.763 -1.018 -1.426 -1.042 -1.474 -0.034 -0.067 -0.005 -0.106 0.158 -0.202 0.605 -0.355 0.912 -0.408 2.693 -0.461 1.522 -0.048 2.045 -0.101 2.712 -0.288 0.893 -0.25 1.646 -0.749 2.074 -1.368 0.797 -1.162 0.878 -2.923 0.187 -4.085 -0.211 -0.36 -0.706 -0.888 -1.08 -1.152 -0.816 -0.581 -1.92 -0.864 -2.899 -0.739 z m 1.296 0.451 c 0.614 0.154 0.96 0.317 1.488 0.701 1.147 0.845 1.555 2.275 1.08 3.778 -0.182 0.586 -0.211 0.605 -0.725 0.605 -0.331 -0 -0.494 -0.024 -0.715 -0.11 -0.312 -0.12 -0.61 -0.288 -0.778 -0.446 -0.091 -0.082 -0.13 -0.091 -0.23 -0.043 -0.245 0.115 -0.101 0.355 0.394 0.638 0.355 0.202 0.734 0.322 1.152 0.36 l 0.365 0.034 -0.206 0.187 c -0.442 0.398 -0.955 0.667 -1.613 0.83 -0.701 0.178 -1.109 0.221 -2.659 0.264 -0.941 0.029 -1.574 0.067 -1.776 0.115 -0.346 0.072 -0.792 0.259 -1.013 0.413 -0.077 0.058 -0.158 0.096 -0.187 0.086 -0.024 -0.01 -0.163 -0.182 -0.312 -0.389 l -0.269 -0.374 0.149 -0.178 c 0.917 -1.09 1.901 -2.491 1.939 -2.765 0.014 -0.082 0.043 -0.413 0.072 -0.73 0.086 -0.974 0.365 -1.666 0.888 -2.198 0.374 -0.379 0.782 -0.605 1.421 -0.787 0.25 -0.072 1.229 -0.062 1.536 0.01 z m -10.008 1.085 c 1.45 0.307 2.952 1.09 3.826 1.997 l 0.178 0.187 -0.298 0.158 c -0.226 0.115 -0.48 0.336 -1.042 0.902 -1.09 1.099 -1.939 1.814 -2.88 2.429 -1.066 0.696 -2.093 1.138 -3.24 1.392 -0.442 0.096 -1.92 0.082 -2.39 -0.024 -0.811 -0.182 -1.474 -0.466 -2.251 -0.965 l -0.374 -0.24 0.034 -0.192 c 0.048 -0.346 0.379 -1.291 0.605 -1.738 0.955 -1.896 2.573 -3.269 4.507 -3.806 0.682 -0.192 1.157 -0.245 2.03 -0.221 0.581 0.014 0.955 0.048 1.296 0.12 z m 5.39 2.554 c 0.11 0.029 0.216 0.072 0.23 0.096 0.038 0.062 -0.739 1.2 -1.296 1.891 -1.363 1.685 -2.755 2.813 -4.181 3.379 -1.214 0.485 -2.318 0.672 -3.965 0.672 -1.19 -0 -1.992 -0.072 -2.971 -0.269 -1.474 -0.293 -2.65 -0.84 -2.76 -1.282 -0.058 -0.221 0.019 -0.475 0.197 -0.638 0.312 -0.298 0.605 -0.274 1.142 0.077 1.618 1.056 3.586 1.349 5.477 0.811 0.898 -0.259 1.757 -0.653 2.616 -1.205 1.008 -0.648 1.714 -1.229 2.952 -2.438 0.739 -0.725 0.96 -0.917 1.176 -1.008 0.432 -0.182 0.888 -0.211 1.382 -0.086 z m -0.014 5.626 c 0.883 1.238 1.608 2.27 1.608 2.29 0 0.024 -0.816 0.024 -1.81 0.01 -1.608 -0.024 -1.843 -0.038 -2.059 -0.115 -0.432 -0.163 -0.816 -0.581 -1.229 -1.339 -0.518 -0.955 -0.619 -1.166 -0.586 -1.2 0.024 -0.019 0.216 -0.149 0.427 -0.288 0.442 -0.298 1.147 -0.864 1.632 -1.32 0.182 -0.173 0.35 -0.307 0.37 -0.302 0.019 0.01 0.758 1.027 1.646 2.266 z m -13.838 0.101 l 0.23 0.086 -0.158 0.197 c -0.211 0.274 -0.25 0.298 -0.662 0.408 -0.355 0.101 -0.95 0.134 -1.186 0.072 -0.101 -0.029 -0.086 -0.048 0.144 -0.197 0.331 -0.216 0.48 -0.365 0.696 -0.672 l 0.173 -0.25 0.269 0.134 c 0.149 0.072 0.37 0.173 0.494 0.221 z m 9.634 0.259 l 0.245 0.475 -0.206 0.115 c -0.509 0.283 -1.2 0.542 -1.838 0.686 -0.466 0.106 -1.906 0.144 -2.371 0.062 l -0.36 -0.062 -0.014 -0.379 c -0.01 -0.274 0.005 -0.394 0.048 -0.418 0.034 -0.024 0.216 -0.043 0.403 -0.043 0.926 -0 2.602 -0.384 3.475 -0.787 0.144 -0.067 0.288 -0.125 0.322 -0.125 0.029 -0 0.163 0.216 0.298 0.475 z m -8.698 0.029 c 0.874 0.23 1.949 0.379 3.154 0.437 l 0.619 0.029 -0.029 0.538 c -0.024 0.518 -0.101 0.84 -0.254 1.07 l -0.067 0.11 -2.563 -0 c -1.406 -0 -2.568 -0.014 -2.587 -0.029 -0.038 -0.038 0.216 -0.542 0.461 -0.907 0.23 -0.346 0.95 -1.32 0.974 -1.32 0.005 -0 0.139 0.034 0.293 0.072 z M 20.592 8.246 c -0.566 0.283 -0.403 1.157 0.24 1.243 0.514 0.072 0.888 -0.518 0.634 -0.989 -0.168 -0.307 -0.547 -0.422 -0.874 -0.254 z"
+              />
+            </svg>
+          </div>
+          <h2 class="browser-demo-modal-title" id="browser-demo-modal-title">
+            Easy there, speed racer.
+          </h2>
+          <p class="browser-demo-modal-text">
+            The web version runs TinyLlama locally in your browser using
+            WASM.<br />
+            Our little model is doing the best it can. It's not fast (or smart),
+            but it's trying its little heart out. 🐢
+          </p>
+          <div class="browser-demo-modal-actions">
+            <button
+              type="button"
+              class="browser-demo-modal-btn"
+              id="browser-demo-dismiss-notice"
+            >
+              I’m In No Rush
+            </button>
+          </div>
+          <p class="browser-demo-modal-footer">
+            <button
+              type="button"
+              class="browser-demo-modal-close-link"
+              id="browser-demo-modal-close-popup"
+            >
+              (For near instant responses,
+              <span class="browser-demo-modal-link-text"
+                >try the desktop version</span
+              >.)
+            </button>
+          </p>
+        </div>
+      </div>
+      <iframe
+        id="browser-demo-frame"
+        class="browser-demo-frame"
+        title="Beverly Agent local TinyLlama chat"
+        allow="clipboard-read; clipboard-write"
+        referrerpolicy="no-referrer"
+      ></iframe>
       <button class="browser-demo-close" type="button" aria-label="Close demo">
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -1780,22 +1971,116 @@
       const browserDemoClose = browserDemoDialog.querySelector(
         ".browser-demo-close",
       );
+      const browserDemoFrame = document.querySelector("#browser-demo-frame");
+      const browserDemoNotice = document.querySelector("#browser-demo-notice");
+      let demoScroll;
+      let demoBodyStyle;
+      let demoOpener;
+
+      function updateDemoViewport() {
+        if (!browserDemoDialog.open) return;
+        const viewport = window.visualViewport;
+        browserDemoDialog.style.height = `${viewport?.height ?? innerHeight}px`;
+        browserDemoDialog.style.top = `${viewport?.offsetTop ?? 0}px`;
+      }
+
+      function closeBrowserDemo() {
+        if (browserDemoDialog.open) browserDemoDialog.close();
+      }
+
+      browserDemoFrame.addEventListener("load", () => {
+        browserDemoFrame.contentWindow?.postMessage(
+          { type: "beverly-agent:visibility", visible: browserDemoDialog.open },
+          location.origin,
+        );
+      });
+
+      document
+        .querySelector("#browser-demo-dismiss-notice")
+        .addEventListener("click", () => {
+          browserDemoNotice.hidden = true;
+          try {
+            sessionStorage.setItem("beverly-agent-notice-dismissed", "1");
+          } catch {}
+        });
+      document
+        .querySelector("#browser-demo-modal-close-popup")
+        ?.addEventListener("click", closeBrowserDemo);
 
       browserDemoTrigger.addEventListener("click", (event) => {
         event.preventDefault();
+        if (browserDemoDialog.open) return;
+        if (typeof browserDemoDialog.showModal !== "function") {
+          let notice = document.querySelector("#browser-demo-unsupported");
+          if (!notice) {
+            notice = document.createElement("p");
+            notice.id = "browser-demo-unsupported";
+            notice.setAttribute("role", "alert");
+            notice.textContent =
+              "This browser cannot launch Beverly Agent. Try a current browser or download the macOS app.";
+            browserDemoTrigger.insertAdjacentElement("afterend", notice);
+          }
+          return;
+        }
+        demoOpener = document.activeElement;
+        demoScroll = [scrollX, scrollY];
+        demoBodyStyle = document.body.style.cssText;
+        document.body.style.position = "fixed";
+        document.body.style.top = `${-demoScroll[1]}px`;
+        document.body.style.left = `${-demoScroll[0]}px`;
+        document.body.style.width = "100%";
+        document.body.style.overflow = "hidden";
+        try {
+          browserDemoNotice.hidden =
+            sessionStorage.getItem("beverly-agent-notice-dismissed") === "1";
+        } catch {}
+        if (!browserDemoFrame.getAttribute("src"))
+          browserDemoFrame.src = "/assets/agent-demo/index.html";
         browserDemoDialog.showModal();
+        updateDemoViewport();
+        browserDemoClose.focus({ preventScroll: true });
+        browserDemoFrame.contentWindow?.postMessage(
+          { type: "beverly-agent:visibility", visible: true },
+          location.origin,
+        );
       });
 
-      browserDemoClose.addEventListener("click", () => {
-        browserDemoDialog.close();
+      browserDemoClose.addEventListener("click", closeBrowserDemo);
+      browserDemoDialog.addEventListener("cancel", (event) => {
+        event.preventDefault();
+        closeBrowserDemo();
+      });
+      browserDemoDialog.addEventListener("close", () => {
+        browserDemoFrame.contentWindow?.postMessage(
+          { type: "beverly-agent:visibility", visible: false },
+          location.origin,
+        );
+        document.body.style.cssText = demoBodyStyle ?? "";
+        const previous = document.documentElement.style.scrollBehavior;
+        document.documentElement.style.scrollBehavior = "auto";
+        if (demoScroll) scrollTo(...demoScroll);
+        document.documentElement.style.scrollBehavior = previous;
+        demoOpener?.focus({ preventScroll: true });
       });
 
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape" && browserDemoDialog.open) {
           event.preventDefault();
-          browserDemoDialog.close();
+          closeBrowserDemo();
         }
       });
+      addEventListener("message", (event) => {
+        if (
+          event.origin !== location.origin ||
+          event.source !== browserDemoFrame.contentWindow
+        )
+          return;
+        if (event.data?.type === "beverly-agent:close") closeBrowserDemo();
+        if (event.data?.type === "beverly-agent:ready")
+          browserDemoNotice.hidden = true;
+      });
+      window.visualViewport?.addEventListener("resize", updateDemoViewport);
+      window.visualViewport?.addEventListener("scroll", updateDemoViewport);
     </script>
   </body>
 </html>

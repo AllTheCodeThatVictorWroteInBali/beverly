@@ -12,3 +12,8 @@ Cargo.lock
 /web/demos/dist
 /docs/book/assets/demos
 !/web/demos/Cargo.lock
+/web/agent-inference/target
+/web/agent-inference/pkg
+/web/agent-demo/target
+/web/agent-demo/dist
+/assets/agent-demo

@@ -14,58 +14,9 @@ use hf_hub::api::sync::{Api, ApiBuilder, ApiRepo};
 use std::time::Instant;
 use tokenizers::Tokenizer;
 
-#[derive(Clone, Copy, Debug, Default)]
-pub enum ChatModel {
-    #[default]
-    TinyLlama,
-    SmolLm2_360M,
-    SmolLm2_1_7B,
-}
-
-impl ChatModel {
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::TinyLlama => "TinyLlama 1.1B Chat",
-            Self::SmolLm2_360M => "SmolLM2 360M Instruct",
-            Self::SmolLm2_1_7B => "SmolLM2 1.7B Instruct",
-        }
-    }
-
-    fn repo_id(self) -> &'static str {
-        match self {
-            Self::TinyLlama => "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-            Self::SmolLm2_360M => "HuggingFaceTB/SmolLM2-360M-Instruct",
-            Self::SmolLm2_1_7B => "HuggingFaceTB/SmolLM2-1.7B-Instruct",
-        }
-    }
-
-    fn eos_token(self) -> &'static str {
-        match self {
-            Self::TinyLlama => "</s>",
-            Self::SmolLm2_360M | Self::SmolLm2_1_7B => "<|im_end|>",
-        }
-    }
-
-    fn format_prompt(self, prompt: &str) -> String {
-        match self {
-            Self::TinyLlama => format!(
-                "<|system|>\nYou are a helpful assistant.</s>\n<|user|>\n{prompt}</s>\n<|assistant|>\n"
-            ),
-            Self::SmolLm2_360M | Self::SmolLm2_1_7B => format!(
-                "<|im_start|>system\nYou are a helpful AI assistant named SmolLM, trained by Hugging Face<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
-            ),
-        }
-    }
-
-    fn starts_fabricated_turn(self, generated: &str) -> bool {
-        match self {
-            Self::TinyLlama => generated.contains("<|user|>") || generated.contains("<|system|>"),
-            Self::SmolLm2_360M | Self::SmolLm2_1_7B => {
-                generated.contains("<|im_start|>user") || generated.contains("<|im_start|>system")
-            }
-        }
-    }
-}
+#[path = "conversation.rs"]
+mod conversation;
+pub use conversation::ChatModel;
 
 /// Local Llama runtime: holds the loaded weights, tokenizer, and KV cache so a
 /// single instance can be reused across multiple `generate_streaming` calls.

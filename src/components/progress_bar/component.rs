@@ -143,6 +143,7 @@ fn progress_bar_parts(
             semantic,
             Node {
                 width: Val::Px(width),
+                max_width: Val::Percent(100.0),
                 height: Val::Px(height),
                 border_radius: BorderRadius::all(Val::Px(height / 2.0)),
                 overflow: Overflow::clip(),

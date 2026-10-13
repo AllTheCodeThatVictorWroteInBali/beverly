@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Beverly Inference Harness</title>
+<button id="load">Load TinyLlama</button>
+<button id="generate">Generate</button>
+<button id="cancel">Cancel</button>
+<pre id="output"></pre>
+<script type="module">
+  const worker = new Worker('./worker.js', { type: 'module' });
+  window.worker = worker;
+  window.events = [];
+  worker.onmessage = ({ data }) => {
+    window.events.push(data);
+    document.querySelector('#output').textContent = data.text ?? JSON.stringify(data);
+  };
+  worker.onerror = event => window.events.push({ type: 'error', message: event.message });
+  document.querySelector('#load').onclick = () => worker.postMessage({ command: 'load' });
+  document.querySelector('#generate').onclick = () => worker.postMessage({ command: 'prompt', prompt: 'What is the capital of France? Answer briefly.' });
+  document.querySelector('#cancel').onclick = () => worker.postMessage({ command: 'cancel' });
+</script>
+</html>

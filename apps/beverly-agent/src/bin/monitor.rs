@@ -1,14 +1,31 @@
+#[cfg(not(target_arch = "wasm32"))]
 #[path = "../llm.rs"]
 mod llm;
 
+#[cfg(target_arch = "wasm32")]
+#[path = "../conversation.rs"]
+mod conversation;
+#[cfg(target_arch = "wasm32")]
+#[path = "../web_platform.rs"]
+mod web_platform;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
+#[cfg(not(target_arch = "wasm32"))]
 use std::process::Command;
 use std::sync::Arc;
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::mpsc::{self, Receiver, Sender};
+#[cfg(not(target_arch = "wasm32"))]
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
+#[cfg(target_arch = "wasm32")]
+use web_time::Instant;
 
 use beverly::components::progress_bar::{ProgressBar, spawn_progress_bar_into};
 use beverly::components::text::{FontWeight, TextRole, ThemedText, Typography};
@@ -19,7 +36,11 @@ use beverly::icons::IconCommands;
 use beverly::prelude::*;
 use bevy::prelude::*;
 use bevy::ui_widgets::ScrollArea;
+#[cfg(target_arch = "wasm32")]
+use conversation::ChatModel;
+#[cfg(not(target_arch = "wasm32"))]
 use llm::{ChatModel, LocalLlama};
+#[cfg(not(target_arch = "wasm32"))]
 use sysinfo::System;
 
 /// Messages sent from the background LLM thread back to the UI.
@@ -30,6 +51,14 @@ enum ChatEvent {
     Token(String),
     Done,
     Error(String),
+    #[cfg(target_arch = "wasm32")]
+    ResponseText(String),
+    #[cfg(target_arch = "wasm32")]
+    GeneratedTokens(usize),
+    #[cfg(target_arch = "wasm32")]
+    WorkerMetrics(f64, u64),
+    #[cfg(target_arch = "wasm32")]
+    BackendFailure(String),
 }
 
 enum WorkerCommand {
@@ -39,9 +68,18 @@ enum WorkerCommand {
 
 #[derive(Resource)]
 struct ChatChannel {
+    #[cfg(not(target_arch = "wasm32"))]
     worker_tx: Sender<WorkerCommand>,
+    #[cfg(target_arch = "wasm32")]
+    worker_tx: web_platform::WorkerSender,
+    #[cfg(not(target_arch = "wasm32"))]
     events: Mutex<Receiver<ChatEvent>>,
+    #[cfg(target_arch = "wasm32")]
+    events: web_platform::WorkerEvents,
+    #[cfg(not(target_arch = "wasm32"))]
     stop: Arc<AtomicBool>,
+    #[cfg(target_arch = "wasm32")]
+    stop: web_platform::WorkerStop,
 }
 
 #[derive(Resource, Default)]
@@ -55,6 +93,7 @@ struct ChatState {
 
 #[derive(Resource)]
 struct ResourceMonitor {
+    #[cfg(not(target_arch = "wasm32"))]
     system: System,
     timer: Timer,
     token_timer: Timer,
@@ -103,6 +142,8 @@ struct SubmitPromptButton;
 #[derive(Component)]
 struct SubmitIcon;
 
+const CHAT_IDLE_BORDER: Color = Color::srgba(0.29, 0.34, 0.46, 0.48);
+
 #[derive(Component)]
 struct MessagesContainer;
 
@@ -139,78 +180,106 @@ struct ModelPickerScreen;
 #[derive(Component)]
 struct ModelPickerButton(ChatModel);
 
-fn main() {
-    App::new()
-        .add_plugins(
-            DefaultPlugins
-                .set(AssetPlugin {
-                    file_path: app_asset_root(),
-                    ..default()
-                })
-                .set(WindowPlugin {
-                    primary_window: Some(Window {
-                        title: "Beverly Agent".into(),
-                        ..default()
-                    }),
+#[derive(Component)]
+struct AgentFooter;
+#[derive(Component)]
+struct AgentFooterContact;
+#[derive(Component)]
+struct AgentFooterMetrics;
+#[derive(Component)]
+struct AgentMetricsRow;
+#[derive(Component)]
+struct ChatScreenRoot;
+
+pub fn main() {
+    let mut app = App::new();
+    app.add_plugins(
+        DefaultPlugins
+            .set(AssetPlugin {
+                file_path: app_asset_root(),
+                ..default()
+            })
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Beverly Agent".into(),
                     ..default()
                 }),
-        )
-        .add_plugins(BeverlyPlugin)
-        .insert_resource(ThemeResource {
-            current: light_theme(),
-        })
-        .init_resource::<ChatState>()
-        .init_resource::<SelectedModel>()
-        .insert_resource(LoadingProgress {
-            download: DownloadPhase::Checking,
-            download_fraction: 0.0,
-            fraction: 0.0,
-            status: "Initializing model".to_string(),
-            initializing: false,
-            ready: false,
-            failed: false,
-        })
-        .insert_resource(ResourceMonitor {
-            system: System::new_all(),
-            timer: Timer::new(Duration::from_secs(1), TimerMode::Repeating),
-            token_timer: Timer::new(Duration::from_millis(250), TimerMode::Repeating),
-            generated_tokens: Arc::new(AtomicUsize::new(0)),
-            generation_active: Arc::new(AtomicBool::new(false)),
-            last_token_sample: Instant::now(),
-            last_token_total: 0,
-            tokens_per_second: 0.0,
-            used_gib: 0.0,
-            total_gib: 0.0,
-            cpu: 0.0,
-            gpu: "n/a".to_string(),
-            fps_window_frames: 0,
-            fps_window_seconds: 0.0,
-            frames_per_second: 0.0,
-        })
-        .add_systems(Startup, (setup, spawn_llm_worker))
-        .add_systems(
+                ..default()
+            }),
+    )
+    .add_plugins(BeverlyPlugin)
+    .insert_resource(ThemeResource {
+        current: light_theme(),
+    })
+    .init_resource::<ChatState>()
+    .init_resource::<SelectedModel>()
+    .insert_resource(LoadingProgress {
+        download: DownloadPhase::Checking,
+        download_fraction: 0.0,
+        fraction: 0.0,
+        status: "Initializing model".to_string(),
+        initializing: false,
+        ready: false,
+        failed: false,
+    })
+    .insert_resource(ResourceMonitor {
+        #[cfg(not(target_arch = "wasm32"))]
+        system: System::new_all(),
+        timer: Timer::new(Duration::from_secs(1), TimerMode::Repeating),
+        token_timer: Timer::new(Duration::from_millis(250), TimerMode::Repeating),
+        generated_tokens: Arc::new(AtomicUsize::new(0)),
+        generation_active: Arc::new(AtomicBool::new(false)),
+        last_token_sample: Instant::now(),
+        last_token_total: 0,
+        tokens_per_second: 0.0,
+        used_gib: 0.0,
+        total_gib: 0.0,
+        cpu: 0.0,
+        gpu: "n/a".to_string(),
+        fps_window_frames: 0,
+        fps_window_seconds: 0.0,
+        frames_per_second: 0.0,
+    })
+    .add_systems(Startup, (setup, spawn_llm_worker))
+    .add_systems(
+        Update,
+        (
+            handle_model_selection,
+            reserve_textarea_button_space,
+            update_submit_icon,
+            chat_submit_system.before(textarea_keyboard_system),
+            chat_poll_system.after(textarea_keyboard_system),
+            sync_textarea_busy
+                .after(chat_submit_system)
+                .after(textarea_visual_system),
+            animate_loading_progress,
+            update_metrics,
+        ),
+    )
+    .add_systems(
+        PostUpdate,
+        (size_model_picker_buttons, style_submit_prompt_button)
+            .before(bevy::ui::UiSystems::Prepare),
+    );
+    #[cfg(not(target_arch = "wasm32"))]
+    app.run();
+    #[cfg(target_arch = "wasm32")]
+    {
+        use crate::browser::DemoAppExt;
+        app.add_systems(Update, web_platform::fit_browser_ui);
+        app.add_systems(
             Update,
-            (
-                handle_model_selection,
-                reserve_textarea_button_space,
-                update_submit_icon,
-                chat_submit_system.before(textarea_keyboard_system),
-                chat_poll_system.after(textarea_keyboard_system),
-                sync_textarea_busy
-                    .after(chat_submit_system)
-                    .after(textarea_visual_system),
-                animate_loading_progress,
-                update_metrics,
-            ),
-        )
-        .add_systems(
+            web_platform::read_mobile_input.before(chat_submit_system),
+        );
+        app.add_systems(
             PostUpdate,
-            (size_model_picker_buttons, style_submit_prompt_button)
-                .before(bevy::ui::UiSystems::Prepare),
-        )
-        .run();
+            web_platform::position_mobile_input.after(bevy::ui::UiSystems::PostLayout),
+        );
+        app.run_demo();
+    }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn app_asset_root() -> String {
     let bundle_assets = std::env::current_exe()
         .ok()
@@ -225,6 +294,11 @@ fn app_asset_root() -> String {
         .unwrap_or_else(|| PathBuf::from("assets"))
         .to_string_lossy()
         .into_owned()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn app_asset_root() -> String {
+    "assets".into()
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -247,7 +321,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         ))
         .with_children(|parent| {
             spawn_app_logo(parent, &asset_server);
+            #[cfg(not(target_arch = "wasm32"))]
             spawn_themed_text(parent, "Choose a local model", TextRole::Heading, 28.0);
+            #[cfg(target_arch = "wasm32")]
+            spawn_themed_text(parent, "Beverly Agent", TextRole::Heading, 28.0);
             spawn_themed_text(
                 parent,
                 "Weights download on first selection and are cached for later launches.",
@@ -267,16 +344,22 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 })
                 .with_children(|row| {
                     spawn_model_button(row, ChatModel::TinyLlama, "cpu");
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
                     spawn_model_button(row, ChatModel::SmolLm2_360M, "zap");
                     spawn_model_button(row, ChatModel::SmolLm2_1_7B, "cpu");
+                    }
                 });
 
+            #[cfg(not(target_arch = "wasm32"))]
             spawn_themed_text(
                 parent,
                 "Supported LLMs: Hugging Face Llama-architecture models using safetensors. GGUF/Q8_0 and non-Llama models are not supported yet.",
                 TextRole::Muted,
                 12.0,
             );
+            #[cfg(target_arch = "wasm32")]
+            spawn_themed_text(parent, "TinyLlama Q4_0 · 640 MB download · CPU inference on your device", TextRole::Muted, 12.0);
 
             parent
                 .spawn((
@@ -285,7 +368,11 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     Node {
                         width: percent(100),
                         max_width: px(700.0),
+                        min_height: px(160.0),
+                        flex_shrink: 0.0,
                         flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        align_self: AlignSelf::Center,
                         row_gap: px(8.0),
                         margin: UiRect::top(px(12.0)),
                         ..default()
@@ -295,13 +382,33 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     loading.spawn((
                         DownloadStatusText,
                         Text::new("Waiting for model selection"),
+                        TextLayout::justify(Justify::Center),
                         ThemedText::new(TextRole::Muted).size(12.0),
+                        Node {
+                            width: percent(100),
+                            min_height: px(36.0),
+                            flex_shrink: 0.0,
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
                     ));
                     let download_bar = spawn_progress_bar_into(loading, loading_bar());
                     loading
                         .commands()
                         .entity(download_bar)
-                        .insert(DownloadProgressBar);
+                        .insert((
+                            DownloadProgressBar,
+                            Node {
+                                width: percent(100),
+                                max_width: px(700.0),
+                                height: px(10.0),
+                                align_self: AlignSelf::Center,
+                                border_radius: BorderRadius::all(px(5.0)),
+                                overflow: Overflow::clip(),
+                                ..default()
+                            },
+                        ));
 
                     loading
                         .spawn((
@@ -309,7 +416,11 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             Visibility::Hidden,
                             Node {
                                 width: percent(100),
+                                min_height: px(72.0),
+                                flex_shrink: 0.0,
                                 flex_direction: FlexDirection::Column,
+                                align_items: AlignItems::Center,
+                                align_self: AlignSelf::Center,
                                 row_gap: px(8.0),
                                 margin: UiRect::top(px(12.0)),
                                 ..default()
@@ -319,12 +430,39 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             init.spawn((
                                 LoadingStatusText,
                                 Text::new("Initializing model"),
+                                TextLayout::justify(Justify::Center),
                                 ThemedText::new(TextRole::Muted).size(12.0),
+                                Node {
+                                    width: percent(100),
+                                    min_height: px(36.0),
+                                    flex_shrink: 0.0,
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
                             ));
-                            let init_bar = spawn_progress_bar_into(init, loading_bar());
-                            init.commands()
-                                .entity(init_bar)
-                                .insert(LoadingProgressBar);
+                            #[cfg(not(target_arch = "wasm32"))]
+                            {
+                                let init_bar = spawn_progress_bar_into(init, loading_bar());
+                                init.commands().entity(init_bar).insert((
+                                    LoadingProgressBar,
+                                    Node {
+                                        width: percent(100),
+                                        max_width: px(700.0),
+                                        height: px(10.0),
+                                        align_self: AlignSelf::Center,
+                                        border_radius: BorderRadius::all(px(5.0)),
+                                        overflow: Overflow::clip(),
+                                        ..default()
+                                    },
+                                ));
+                            }
+                            #[cfg(target_arch = "wasm32")]
+                            init.spawn((
+                                Dots::new(),
+                                ThemedText::new(TextRole::Muted).size(14.0),
+                                Node { width: px(40.0), height: px(24.0), flex_shrink: 0.0, align_self: AlignSelf::Center, ..default() },
+                            ));
                         });
                 });
         });
@@ -405,6 +543,7 @@ fn size_model_picker_buttons(mut buttons: Query<&mut Node, With<ModelPickerButto
 
 fn handle_model_selection(
     mut selected_model: ResMut<SelectedModel>,
+    mut loading: ResMut<LoadingProgress>,
     mut loading_visibility: Query<&mut Visibility, With<LoadingGroup>>,
     channel: Res<ChatChannel>,
     buttons: Query<(&Interaction, &ModelPickerButton)>,
@@ -421,6 +560,14 @@ fn handle_model_selection(
 
     info!("Selected model: {}", model.name());
     selected_model.0 = Some(model);
+    #[cfg(target_arch = "wasm32")]
+    {
+        loading.failed = false;
+        loading.ready = false;
+        loading.initializing = false;
+        loading.download = DownloadPhase::Checking;
+        loading.download_fraction = 0.0;
+    }
     if let Ok(mut visibility) = loading_visibility.single_mut() {
         *visibility = Visibility::Inherited;
     }
@@ -431,12 +578,15 @@ fn handle_model_selection(
 
 fn spawn_chat_screen(commands: &mut Commands, asset_server: &AssetServer, model: ChatModel) {
     commands
-        .spawn(Node {
-            width: percent(100),
-            height: percent(100),
-            justify_content: JustifyContent::Center,
-            ..default()
-        })
+        .spawn((
+            ChatScreenRoot,
+            Node {
+                width: percent(100),
+                height: percent(100),
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+        ))
         .insert(soft_gradient_background())
         .with_children(|parent| {
             spawn_app_logo(parent, asset_server);
@@ -451,19 +601,29 @@ fn spawn_chat_screen(commands: &mut Commands, asset_server: &AssetServer, model:
                     ..default()
                 })
                 .with_children(|panel| {
-                    panel.spawn((
-                        MessagesContainer,
-                        ScrollArea,
-                        Node {
-                            width: percent(100),
-                            flex_grow: 1.0,
-                            flex_direction: FlexDirection::Column,
-                            overflow: Overflow::scroll_y(),
-                            row_gap: px(10.0),
-                            padding: UiRect::bottom(px(8.0)),
-                            ..default()
-                        },
-                    ));
+                    panel
+                        .spawn((
+                            MessagesContainer,
+                            ScrollArea,
+                            Node {
+                                width: percent(100),
+                                flex_grow: 1.0,
+                                flex_direction: FlexDirection::Column,
+                                overflow: Overflow::scroll_y(),
+                                min_height: px(0.0),
+                                row_gap: px(10.0),
+                                padding: UiRect::bottom(px(8.0)),
+                                ..default()
+                            },
+                        ))
+                        .with_children(|messages| {
+                            #[cfg(target_arch = "wasm32")]
+                            messages.spawn((
+                                web_platform::EmptyConversation,
+                                Text::new("Ask TinyLlama a question."),
+                                ThemedText::new(TextRole::Muted).size(16.0),
+                            ));
+                        });
 
                     // The submit button is a sibling, not a child, of the textarea:
                     // nesting a BeverlyButton inside the textarea's own Button/Surface
@@ -494,7 +654,7 @@ fn spawn_chat_screen(commands: &mut Commands, asset_server: &AssetServer, model:
                                         let icon = parent.spawn_icon_colored(
                                             beverly::icons::Icon::feather("send"),
                                             16.0,
-                                            Color::WHITE,
+                                            CHAT_IDLE_BORDER,
                                         );
                                         parent.commands().entity(icon).insert(SubmitIcon);
                                     },
@@ -512,28 +672,48 @@ fn spawn_chat_screen(commands: &mut Commands, asset_server: &AssetServer, model:
                         });
 
                     panel
-                        .spawn(Node {
-                            width: percent(100),
-                            row_gap: px(4.0),
-                            padding: UiRect {
-                                top: px(8.0),
+                        .spawn((
+                            AgentFooter,
+                            Node {
+                                width: percent(100),
+                                row_gap: px(4.0),
+                                padding: UiRect {
+                                    top: px(8.0),
+                                    ..default()
+                                },
+                                border: UiRect {
+                                    top: px(1.0),
+                                    ..default()
+                                },
                                 ..default()
                             },
-                            border: UiRect {
-                                top: px(1.0),
-                                ..default()
-                            },
-                            ..default()
-                        })
+                        ))
                         .with_children(|footer| {
+                            #[cfg(target_arch = "wasm32")]
                             footer
                                 .spawn(Node {
-                                    width: percent(50),
-                                    flex_direction: FlexDirection::Column,
-                                    row_gap: px(2.0),
-                                    padding: UiRect::left(px(20.0)),
+                                    flex_shrink: 0.0,
                                     ..default()
                                 })
+                                .with_children(|slot| {
+                                    slot.spawn(
+                                        BeverlyButton::standard("New chat")
+                                            .sized(ButtonSize::Sm)
+                                            .icon("message-square")
+                                            .on("click", web_platform::new_chat),
+                                    );
+                                });
+                            footer
+                                .spawn((
+                                    AgentFooterContact,
+                                    Node {
+                                        width: percent(50),
+                                        flex_direction: FlexDirection::Column,
+                                        row_gap: px(2.0),
+                                        padding: UiRect::left(px(20.0)),
+                                        ..default()
+                                    },
+                                ))
                                 .with_children(|contact| {
                                     contact.spawn((
                                         Text::new("Want to build with Beverly?"),
@@ -550,11 +730,14 @@ fn spawn_chat_screen(commands: &mut Commands, asset_server: &AssetServer, model:
                                     );
                                 });
                             footer
-                                .spawn(Node {
-                                    width: percent(50),
-                                    flex_direction: FlexDirection::Column,
-                                    ..default()
-                                })
+                                .spawn((
+                                    AgentFooterMetrics,
+                                    Node {
+                                        width: percent(50),
+                                        flex_direction: FlexDirection::Column,
+                                        ..default()
+                                    },
+                                ))
                                 .with_children(|metrics| {
                                     metrics.spawn((
                                         MetricsModelText,
@@ -565,12 +748,15 @@ fn spawn_chat_screen(commands: &mut Commands, asset_server: &AssetServer, model:
                                         ThemedText::new(TextRole::Muted).size(12.0),
                                     ));
                                     metrics
-                                        .spawn(Node {
-                                            flex_direction: FlexDirection::Row,
-                                            align_items: AlignItems::Center,
-                                            column_gap: px(4.0),
-                                            ..default()
-                                        })
+                                        .spawn((
+                                            AgentMetricsRow,
+                                            Node {
+                                                flex_direction: FlexDirection::Row,
+                                                align_items: AlignItems::Center,
+                                                column_gap: px(4.0),
+                                                ..default()
+                                            },
+                                        ))
                                         .with_children(|telemetry| {
                                             telemetry.spawn((
                                                 MetricsText,
@@ -617,13 +803,14 @@ fn sync_textarea_busy(
             .as_mut()
             .filter(|_| !textarea.busy && !textarea.focused)
         {
-            border.paint = Paint::solid(Color::srgba(0.29, 0.34, 0.46, 0.48));
+            border.paint = Paint::solid(CHAT_IDLE_BORDER);
         }
     }
 }
 
 fn style_submit_prompt_button(
     mut buttons: Query<(&mut Node, &mut Surface), With<SubmitPromptButton>>,
+    mut icons: Query<&mut beverly::icons::IconNode, With<SubmitIcon>>,
 ) {
     for (mut node, mut surface) in &mut buttons {
         node.position_type = PositionType::Absolute;
@@ -632,9 +819,16 @@ fn style_submit_prompt_button(
         node.width = px(38.0);
         node.height = px(38.0);
         node.padding = UiRect::all(px(0.0));
+        node.border = UiRect::ZERO;
         node.border_radius = BorderRadius::MAX;
         node.flex_shrink = 0.0;
-        surface.fill = Paint::solid(Color::BLACK);
+        surface.fill = Paint::solid(Color::NONE);
+        surface.border = None;
+    }
+    for mut icon in &mut icons {
+        if icon.color != CHAT_IDLE_BORDER {
+            icon.color = CHAT_IDLE_BORDER;
+        }
     }
 }
 
@@ -667,6 +861,7 @@ fn animate_loading_progress(
         (With<DownloadProgressBar>, Without<InitGroup>),
     >,
 ) {
+    #[cfg(not(target_arch = "wasm32"))]
     if loading.initializing && !loading.ready {
         let remaining = 0.90 - loading.fraction;
         let step_fraction = 1.0 - (-0.33 * time.delta_secs()).exp();
@@ -675,7 +870,7 @@ fn animate_loading_progress(
 
     let name = selected_model.0.map(ChatModel::name).unwrap_or("model");
     if let Ok(mut status) = download_status.single_mut() {
-        status.0 = match loading.download {
+        let mut value = match loading.download {
             DownloadPhase::Checking => format!("Checking {name} files"),
             DownloadPhase::Downloading => format!(
                 "Downloading {name}: {:.0}%",
@@ -684,9 +879,23 @@ fn animate_loading_progress(
             DownloadPhase::Downloaded => format!("{name} Downloaded"),
             DownloadPhase::Present => format!("{name} Loaded"),
         };
+        #[cfg(target_arch = "wasm32")]
+        {
+            if loading.failed {
+                value = "Model is unavailable".into();
+            } else if loading.download == DownloadPhase::Present {
+                value = "Cached model assets verified".into();
+            }
+        }
+        if status.0 != value {
+            status.0 = value;
+        }
     }
     if let Ok(mut bar) = download_bars.single_mut() {
-        bar.progress = loading.download_fraction.clamp(0.0, 1.0);
+        let progress = loading.download_fraction.clamp(0.0, 1.0);
+        if bar.progress != progress {
+            bar.progress = progress;
+        }
     }
 
     let download_done = matches!(
@@ -704,6 +913,12 @@ fn animate_loading_progress(
         }
         if *visibility != target {
             *visibility = target;
+        }
+        if node.align_self != AlignSelf::Center {
+            node.align_self = AlignSelf::Center;
+        }
+        if node.max_width != px(700.0) {
+            node.max_width = px(700.0);
         }
     }
 
@@ -724,18 +939,31 @@ fn animate_loading_progress(
     }
 
     if let Ok(mut status) = loading_status.single_mut() {
-        status.0 = if loading.failed {
+        let value = if loading.failed {
             loading.status.clone()
         } else {
-            format!(
-                "{}: {:.0}%",
-                loading.status,
-                loading.fraction.clamp(0.0, 1.0) * 100.0
-            )
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                format!(
+                    "{}: {:.0}%",
+                    loading.status,
+                    loading.fraction.clamp(0.0, 1.0) * 100.0
+                )
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                loading.status.clone()
+            }
         };
+        if status.0 != value {
+            status.0 = value;
+        }
     }
     if let Ok(mut bar) = loading_bars.single_mut() {
-        bar.progress = loading.fraction.clamp(0.0, 1.0);
+        let progress = loading.fraction.clamp(0.0, 1.0);
+        if bar.progress != progress {
+            bar.progress = progress;
+        }
     }
 }
 
@@ -873,6 +1101,7 @@ fn spawn_system_notice(commands: &mut Commands, container: Entity, text: String)
     });
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn spawn_llm_worker(mut commands: Commands, throughput: Res<ResourceMonitor>) {
     let (worker_tx, worker_rx) = mpsc::channel::<WorkerCommand>();
     let (event_tx, event_rx) = mpsc::channel::<ChatEvent>();
@@ -954,6 +1183,16 @@ fn spawn_llm_worker(mut commands: Commands, throughput: Res<ResourceMonitor>) {
     });
 }
 
+#[cfg(target_arch = "wasm32")]
+fn spawn_llm_worker(mut commands: Commands) {
+    web_platform::initialize();
+    commands.insert_resource(ChatChannel {
+        worker_tx: web_platform::WorkerSender,
+        events: web_platform::WorkerEvents,
+        stop: web_platform::WorkerStop,
+    });
+}
+
 fn chat_submit_system(
     mut commands: Commands,
     mut keyboard: ResMut<ButtonInput<KeyCode>>,
@@ -1023,7 +1262,7 @@ fn chat_submit_system(
 fn chat_poll_system(
     channel: Option<Res<ChatChannel>>,
     monitor: Res<ResourceMonitor>,
-    selected_model: Res<SelectedModel>,
+    mut selected_model: ResMut<SelectedModel>,
     mut loading: ResMut<LoadingProgress>,
     mut chat_state: ResMut<ChatState>,
     mut commands: Commands,
@@ -1033,6 +1272,7 @@ fn chat_poll_system(
     thinking: Query<Entity, With<ThinkingIndicator>>,
     mut texts: Query<&mut Text, Without<LoadingStatusText>>,
     mut scroll: Query<&mut ScrollPosition, With<MessagesContainer>>,
+    screens: Query<Entity, With<ChatScreenRoot>>,
 ) {
     let Some(channel) = channel else { return };
     let Ok(events) = channel.events.lock() else {
@@ -1043,6 +1283,25 @@ fn chat_poll_system(
     for event in events.try_iter() {
         received_any = true;
         match event {
+            #[cfg(target_arch = "wasm32")]
+            ChatEvent::BackendFailure(message) => {
+                monitor.generation_active.store(false, Ordering::Release);
+                chat_state.model_ready = false;
+                chat_state.generating = false;
+                chat_state.streaming_entity = None;
+                chat_state.streaming_message = None;
+                chat_state.ttft_entity = None;
+                selected_model.0 = None;
+                loading.failed = true;
+                loading.initializing = false;
+                loading.status = format!("{message} Reload TinyLlama to start a new conversation.");
+                for screen in &screens {
+                    commands.entity(screen).despawn();
+                }
+                if let Ok(mut visibility) = picker_visibility.single_mut() {
+                    *visibility = Visibility::Inherited;
+                }
+            }
             ChatEvent::LoadProgress(stage, fraction) => {
                 if stage.starts_with("Downloading") {
                     loading.download = DownloadPhase::Downloading;
@@ -1081,13 +1340,33 @@ fn chat_poll_system(
                     }
                 }
             }
+            #[cfg(target_arch = "wasm32")]
+            ChatEvent::ResponseText(response) => {
+                if let Some(entity) = chat_state.streaming_entity {
+                    if let Ok(mut text) = texts.get_mut(entity) {
+                        text.0 = response;
+                    }
+                }
+            }
+            #[cfg(target_arch = "wasm32")]
+            ChatEvent::GeneratedTokens(tokens) => {
+                monitor.generated_tokens.store(tokens, Ordering::Relaxed);
+            }
+            #[cfg(target_arch = "wasm32")]
+            ChatEvent::WorkerMetrics(rate, memory) => {
+                commands.queue(move |world: &mut World| {
+                    let mut monitor = world.resource_mut::<ResourceMonitor>();
+                    monitor.tokens_per_second = rate;
+                    monitor.used_gib = memory as f64 / 1_073_741_824.0;
+                });
+            }
             ChatEvent::FirstToken(elapsed_ms) => {
                 for indicator in &thinking {
                     commands.entity(indicator).despawn();
                 }
                 if let Some(entity) = chat_state.ttft_entity {
                     if let Ok(mut text) = texts.get_mut(entity) {
-                        text.0 = format!("{elapsed_ms}ms TTFT");
+                        text.0 = format_ttft(elapsed_ms);
                     }
                 }
             }
@@ -1110,6 +1389,11 @@ fn chat_poll_system(
                     loading.status = "Model loading failed".to_string();
                     loading.initializing = false;
                     loading.failed = true;
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        loading.status = format!("{err} Select TinyLlama to retry.");
+                        selected_model.0 = None;
+                    }
                 }
                 if let Some(entity) = chat_state.streaming_entity.take() {
                     if let Some(message) = chat_state.streaming_message.take() {
@@ -1130,6 +1414,120 @@ fn chat_poll_system(
         if let Ok(mut position) = scroll.single_mut() {
             position.y = f32::MAX;
         }
+    }
+}
+
+fn format_ttft(elapsed_ms: u128) -> String {
+    if elapsed_ms > 1000 {
+        format!("{:.2}s TTFT", elapsed_ms as f64 / 1000.0)
+    } else {
+        format!("{elapsed_ms}ms TTFT")
+    }
+}
+
+#[cfg(test)]
+mod ttft_tests {
+    use super::format_ttft;
+
+    #[test]
+    fn milliseconds_at_or_below_one_second() {
+        assert_eq!(format_ttft(0), "0ms TTFT");
+        assert_eq!(format_ttft(850), "850ms TTFT");
+        assert_eq!(format_ttft(1000), "1000ms TTFT");
+    }
+
+    #[test]
+    fn seconds_above_one_second() {
+        assert_eq!(format_ttft(1001), "1.00s TTFT");
+        assert_eq!(format_ttft(1234), "1.23s TTFT");
+        assert_eq!(format_ttft(62347), "62.35s TTFT");
+    }
+}
+
+#[cfg(test)]
+mod submit_style_tests {
+    use super::*;
+    use beverly::icons::{Icon, IconNode};
+
+    #[test]
+    fn send_and_pause_are_borderless_and_match_idle_input_border() {
+        let mut app = App::new();
+        app.init_resource::<ChatState>().add_systems(
+            Update,
+            (update_submit_icon, style_submit_prompt_button).chain(),
+        );
+        let button = app
+            .world_mut()
+            .spawn((
+                SubmitPromptButton,
+                Node {
+                    border: UiRect::all(px(1.0)),
+                    ..default()
+                },
+                Surface::rounded_rect_fill(8.0, Color::BLACK).uniform_border(1.0, Color::WHITE),
+            ))
+            .id();
+        let icon = app
+            .world_mut()
+            .spawn((SubmitIcon, IconNode::new(Icon::feather("send"))))
+            .id();
+
+        for (generating, name) in [(false, "send"), (true, "pause")] {
+            app.world_mut().resource_mut::<ChatState>().generating = generating;
+            app.update();
+            let surface = app.world().get::<Surface>(button).unwrap();
+            assert_eq!(surface.fill, Paint::solid(Color::NONE));
+            assert!(surface.border.is_none());
+            let node = app.world().get::<Node>(button).unwrap();
+            assert_eq!(node.border, UiRect::ZERO);
+            assert_eq!(node.width, px(38.0));
+            assert_eq!(node.height, px(38.0));
+            let icon = app.world().get::<IconNode>(icon).unwrap();
+            assert_eq!(icon.icon, Icon::feather(name));
+            assert_eq!(icon.color, CHAT_IDLE_BORDER);
+        }
+    }
+}
+
+#[cfg(test)]
+mod loading_layout_tests {
+    use super::*;
+
+    #[test]
+    fn download_status_and_progress_bar_are_centered_and_screen_bounded() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::asset::AssetPlugin::default());
+        app.init_asset::<Image>();
+        app.add_systems(Startup, setup);
+        app.update();
+
+        let loading_node = app
+            .world_mut()
+            .query_filtered::<&Node, With<LoadingGroup>>()
+            .single(app.world())
+            .unwrap();
+        assert_eq!(loading_node.align_items, AlignItems::Center);
+        assert_eq!(loading_node.width, percent(100.0));
+        assert_eq!(loading_node.max_width, px(700.0));
+
+        let (status_text, status_layout, status_node) = app
+            .world_mut()
+            .query_filtered::<(&Text, &TextLayout, &Node), With<DownloadStatusText>>()
+            .single(app.world())
+            .unwrap();
+        assert_eq!(status_text.0, "Waiting for model selection");
+        assert_eq!(status_layout.justify, Justify::Center);
+        assert_eq!(status_node.justify_content, JustifyContent::Center);
+        assert_eq!(status_node.align_items, AlignItems::Center);
+
+        let bar_node = app
+            .world_mut()
+            .query_filtered::<&Node, With<DownloadProgressBar>>()
+            .single(app.world())
+            .unwrap();
+        assert_eq!(bar_node.width, percent(100.0));
+        assert_eq!(bar_node.max_width, px(700.0));
     }
 }
 
@@ -1157,14 +1555,17 @@ fn update_metrics(
         }
         monitor.fps_window_frames = 0;
         monitor.fps_window_seconds = 0.0;
-        monitor.system.refresh_memory();
-        monitor.system.refresh_cpu_usage();
-        monitor.used_gib = monitor.system.used_memory() as f64 / 1_073_741_824.0;
-        monitor.total_gib = monitor.system.total_memory() as f64 / 1_073_741_824.0;
-        monitor.cpu = monitor.system.global_cpu_usage();
-        monitor.gpu = read_gpu_utilization()
-            .map(|usage| format!("{usage}%"))
-            .unwrap_or_else(|| "n/a".to_string());
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            monitor.system.refresh_memory();
+            monitor.system.refresh_cpu_usage();
+            monitor.used_gib = monitor.system.used_memory() as f64 / 1_073_741_824.0;
+            monitor.total_gib = monitor.system.total_memory() as f64 / 1_073_741_824.0;
+            monitor.cpu = monitor.system.global_cpu_usage();
+            monitor.gpu = read_gpu_utilization()
+                .map(|usage| format!("{usage}%"))
+                .unwrap_or_else(|| "n/a".to_string());
+        }
     }
 
     if token_metrics_due {
@@ -1177,7 +1578,10 @@ fn update_metrics(
                     total.saturating_sub(monitor.last_token_total) as f64 / elapsed;
             }
         } else {
-            monitor.tokens_per_second = 0.0;
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                monitor.tokens_per_second = 0.0;
+            }
             monitor.last_token_total = total;
         }
         monitor.last_token_total = total;
@@ -1189,20 +1593,38 @@ fn update_metrics(
     };
 
     if let Ok(mut text) = metrics_model_text.single_mut() {
-        text.0 = format!(
-            "Model: {model_name} · RAM: {:.1}/{:.1} GB · CPU: {:.0}%",
-            monitor.used_gib, monitor.total_gib, monitor.cpu,
-        );
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            text.0 = format!(
+                "Model: {model_name} · RAM: {:.1}/{:.1} GB · CPU: {:.0}%",
+                monitor.used_gib, monitor.total_gib, monitor.cpu,
+            );
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            text.0 = format!("{model_name} · Q4_0 · {:.2} GiB Wasm", monitor.used_gib);
+        }
     }
     if let Ok(mut text) = metrics_text.single_mut() {
-        text.0 = format!(
-            "GPU: {} · {:.0} tok/s · {:.0} FPS ·",
-            monitor.gpu, monitor.tokens_per_second, monitor.frames_per_second,
-        );
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            text.0 = format!(
+                "GPU: {} · {:.0} tok/s · {:.0} FPS ·",
+                monitor.gpu, monitor.tokens_per_second, monitor.frames_per_second,
+            );
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            text.0 = format!(
+                "{:.2} tok/s · {:.0} FPS",
+                monitor.tokens_per_second, monitor.frames_per_second
+            );
+        }
     }
 }
 
 /// Apple Silicon exposes this unprivileged GPU percentage through IORegistry.
+#[cfg(not(target_arch = "wasm32"))]
 fn read_gpu_utilization() -> Option<u8> {
     let output = Command::new("ioreg")
         .args(["-r", "-d", "1", "-w", "0", "-c", "AGXAccelerator"])

@@ -1,0 +1,15 @@
+{
+  "checkpoint": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "checkpointRevision": "fe8a4ea1ffedaf415f4da2f062534de366a451e6",
+  "quantization": "GGUF Q4_0",
+  "weights": {
+    "url": "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/52e7645ba7c309695bec7ac98f4f005b139cf465/tinyllama-1.1b-chat-v1.0.Q4_0.gguf",
+    "bytes": 637699456,
+    "sha256": "da3087fb14aede55fde6eb81a0e55e886810e43509ec82ecdc7aa5d62a03b556"
+  },
+  "tokenizer": {
+    "url": "https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0/resolve/fe8a4ea1ffedaf415f4da2f062534de366a451e6/tokenizer.json",
+    "bytes": 1842767,
+    "sha256": "bcd04f0eadf90287bd26e1a183ac487d8a141b09b06aecb7725bbdd343640f2e"
+  }
+}

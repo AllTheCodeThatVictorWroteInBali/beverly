@@ -256,6 +256,7 @@ pub(crate) fn embed_feather_icons(app: &mut App) {
     embedded_asset!(app, "feather/trending-up.svg");
     embedded_asset!(app, "feather/triangle.svg");
     embedded_asset!(app, "feather/truck.svg");
+    embedded_asset!(app, "feather/turtle.svg");
     embedded_asset!(app, "feather/tv.svg");
     embedded_asset!(app, "feather/twitch.svg");
     embedded_asset!(app, "feather/twitter.svg");
