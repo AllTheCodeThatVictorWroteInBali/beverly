@@ -6,6 +6,27 @@ Screen-reader support depends on semantics, not decoration. A polished interface
 
 ## Core requirements
 
+Beverly projects its semantic tree through AccessKit. Bound validation errors
+create assertive error regions and invalid/error-description relationships.
+Notifications have live-region semantics, and applications can request an
+announcement explicitly:
+
+```rust
+use beverly::primitives::semantic::{AccessibilityAnnouncement, AnnouncementPriority};
+
+world.write_message(AccessibilityAnnouncement {
+    message: "Changes saved".to_owned(),
+    priority: AnnouncementPriority::Polite,
+});
+```
+
+Install `SemanticPlugin` (included by `BeverlyPlugin`) before sending messages.
+Each nonempty message gets its own accessible region, so repeated identical
+messages are not silently discarded. Regions remain in the tree for one second.
+Use assertive announcements for urgent errors and polite announcements for
+ordinary status changes. This adapter does not establish that a specific
+screen reader announced a message; verify that on the supported platform.
+
 The application should provide:
 
 - clear text labels for controls and actions

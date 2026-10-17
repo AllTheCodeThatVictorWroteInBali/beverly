@@ -4,6 +4,20 @@ A slider selects a numeric value within a range. `Slider` stores the value;
 `SliderStyle` controls the track, fill, thumb, and optional value display.
 `BeverlyPlugin` installs the slider systems.
 
+## Validation Errors
+
+Use `.bind(...)` with `.error(...)` to render rejected numeric edits below the
+slider:
+
+```rust
+Slider::new(0.0, 100.0)
+    .bind(User::rating)
+    .error(|errors| text(errors.join("\n")))
+```
+
+`Slider::error(...)` also supports manual `BindingErrorState` without binding.
+See [Error Callbacks](overview.md#error-callbacks) for lifecycle and setup.
+
 ## Live Demo
 
 <iframe src="../../assets/demos/index.html?demo=slider" title="Interactive Beverly slider demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>

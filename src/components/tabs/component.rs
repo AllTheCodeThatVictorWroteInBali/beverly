@@ -29,13 +29,18 @@ impl Tab {
 /// Configuration for a reusable tabs component.
 #[derive(Clone, Debug)]
 pub struct TabsConfig {
+    pub disabled: bool,
     pub tabs: Vec<Tab>,
     pub active: usize,
 }
 
 impl TabsConfig {
     pub fn new(tabs: Vec<Tab>) -> Self {
-        Self { tabs, active: 0 }
+        Self {
+            tabs,
+            active: 0,
+            disabled: false,
+        }
     }
 
     pub fn with_active(mut self, active: usize) -> Self {
@@ -45,6 +50,11 @@ impl TabsConfig {
 
     pub fn active_tab(&self) -> Option<&Tab> {
         self.tabs.get(self.active)
+    }
+
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
+        self
     }
 }
 
@@ -593,6 +603,12 @@ fn tabs_roving_nav_system(
     }
 
     let tabs_entity = focused_button.tabs_entity;
+    if tabs_query
+        .get(tabs_entity)
+        .is_ok_and(|tabs| tabs.config.disabled)
+    {
+        return;
+    }
     let mut siblings: Vec<(Entity, usize)> = tab_buttons
         .iter()
         .filter(|(_, button)| button.tabs_entity == tabs_entity)
@@ -637,17 +653,42 @@ fn tabs_roving_nav_system(
 /// Keeps each tab button's tab stop and semantic selected state in sync
 /// with the active tab (only the active tab is a tab stop).
 fn tabs_a11y_sync_system(
-    tabs_query: Query<(Entity, &Tabs), Changed<Tabs>>,
-    mut buttons: Query<(&TabButton, &mut a11y::TabIndex, &mut SemanticNode)>,
+    mut commands: Commands,
+    tabs_query: Query<(Entity, &Tabs)>,
+    mut buttons: Query<(Entity, &TabButton, &mut a11y::TabIndex, &mut SemanticNode)>,
+    zones: Query<(Entity, &TabZone)>,
 ) {
     for (tabs_entity, tabs) in &tabs_query {
-        for (button, mut tab_index, mut node) in &mut buttons {
+        for (button_entity, button, mut tab_index, mut node) in &mut buttons {
             if button.tabs_entity != tabs_entity {
                 continue;
             }
             let active = button.index == tabs.config.active;
-            tab_index.0 = if active { 0 } else { -1 };
+            tab_index.0 = if active && !tabs.config.disabled {
+                0
+            } else {
+                -1
+            };
             node.state.selected = active;
+            node.state.disabled = tabs.config.disabled;
+            if let Some((zone_entity, _)) = zones
+                .iter()
+                .find(|(_, zone)| zone.tabs_entity == tabs_entity && zone.index == button.index)
+            {
+                node.relationships.controls = vec![zone_entity];
+                let mut panel = SemanticNode::new(SemanticRole::TabPanel);
+                panel.actions.clear();
+                panel.label = tabs
+                    .config
+                    .tabs
+                    .get(button.index)
+                    .map(|tab| tab.label.clone());
+                panel.state.hidden = !active;
+                panel.state.disabled = tabs.config.disabled;
+                panel.relationships.labelled_by = Some(button_entity);
+                panel.relationships.controlled_by = Some(button_entity);
+                commands.entity(zone_entity).insert(panel);
+            }
         }
     }
 }
@@ -666,6 +707,9 @@ fn tab_button_interaction(
         let Ok(mut tabs) = tabs_query.get_mut(button.tabs_entity) else {
             continue;
         };
+        if tabs.config.disabled {
+            continue;
+        }
 
         if tabs.config.active == button.index {
             continue;

@@ -65,11 +65,7 @@ const DEFAULT_INITIALS: &str = "??";
 
 /// (fill, text, border) for initials; same fill/border as the default alert.
 type AvatarColors = (Color, Color, Color);
-const LIGHT_COLORS: AvatarColors = (
-    Color::WHITE,
-    Color::BLACK,
-    Color::srgb(0.831, 0.831, 0.831),
-);
+const LIGHT_COLORS: AvatarColors = (Color::WHITE, Color::BLACK, Color::srgb(0.831, 0.831, 0.831));
 const DARK_COLORS: AvatarColors = (
     Color::srgb(0.090, 0.090, 0.090),
     Color::WHITE,
@@ -273,9 +269,7 @@ pub fn spawn_avatar_in(
 
 fn configure_avatar(avatar: &mut EntityCommands, asset_server: &AssetServer, config: AvatarConfig) {
     let size = config.size.max(MIN_AVATAR_SIZE);
-    let font_size = config
-        .font_size
-        .unwrap_or((size * 0.5).round().max(12.0));
+    let font_size = config.font_size.unwrap_or((size * 0.5).round().max(12.0));
 
     avatar.insert((
         Avatar,

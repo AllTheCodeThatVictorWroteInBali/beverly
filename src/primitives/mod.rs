@@ -9,3 +9,4 @@ pub mod placeholder;
 pub mod root;
 pub mod routing;
 pub mod semantic;
+pub mod style;

@@ -30,6 +30,7 @@ pub(crate) fn spawn_row(
                 striped: config.striped,
             },
             SemanticNode::new(SemanticRole::Row).label(row.id.clone()),
+            crate::primitives::a11y::TabIndex(if config.selectable_rows { 0 } else { -1 }),
             Button,
             ButtonMotionDisabled,
             Node {
@@ -57,8 +58,15 @@ pub(crate) fn spawn_row(
                             table_id: table_id.to_string(),
                             row_id: row.id.clone(),
                             column_id: column.id.clone(),
+                            column_index,
                         },
-                        SemanticNode::new(SemanticRole::Cell).label(cell.text.clone()),
+                        SemanticNode::new(SemanticRole::Cell)
+                            .label(format!("{}: {}", column.label, cell.text)),
+                        crate::primitives::a11y::TabIndex(if index == 0 && column_index == 0 {
+                            0
+                        } else {
+                            -1
+                        }),
                         Button,
                         ButtonMotionDisabled,
                         Node {

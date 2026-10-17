@@ -1,505 +1,116 @@
 # Forms
 
-The `.bind(...)` API connects supported form controls to fields on a Bevy
-resource model. User edits call the generated or custom setter; successful
-values are read back so normalization is reflected in the control. Model-side
-changes are synchronized to the control on the next UI update.
+Supported form controls bind to Bevy resource models through `.bind(...)`.
+User edits call the generated or custom setter; successful values are read back
+so normalization reaches the control. Model-side changes synchronize to controls
+on the next UI update.
 
-A Beverly form is a typed interface that transforms user input into application state.
+## Binding Controls
 
-The form handles the **editing experience**. The Model handles the **truth**.
+Configure the concrete builder first, then call `.bind(...)`. Binding returns a
+`UiElement` that can be composed in a Form, Container, or another section.
 
-This distinction is important. A form should not become a second state-management system, and validation should not exist only in the UI. The same Model mechanics should work whether a value comes from a human through a form, an AI agent, an API, or another part of the application.
+```rust
+use beverly::prelude::*;
+use beverly::components::input::TextInputConfig;
 
-The basic flow is:
-
-```text
-Input → Binding → Setter → Model
-```
-
-The setter is the authoritative state-transition boundary.
-
----
-
-## The Model
-
-A form ultimately edits application data, so start with ordinary Rust.
-
-```rust id="on6d0d"
-struct User {
-    name: String,
-    email: String,
-    age: u32,
-    active: bool,
-}
-```
-
-Nothing special is required here.
-
-You can implement the accessors yourself:
-
-```rust id="9lh5z6"
-impl User {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn set_name(&mut self, name: String) {
-        self.name = name;
-    }
-}
-```
-
-This is intentionally ordinary Rust. Add `#[model]` to a named-field struct to
-derive Bevy's `Resource` implementation and generate field bindings. Insert the
-model resource before the UI begins updating.
-
-```rust id="hzh3pl"
-    #[model]
-struct User {
-    name: String,
-    email: String,
-    age: u32,
-    active: bool,
-}
-```
-
-The macro generates `get_<field>()` accessors and a typed field binding named
-after each field. Bind it with `.bind(User::field)`.
-
-Conceptually, you get the same thing you would have written yourself:
-
-```rust id="3annbd"
-impl User {
-    fn get_email(&self) -> &String {
-        &self.email
-    }
-
-    fn set_email(&mut self, email: String) {
-        self.email = email;
-    }
-}
-```
-
-There is no second model language to learn.
-
-> **The Model is just Rust — and that's exactly the point.**
-
----
-
-## Implicit and Explicit Setters
-
-Beverly defaults to the obvious behavior.
-
-If a field has no special requirements, Beverly generates a setter that updates
-the field directly:
-
-```rust id="i3vsxe"
-input()
-    .label("Email")
-    .bind(User::email)
-```
-
-The generated setter simply updates the field.
-
-When a field needs domain-specific behavior, select a method with
-`#[setter = method_name]`. The method receives the field value and returns
-`Result<(), E>` where `E` implements `Display`:
-
-```rust id="rehc9s"
 #[model]
 struct User {
-    name: String,
-
-    #[setter = validate_email]
     email: String,
-
-    age: u32,
     active: bool,
+    priority: u32,
 }
+
+let user = User {
+    email: String::new(),
+    active: false,
+    priority: 1,
+};
+let fields = [
+    TextInputConfig::new("Email").label("Email address").bind(User::email),
+    CheckboxConfig::new().label("Active").bind(User::active),
+    Select::new(vec![1u32, 2, 3]).bind(User::priority),
+];
 ```
 
-Now changes to `email` go through `validate_email`. A rejected value remains in
-the control and its error messages are stored in `BindingErrorState`; after a
-successful edit the model value is read back into the control.
+Insert the model as a Bevy resource. `BeverlyPlugin` installs `BindingPlugin`;
+a custom app must install it explicitly. Configure concrete controls before
+binding because `.bind(...)` consumes the builder and returns `UiElement`.
 
-```rust id="oymvvq"
-impl User {
-    fn validate_email(&mut self, email: String) -> Result<(), UserError> {
-        let email = email.trim().to_lowercase();
+| Control builder | Bound value |
+|---|---|
+| `TextInputConfig` | `String`, numeric scalar, or `bool` represented as text |
+| `TextareaConfig` | `String` |
+| `CheckboxConfig`, `ToggleConfig` | `bool` |
+| `RadioGroupBuilder` | String option value |
+| `Select<T>` | `T: BindingValueType + Display` |
+| `Slider` | Numeric scalar within the slider range |
+| `DropdownConfig` | String option value, not its display label |
+| `FileInput` | `Vec<SelectedFile>` |
+| `Search` / `SearchBox` | `String` |
 
-        if !is_valid_email(&email) {
-            return Err(UserError::InvalidEmail);
-        }
+`BindingValueType` has built-in conversions for `String`, `bool`, numeric scalar
+values, and `Vec<SelectedFile>`. Custom value types can implement the trait.
+Typed `Select<T>` additionally requires `Display` for accessible option labels.
+The selected model value must match one of the Select's options; an unmatched
+value becomes a `BindingErrorState` instead of silently selecting another
+option. Register `SelectPlugin<T>` for every concrete option type used.
 
-        self.email = email;
+For custom field accessors, create `FieldBinding::new(getter, setter)`. The
+getter returns the model value; the setter accepts `&mut Model` and returns
+`Result<(), BindingErrors>`. A setter alone cannot support two-way binding
+because the binding also needs a getter.
 
-        Ok(())
-    }
-}
+## Pending and Success
+
+Use `.submitting(|| ...)` and `.success(|| ...)` to add state-specific content
+below a value control, Form, or submit control. Callbacks take no arguments and
+return one `UiElement` or an iterable. They do not inspect models, messages, or
+requests automatically.
+
+```rust
+let form = UiElement::form(Form::new())
+    .submitting(|| [spinner(), text("Saving changes…")])
+    .success(|| text("Saved"))
+    .spawn_in_context(&mut context);
+
+context.world.get_mut::<FormStatusState>(form).unwrap().submitting();
+// After the app's operation completes:
+context.world.get_mut::<FormStatusState>(form).unwrap().success();
+context.world.get_mut::<FormStatusState>(form).unwrap().idle();
 ```
 
-The form binding does not need to know about the validation:
+The app owns the lifecycle. Callback content replaces on status changes and is
+removed on `Idle`; it has polite live-region semantics. Controls are not
+automatically disabled while submitting. Configure that policy separately.
+See [Form](form.md#pending-and-success) for sections and complete composition.
 
-```rust id="b4xbzl"
-input()
-    .label("Email")
-    .bind(User::email)
+## Error Callbacks
+
+Value controls, typed `Select<T>`, Form, and submit controls expose
+`.error(|errors| ...)`. The callback receives the current `&[String]` and
+returns composable content. For bound fields, setter/conversion failures update
+`BindingErrorState` automatically. Form-level and unbound-control errors are
+app-owned and must be set on that entity.
+
+```rust
+let form = Form::new()
+    .error(|errors| text(errors.join("\n")))
+    .spawn_in_context(&mut context);
+
+context.world.get_mut::<BindingErrorState>(form).unwrap()
+    .error(BindingErrors::new("Unable to save. Please retry."));
 ```
 
-The binding remains simple because the Model owns the rules.
-
-This gives Beverly two modes:
-
-**Implicit when the behavior is obvious. Explicit when the behavior matters.**
-
-The generated behavior handles the common case. Ordinary Rust handles the exceptional case.
-
-> **Magic in implementation. Explicitness at the API.**
-
----
-
-## Binding
-
-`.bind()` connects an input to a Model field.
-
-```rust id="g9st5i"
-input()
-    .label("Email")
-    .bind(User::email)
-```
-
-The binding handles the translation between interface input and typed application state.
-
-Conceptually, it:
-
-1. Reads the current Model value.
-2. Displays that value in the input.
-3. Receives user input.
-4. Transforms the input into the Model's type.
-5. Calls the appropriate setter.
-6. Reacts to the result.
-7. Keeps the input synchronized with application state.
-
-The Model remains the source of truth.
-
-If another part of the application changes the user's email, the bound input reflects that change. The form does not maintain an authoritative duplicate of the value.
-
-```text
-Model → Binding → Input
-Input → Binding → Setter → Model
-```
-
-This is two-way binding without requiring developers to manually maintain synchronization code.
-
----
-
-## Validation
-
-Validation belongs at the state transition.
-
-Consider an email field.
-
-The UI can tell the user that an email _looks_ invalid, but the application must ultimately decide whether the value is valid. That decision belongs with the Model.
-
-```rust id="jh5y7y"
-impl User {
-    fn validate_email(&mut self, email: String) -> Result<(), UserError> {
-        let email = email.trim().to_lowercase();
-
-        if !is_valid_email(&email) {
-            return Err(UserError::InvalidEmail);
-        }
-
-        self.email = email;
-
-        Ok(())
-    }
-}
-```
-
-If validation fails, the Model does not change.
-
-This means the same rule applies everywhere:
-
-```text
-Human → Form ───────┐
-Agent ──────────────┤
-API ────────────────┼→ Setter → Model
-Application ────────┤
-Other system ───────┘
-```
-
-The UI is one client of the application. It is not the authority over the application.
-
-This is especially important for agentic applications. An agent should not have to reproduce the application's validation rules. It should attempt the state transition and handle the result.
-
-> **Validation protects application state, not the screen.**
-
----
-
-## Async Validation
-
-Some validation requires external information.
-
-For example, an email address may need to be checked against an existing account system:
-
-```rust id="esw1c7"
-impl User {
-    async fn set_email(
-        &mut self,
-        email: String,
-    ) -> Result<(), UserError> {
-        let email = email.trim().to_lowercase();
-
-        if !is_valid_email(&email) {
-            return Err(UserError::InvalidEmail);
-        }
-
-        if email_exists(&email).await? {
-            return Err(UserError::EmailAlreadyRegistered);
-        }
-
-        self.email = email;
-
-        Ok(())
-    }
-}
-```
-
-The important architectural point is that the validation still belongs to the state transition.
-
-The form does not need to know how the validation works. It only needs to represent the state of the operation:
-
-- pending
-- accepted
-- rejected
-
-Beverly's Event architecture handles the asynchronous boundary.
-
-> **Async does not create a second architecture. It uses the same architecture.**
-
----
-
-## Editing State
-
-Application state and editing state are different things.
-
-The **Model owns application state**.
-
-The **Form owns editing state**.
-
-A field may need to know whether it has been:
-
-- touched
-- changed
-- focused
-- validated
-- submitted
-- rejected
-- validated asynchronously
-- waiting for a response
-
-For example:
-
-**Touched** means the user has interacted with the field.
-
-**Dirty** means the current editing value differs from the original value. If the user changes a value and then restores the original value, the field can become clean again.
-
-**Pending** means an asynchronous operation is currently in progress.
-
-This information belongs to the form because it describes the **editing experience**, not the application's underlying truth.
-
-The Model does not need to know whether a user has clicked into an input three times.
-
----
-
-## Building a Form
-
-With the Model defined, the form itself stays small.
-
-```rust id="i4wfn2"
-form()
-    .children([
-        input()
-            .label("Name")
-            .bind(User::name),
-
-        input()
-            .label("Email")
-            .bind(User::email),
-
-        input()
-            .label("Age")
-            .bind(User::age),
-
-        checkbox()
-            .label("Active")
-            .bind(User::active),
-
-        submit("Create User"),
-    ])
-    .on("submit", Command::User::Create)
-```
-
-Notice what is _not_ here.
-
-There are no manual change handlers.
-
-There is no form-specific copy of the `User`.
-
-There is no email validation function attached to the input.
-
-There is no synchronization code.
-
-The form describes the interface. The bindings connect it to the Model. The Model defines what is allowed to happen.
-
----
+Changed nonempty errors replace the presentation; recovery removes it. Field
+errors are not automatically aggregated into Form-level errors. Invalid state,
+error announcements, and relationships are projected into accessibility
+semantics; verify delivery with the platforms and screen readers you support.
 
 ## Submission
 
-Editing and submission are separate concerns.
-
-The fields update the Model through their bindings.
-
-The submit control expresses an intent:
-
-```rust id="kmltri"
-form()
-    .children([
-        input()
-            .label("Name")
-            .bind(User::name),
-
-        input()
-            .label("Email")
-            .bind(User::email),
-
-        submit("Create User"),
-    ])
-    .on("submit", Command::User::Create)
-```
-
-The form emits the Command.
-
-The Controller decides what that Command does.
-
-For example:
-
-```rust id="q3r8v1"
-controller! {
-    User::Create => Api::users::create,
-}
-```
-
-The API receives typed application state rather than raw UI input.
-
-```rust id="lvmgi6"
-async fn create(user: User) -> Result<User, ApiError> {
-    api
-        .post("/users", &user)
-        .await
-}
-```
-
-The conceptual flow is:
-
-```text
-Form
-  ↓
-Model
-  ↓
-Command
-  ↓
-Controller
-  ↓
-API
-  ↓
-Fact
-```
-
-For example, a successful request can produce:
-
-```text
-User::Created
-```
-
-while a failure can produce:
-
-```text
-User::CreateFailed
-```
-
-The form can respond to those Events by showing success, displaying an error, resetting its editing state, or preserving the user's inputs.
-
-Again, there is no separate form architecture for asynchronous work. It is the same Event architecture used everywhere else in Beverly.
-
----
-
-## Forms and AI
-
-A Beverly form is not a privileged path into application state.
-
-It is simply one interface.
-
-A human can change a user's email.
-
-An agent can request the same change.
-
-An API can request the same change.
-
-An internal application service can request the same change.
-
-They all eventually encounter the same Model rules.
-
-That gives an agent a much cleaner interface to the application.
-
-Instead of learning:
-
-> “If the user enters an email here, run this validation function, then update this piece of state…”
-
-the agent works with the application's actual vocabulary:
-
-```text
-User::SetEmail
-User::Created
-User::CreateFailed
-```
-
-The Model enforces the rules.
-
-The Controller coordinates the action.
-
-Events communicate what happened.
-
-The form simply gives humans a way to interact with the same system.
-
----
-
-## Form Contract
-
-A Beverly form follows a small set of rules:
-
-- **Model owns application state.**
-- **Form owns editing state.**
-- **Bindings connect inputs to typed Model fields.**
-- **Setters are the authoritative state-transition boundary.**
-- **Validation belongs with the state transition.**
-- **`#[model]` generates common accessor boilerplate.**
-- **Custom setters can be ordinary Rust.**
-- **`#[setter = ...]` makes custom field behavior explicit when needed.**
-- **Inputs track editing concerns such as touched, dirty, focused, and pending.**
-- **Submit controls emit Commands.**
-- **Controllers coordinate actions.**
-- **Events carry asynchronous results and application facts.**
-- **Humans, agents, APIs, and other systems use the same underlying application rules.**
-
-The result is a form that is simple at the surface without being simplistic underneath.
-
-> **The form handles the editing experience.
-> The Model handles the truth.
-> The setter handles the rules.
-> The Command expresses intent.
-> Events carry the result through the application.**
-
-A Beverly form is a **typed interface that transforms user input into validated application state.**
+A generated Form submit control gathers named descendant values and emits
+`FormSubmitted`. The app decides how to perform a request and handle its result.
+It does not send network traffic automatically. See [Submit](submit.md) for
+GET, POST, PUT, PATCH, body encodings, and the optional blocking transport
+feature.

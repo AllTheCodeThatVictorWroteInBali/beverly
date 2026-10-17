@@ -1,7 +1,11 @@
 # Toggle Button
 
-> **Current status:** `.bind(...)` examples describe planned model-setter
-> integration and are not currently executable against the crate.
+> **Model binding:** The concrete boolean control uses
+> `ToggleConfig::new().label("Enabled").bind(User::enabled)` and returns
+> `UiElement`. See [Binding Controls](overview.md#binding-controls).
+
+`ToggleConfig::error(|errors| ...)` renders boolean-field validation errors
+below the control. See [Error Callbacks](overview.md#error-callbacks).
 
 The `ToggleButton` is a form control that represents an on/off state while presenting itself as a button.
 
@@ -184,8 +188,8 @@ The application can style each state independently.
 toggle_button(localize("user.favorite"))
     .label(localize("user.favorite.label"))
     .aria(localize("user.favorite.description"))
-    .active(self.color(red))
-    .inactive(self.opacity(0.6))
+    .active(|style| style.color("red"))
+    .inactive(|style| style.opacity(0.6))
     .bind(User::favorite)
 ```
 
@@ -207,10 +211,10 @@ The Toggle Button can also provide the normal UI lifecycle states of a button.
 toggle_button(localize("user.favorite"))
     .label(localize("user.favorite.label"))
     .aria(localize("user.favorite.description"))
-    .hover(self.opacity(0.9))
-    .focused(self.outline_width(2))
-    .pressed(self.scale(0.98))
-    .disabled(self.opacity(0.5))
+    .hover(|style| style.opacity(0.9))
+    .focused(|style| style.outline_width(2))
+    .pressed(|style| style.scale(0.98))
+    .disabled_style(|style| style.opacity(0.5))
     .bind(User::favorite)
 ```
 
@@ -236,7 +240,7 @@ A Toggle Button can also reflect a pending application operation.
 toggle_button(localize("user.notifications"))
     .label(localize("user.notifications.label"))
     .aria(localize("user.notifications.description"))
-    .submitting(self.opacity(0.5))
+    .submitting(|| [spinner()])
     .bind(User::notifications_enabled)
 ```
 
@@ -257,9 +261,9 @@ toggle_button(localize("user.beta"))
     .label(localize("user.beta.label"))
     .aria(localize("user.beta.description"))
     .bind(User::beta_enabled)
-    .submitting(self.opacity(0.5))
-    .error(self.color(red))
-    .success(self.color(green))
+    .submitting(|| [spinner()])
+    .error(|errors| text(errors.join("\n")))
+    .success(|| [text("Saved")])
 ```
 
 These states describe presentation.
@@ -513,10 +517,10 @@ toggle_button(localize("view.grid"))
     .aria(localize("view.grid.description"))
     .padding(8)
     .radius(8)
-    .active(self.color(blue))
-    .inactive(self.opacity(0.6))
-    .hover(self.opacity(0.9))
-    .pressed(self.scale(0.98))
+    .active(|style| style.color("blue"))
+    .inactive(|style| style.opacity(0.6))
+    .hover(|style| style.opacity(0.9))
+    .pressed(|style| style.scale(0.98))
     .bind(View::grid_enabled)
 ```
 
@@ -564,8 +568,8 @@ toggle_button()
     .children([
         icon("bold"),
     ])
-    .active(self.color(blue))
-    .inactive(self.color(gray))
+    .active(|style| style.color("blue"))
+    .inactive(|style| style.color("gray"))
     .bind(Editor::bold)
 ```
 

@@ -347,7 +347,7 @@ Harassment, discrimination, personal attacks, and deliberately disruptive behavi
 
 ## A Note on the Project's Stage
 
-Beverly is currently experimental.
+Beverly is under active development.
 
 Public APIs, architecture, rendering approaches, and component designs may change substantially before a stable release.
 

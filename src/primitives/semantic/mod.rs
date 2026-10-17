@@ -14,6 +14,7 @@ use crate::components::input::{TextInput, TextInputKind};
 use crate::components::slider::{Slider, SliderChanged};
 use crate::components::textarea::Textarea;
 use crate::components::toggle::{Toggle, ToggleEvent};
+use crate::primitives::binding::{BindingErrorState, BindingSystems};
 use crate::primitives::focus::{FocusChanged, FocusDebugSnapshot, FocusDebugTrace, FocusSystems};
 use crate::primitives::interaction::{
     InteractionAction, InteractionActionEvent, InteractionActionSource, UiActionSystems,
@@ -313,6 +314,176 @@ pub struct AccessibilityAnnouncement {
     pub priority: AnnouncementPriority,
 }
 
+#[derive(Component)]
+struct ValidationMessage {
+    entity: Entity,
+    previous_error: Option<Entity>,
+    source: Entity,
+}
+
+#[derive(Component)]
+struct AnnouncementLifetime(Timer);
+
+#[derive(Component)]
+struct SemanticDisabledInteraction;
+
+fn sync_validation_semantics(world: &mut World) {
+    let entities: Vec<_> = world
+        .query_filtered::<Entity, Or<(With<BindingErrorState>, With<ValidationMessage>)>>()
+        .iter(world)
+        .collect();
+    for entity in entities {
+        let source = world
+            .get::<ValidationMessage>(entity)
+            .map_or(entity, |message| message.source);
+        let messages = world
+            .get::<BindingErrorState>(source)
+            .map(|errors| errors.messages.clone())
+            .unwrap_or_default();
+        let composite = world
+            .get::<crate::components::search::Search>(entity)
+            .is_some()
+            || world
+                .get::<crate::components::select::Select<String>>(entity)
+                .is_some()
+            || world
+                .get::<crate::components::dropdown::Dropdown>(entity)
+                .is_some();
+        let mut candidates = if composite {
+            world
+                .get::<Children>(entity)
+                .map(|children| children.iter().collect())
+                .unwrap_or_default()
+        } else {
+            std::collections::VecDeque::from([entity])
+        };
+        let mut target = None;
+        while let Some(candidate) = candidates.pop_front() {
+            if world.get::<SemanticNode>(candidate).is_some() {
+                target = Some(candidate);
+                break;
+            }
+            if let Some(children) = world.get::<Children>(candidate) {
+                candidates.extend(children.iter());
+            }
+        }
+        let Some(entity) = target else { continue };
+        if entity != source {
+            let state = BindingErrorState {
+                messages: messages.clone(),
+            };
+            if let Some(mut existing) = world.get_mut::<BindingErrorState>(entity) {
+                existing.set_if_neq(state);
+            } else {
+                world.entity_mut(entity).insert(state);
+            }
+        }
+        if messages.is_empty() {
+            if let Some(target) = world.entity_mut(entity).take::<ValidationMessage>() {
+                let mut semantic = world.get_mut::<SemanticNode>(entity).unwrap();
+                if semantic.relationships.error_message == Some(target.entity) {
+                    semantic.relationships.error_message = target.previous_error;
+                }
+                semantic
+                    .relationships
+                    .described_by
+                    .retain(|described| *described != target.entity);
+                world.despawn(target.entity);
+            }
+            continue;
+        }
+        let text = messages.join("; ");
+        let target = if let Some(target) = world.get::<ValidationMessage>(entity) {
+            target.entity
+        } else {
+            let previous_error = world
+                .get::<SemanticNode>(entity)
+                .unwrap()
+                .relationships
+                .error_message;
+            let mut error = SemanticNode::new(SemanticRole::Alert).label(text.clone());
+            error.live = Some(AnnouncementPriority::Assertive);
+            error.actions.clear();
+            let target = world
+                .spawn((error, hidden_semantic_node(), ChildOf(entity)))
+                .id();
+            world.entity_mut(entity).insert(ValidationMessage {
+                entity: target,
+                previous_error,
+                source,
+            });
+            let mut semantic = world.get_mut::<SemanticNode>(entity).unwrap();
+            semantic.relationships.error_message = Some(target);
+            semantic.relationships.described_by.push(target);
+            target
+        };
+        if let Some(mut semantic) = world.get_mut::<SemanticNode>(target) {
+            if semantic.label.as_deref() != Some(text.as_str()) {
+                semantic.label = Some(text);
+            }
+        }
+    }
+}
+
+fn hidden_semantic_node() -> Node {
+    Node {
+        position_type: PositionType::Absolute,
+        width: px(1),
+        height: px(1),
+        overflow: Overflow::clip(),
+        ..default()
+    }
+}
+
+fn deliver_accessibility_announcements(
+    mut commands: Commands,
+    mut messages: MessageReader<AccessibilityAnnouncement>,
+    time: Option<Res<Time>>,
+    mut existing: Query<(Entity, &mut AnnouncementLifetime)>,
+    roots: Query<Entity, With<AppRootSurface>>,
+) {
+    let delta = time.map_or(std::time::Duration::from_secs_f32(1.0 / 60.0), |time| {
+        time.delta()
+    });
+    for (entity, mut lifetime) in &mut existing {
+        lifetime.0.tick(delta);
+        if lifetime.0.is_finished() {
+            commands.entity(entity).despawn();
+        }
+    }
+    for message in messages.read() {
+        if message.message.trim().is_empty() {
+            continue;
+        }
+        let mut semantic = SemanticNode::new(match message.priority {
+            AnnouncementPriority::Polite => SemanticRole::Status,
+            AnnouncementPriority::Assertive => SemanticRole::Alert,
+        })
+        .label(message.message.clone());
+        semantic.live = Some(message.priority);
+        semantic.actions.clear();
+        let mut entity = commands.spawn((
+            semantic,
+            hidden_semantic_node(),
+            AnnouncementLifetime(Timer::from_seconds(1.0, TimerMode::Once)),
+        ));
+        if let Some(root) = roots.iter().next() {
+            entity.insert(ChildOf(root));
+        }
+    }
+}
+
+fn suppress_disabled_interactions(
+    mut interactions: Query<
+        &mut Interaction,
+        With<crate::primitives::interaction::DisabledInteraction>,
+    >,
+) {
+    for mut interaction in &mut interactions {
+        interaction.set_if_neq(Interaction::None);
+    }
+}
+
 pub struct SemanticPlugin;
 
 pub(crate) struct SemanticAccessibilityPlugin;
@@ -337,6 +508,7 @@ impl Plugin for SemanticAccessibilityPlugin {
             // Beverly), but still before the tree is handed to the OS
             // (`AccessibilitySystems::Update`, e.g. bevy_winit).
             SemanticAccessibilitySystems
+                .after(BindingSystems)
                 .after(crate::animation::skeleton::SkeletonSystems)
                 .after(UiSystems::PostLayout)
                 .before(bevy::a11y::AccessibilitySystems::Update),
@@ -355,6 +527,22 @@ impl Plugin for SemanticPlugin {
             .add_message::<AccessibilityActionRequest>()
             .add_message::<AutomationActionRequest>()
             .add_message::<AccessibilityAnnouncement>()
+            .add_systems(
+                PreUpdate,
+                suppress_disabled_interactions
+                    .before(UiActionSystems::Apply)
+                    .after(UiActionSystems::Pointer),
+            )
+            .add_systems(
+                PostUpdate,
+                (
+                    sync_validation_semantics,
+                    deliver_accessibility_announcements,
+                )
+                    .chain()
+                    .after(BindingSystems)
+                    .before(SemanticAccessibilitySystems),
+            )
             .add_systems(
                 PreUpdate,
                 (
@@ -399,31 +587,23 @@ impl Plugin for SemanticPlugin {
 /// `SemanticTreeSnapshot`, which is debug/automation-only.
 fn sync_accesskit_from_semantics(
     mut commands: Commands,
-    mut nodes: Query<
-        (
-            Entity,
-            &SemanticNode,
-            Option<&CheckboxState>,
-            Option<&Toggle>,
-            Option<&Slider>,
-            Option<&BeverlyButton>,
-            Option<&TextInput>,
-            Option<&Textarea>,
-            Option<&AriaDescription>,
-            Option<&mut AccessibilityNode>,
-        ),
-        Or<(
-            Added<SemanticNode>,
-            Changed<SemanticNode>,
-            Changed<CheckboxState>,
-            Changed<Toggle>,
-            Changed<Slider>,
-            Changed<BeverlyButton>,
-            Changed<TextInput>,
-            Changed<Textarea>,
-            Changed<AriaDescription>,
-        )>,
-    >,
+    parents: Query<&ChildOf>,
+    semantic_nodes: Query<&SemanticNode>,
+    mut nodes: Query<(
+        Entity,
+        &SemanticNode,
+        Option<&CheckboxState>,
+        Option<&Toggle>,
+        Option<&Slider>,
+        Option<&BeverlyButton>,
+        Option<&TextInput>,
+        Option<&Textarea>,
+        Option<&AriaDescription>,
+        Option<&BindingErrorState>,
+        Option<&crate::primitives::interaction::DisabledInteraction>,
+        Option<&SemanticDisabledInteraction>,
+        Option<&mut AccessibilityNode>,
+    )>,
 ) {
     for (
         entity,
@@ -435,10 +615,13 @@ fn sync_accesskit_from_semantics(
         input,
         textarea,
         aria_description,
+        errors,
+        disabled,
+        owned_disabled,
         accessibility,
     ) in &mut nodes
     {
-        let derived = derive_component_semantics(
+        let mut derived = derive_component_semantics(
             semantic,
             checkbox,
             toggle,
@@ -447,10 +630,37 @@ fn sync_accesskit_from_semantics(
             input,
             textarea,
             aria_description,
+            errors,
         );
+        let mut ancestor = parents.get(entity).ok().map(ChildOf::parent);
+        while let Some(parent) = ancestor {
+            if semantic_nodes
+                .get(parent)
+                .is_ok_and(|node| node.state.disabled)
+            {
+                derived.state.disabled = true;
+                break;
+            }
+            ancestor = parents.get(parent).ok().map(ChildOf::parent);
+        }
+        if derived.state.disabled {
+            if disabled.is_none() {
+                commands.entity(entity).insert((
+                    crate::primitives::interaction::DisabledInteraction,
+                    SemanticDisabledInteraction,
+                ));
+            }
+        } else if owned_disabled.is_some() {
+            commands.entity(entity).remove::<(
+                SemanticDisabledInteraction,
+                crate::primitives::interaction::DisabledInteraction,
+            )>();
+        }
         let projected = project_semantic_node(&derived);
         if let Some(mut accessibility) = accessibility {
-            accessibility.0 = projected;
+            if accessibility.0 != projected {
+                accessibility.0 = projected;
+            }
         } else {
             commands.entity(entity).insert(AccessibilityNode(projected));
         }
@@ -466,6 +676,7 @@ fn derive_component_semantics(
     input: Option<&TextInput>,
     textarea: Option<&Textarea>,
     aria_description: Option<&AriaDescription>,
+    errors: Option<&BindingErrorState>,
 ) -> SemanticNode {
     let mut derived = semantic.clone();
 
@@ -529,14 +740,23 @@ fn derive_component_semantics(
     if let Some(textarea) = textarea {
         derived.role = SemanticRole::TextInput;
         derived.text_input_hint = Some(TextInputHint::Multiline);
+        derived.state.disabled = textarea.disabled;
+        derived.state.read_only = textarea.read_only;
+        derived.state.required = textarea.required;
         derived.semantic_value = SemanticValue::Text(textarea.value.clone());
     }
 
+    derived.state.invalid |= errors.is_some_and(|errors| !errors.messages.is_empty());
     derived
 }
 
 fn project_semantic_node(semantic: &SemanticNode) -> AccessKitNode {
     let mut node = AccessKitNode::new(accesskit_role(semantic));
+    if semantic.role == SemanticRole::Link {
+        if let Some(destination) = &semantic.value {
+            node.set_url(destination.clone());
+        }
+    }
     if let Some(label) = &semantic.label {
         node.set_label(label.clone());
     }
@@ -902,6 +1122,8 @@ fn bridge_automation_actions(
 fn apply_semantic_actions(
     mut actions: MessageReader<InteractionActionEvent>,
     mut interactions: Query<&mut Interaction>,
+    semantics: Query<&SemanticNode>,
+    disabled: Query<(), With<crate::primitives::interaction::DisabledInteraction>>,
     mut checkboxes: Query<&mut CheckboxState>,
     mut toggles: Query<&mut Toggle>,
     mut sliders: Query<&mut Slider>,
@@ -911,6 +1133,13 @@ fn apply_semantic_actions(
 ) {
     for action_event in actions.read() {
         let target = action_event.target;
+        if disabled.contains(target)
+            || semantics
+                .get(target)
+                .is_ok_and(|node| node.state.disabled || node.state.hidden)
+        {
+            continue;
+        }
 
         // These legacy widgets already act on the pointer-down Pressed edge.
         // Keep the tap action available to other readers, but do not replay it
@@ -1056,6 +1285,7 @@ fn mark_semantic_tree_dirty(
             Changed<BeverlyButton>,
             Changed<TextInput>,
             Changed<Textarea>,
+            Changed<BindingErrorState>,
         )>,
     >,
     semantic_nodes: Query<(), With<SemanticNode>>,
@@ -1082,6 +1312,8 @@ fn mark_semantic_tree_dirty(
 fn rebuild_semantic_tree(
     mut tree: ResMut<SemanticTreeSnapshot>,
     mut dirty: ResMut<SemanticTreeDirty>,
+    parents: Query<&ChildOf>,
+    metadata: Query<&SemanticNode>,
     semantic_nodes: Query<(
         Entity,
         &SemanticNode,
@@ -1093,6 +1325,7 @@ fn rebuild_semantic_tree(
         Option<&TextInput>,
         Option<&Textarea>,
         Option<&AriaDescription>,
+        Option<&BindingErrorState>,
     )>,
 ) {
     if !dirty.0 {
@@ -1113,9 +1346,10 @@ fn rebuild_semantic_tree(
         input,
         textarea,
         aria_description,
+        errors,
     ) in &semantic_nodes
     {
-        let node = derive_component_semantics(
+        let mut node = derive_component_semantics(
             node,
             checkbox,
             toggle,
@@ -1124,7 +1358,16 @@ fn rebuild_semantic_tree(
             input,
             textarea,
             aria_description,
+            errors,
         );
+        let mut ancestor = parents.get(entity).ok().map(ChildOf::parent);
+        while let Some(parent) = ancestor {
+            if metadata.get(parent).is_ok_and(|node| node.state.disabled) {
+                node.state.disabled = true;
+                break;
+            }
+            ancestor = parents.get(parent).ok().map(ChildOf::parent);
+        }
         if node.decorative || node.accessibility_hidden {
             continue;
         }
@@ -1318,6 +1561,321 @@ fn update_semantic_debug_overlay(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn disabled_panel_state_reaches_children_and_clears_when_reenabled() {
+        let mut app = App::new();
+        app.init_resource::<SemanticTreeSnapshot>()
+            .init_resource::<SemanticTreeDirty>()
+            .add_systems(
+                PostUpdate,
+                (
+                    sync_accesskit_from_semantics,
+                    mark_semantic_tree_dirty,
+                    rebuild_semantic_tree,
+                )
+                    .chain(),
+            );
+        let parent = app
+            .world_mut()
+            .spawn(SemanticNode::new(SemanticRole::Generic))
+            .id();
+        let child = app
+            .world_mut()
+            .spawn((
+                SemanticNode::new(SemanticRole::Button).label("Action"),
+                ChildOf(parent),
+            ))
+            .id();
+        app.update();
+        app.world_mut()
+            .get_mut::<SemanticNode>(parent)
+            .unwrap()
+            .state
+            .disabled = true;
+        app.update();
+        assert!(
+            app.world()
+                .get::<AccessibilityNode>(child)
+                .unwrap()
+                .0
+                .is_disabled()
+        );
+        assert!(
+            app.world()
+                .get::<crate::primitives::interaction::DisabledInteraction>(child)
+                .is_some()
+        );
+        assert!(
+            app.world().resource::<SemanticTreeSnapshot>().nodes[&child]
+                .state
+                .disabled
+        );
+        app.world_mut()
+            .get_mut::<SemanticNode>(parent)
+            .unwrap()
+            .state
+            .disabled = false;
+        app.update();
+        assert!(
+            !app.world()
+                .get::<AccessibilityNode>(child)
+                .unwrap()
+                .0
+                .is_disabled()
+        );
+        assert!(
+            app.world()
+                .get::<crate::primitives::interaction::DisabledInteraction>(child)
+                .is_none()
+        );
+        assert!(
+            !app.world().resource::<SemanticTreeSnapshot>().nodes[&child]
+                .state
+                .disabled
+        );
+    }
+
+    #[test]
+    fn validation_on_composite_container_reaches_its_focusable_trigger() {
+        let mut app = App::new();
+        app.add_systems(
+            PostUpdate,
+            (sync_validation_semantics, sync_accesskit_from_semantics).chain(),
+        );
+        let root = app
+            .world_mut()
+            .spawn(BindingErrorState {
+                messages: vec!["Choose a value".to_owned()],
+            })
+            .id();
+        let trigger = app
+            .world_mut()
+            .spawn((
+                SemanticNode::new(SemanticRole::ComboBox).label("Plan"),
+                ChildOf(root),
+            ))
+            .id();
+        app.update();
+        assert_eq!(
+            app.world()
+                .get::<AccessibilityNode>(trigger)
+                .unwrap()
+                .0
+                .invalid(),
+            Some(Invalid::True)
+        );
+        assert!(
+            app.world()
+                .get::<SemanticNode>(trigger)
+                .unwrap()
+                .relationships
+                .error_message
+                .is_some()
+        );
+        app.world_mut()
+            .get_mut::<BindingErrorState>(root)
+            .unwrap()
+            .clear();
+        app.update();
+        assert_eq!(
+            app.world()
+                .get::<AccessibilityNode>(trigger)
+                .unwrap()
+                .0
+                .invalid(),
+            None
+        );
+        assert!(
+            app.world()
+                .get::<SemanticNode>(trigger)
+                .unwrap()
+                .relationships
+                .error_message
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn disabled_semantics_block_automation_and_remove_only_owned_markers() {
+        let mut app = App::new();
+        app.add_message::<InteractionActionEvent>()
+            .add_systems(PreUpdate, apply_semantic_actions)
+            .add_systems(PostUpdate, sync_accesskit_from_semantics);
+        let mut semantic = SemanticNode::new(SemanticRole::Button).label("Action");
+        semantic.state.disabled = true;
+        let button = app.world_mut().spawn((semantic, Interaction::None)).id();
+        let owned_by_app = app
+            .world_mut()
+            .spawn((
+                SemanticNode::new(SemanticRole::Button).label("App disabled"),
+                crate::primitives::interaction::DisabledInteraction,
+            ))
+            .id();
+        app.world_mut().write_message(InteractionActionEvent {
+            action: InteractionAction::Activate,
+            target: button,
+            pointer_id: None,
+            source: InteractionActionSource::Automation,
+            consumed: false,
+        });
+        app.update();
+        assert_eq!(
+            *app.world().get::<Interaction>(button).unwrap(),
+            Interaction::None
+        );
+        assert!(
+            app.world()
+                .get::<crate::primitives::interaction::DisabledInteraction>(button)
+                .is_some()
+        );
+        app.world_mut()
+            .get_mut::<SemanticNode>(button)
+            .unwrap()
+            .state
+            .disabled = false;
+        app.update();
+        assert!(
+            app.world()
+                .get::<crate::primitives::interaction::DisabledInteraction>(button)
+                .is_none()
+        );
+        assert!(
+            app.world()
+                .get::<crate::primitives::interaction::DisabledInteraction>(owned_by_app)
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn textarea_constraints_project_to_accesskit_and_prevent_edits() {
+        for disabled in [true, false] {
+            let mut textarea = Textarea::new("Notes").with_value("Text");
+            textarea.disabled = disabled;
+            textarea.read_only = !disabled;
+            textarea.required = true;
+            assert!(!textarea.insert_text("changed"));
+            assert!(!textarea.backspace());
+            assert!(!textarea.delete_forward());
+            textarea.select_all();
+            assert!(!textarea.delete_selection());
+            assert_eq!(textarea.value, "Text");
+            let semantic = derive_component_semantics(
+                &SemanticNode::new(SemanticRole::TextInput).label("Notes"),
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(&textarea),
+                None,
+                None,
+            );
+            let projected = project_semantic_node(&semantic);
+            assert_eq!(projected.is_disabled(), disabled);
+            assert_eq!(projected.is_read_only(), !disabled);
+            assert!(projected.is_required());
+        }
+    }
+
+    #[test]
+    fn validation_projects_errors_and_restores_existing_relationships() {
+        let mut app = App::new();
+        app.add_systems(
+            PostUpdate,
+            (sync_validation_semantics, sync_accesskit_from_semantics).chain(),
+        );
+        let description = app
+            .world_mut()
+            .spawn(SemanticNode::new(SemanticRole::Text).label("Help"))
+            .id();
+        let previous_error = app
+            .world_mut()
+            .spawn(SemanticNode::new(SemanticRole::Text).label("External error"))
+            .id();
+        let mut semantic = SemanticNode::new(SemanticRole::Checkbox).label("Consent");
+        semantic.relationships.described_by.push(description);
+        semantic.relationships.error_message = Some(previous_error);
+        let control = app
+            .world_mut()
+            .spawn((
+                semantic,
+                BindingErrorState {
+                    messages: vec!["Required".to_owned()],
+                },
+            ))
+            .id();
+        app.update();
+        assert_eq!(
+            app.world()
+                .get::<AccessibilityNode>(control)
+                .unwrap()
+                .0
+                .invalid(),
+            Some(Invalid::True)
+        );
+        let semantic = app.world().get::<SemanticNode>(control).unwrap();
+        let error = semantic.relationships.error_message.unwrap();
+        assert_eq!(semantic.relationships.described_by, [description, error]);
+        assert_eq!(
+            app.world()
+                .get::<SemanticNode>(error)
+                .unwrap()
+                .label
+                .as_deref(),
+            Some("Required")
+        );
+        app.world_mut()
+            .get_mut::<BindingErrorState>(control)
+            .unwrap()
+            .clear();
+        app.update();
+        let semantic = app.world().get::<SemanticNode>(control).unwrap();
+        assert_eq!(semantic.relationships.error_message, Some(previous_error));
+        assert_eq!(semantic.relationships.described_by, [description]);
+        assert!(app.world().get_entity(error).is_err());
+        assert_eq!(
+            app.world()
+                .get::<AccessibilityNode>(control)
+                .unwrap()
+                .0
+                .invalid(),
+            None
+        );
+    }
+
+    #[test]
+    fn announcements_project_each_message_including_repeated_text() {
+        let mut app = App::new();
+        app.add_message::<AccessibilityAnnouncement>().add_systems(
+            PostUpdate,
+            (
+                deliver_accessibility_announcements,
+                sync_accesskit_from_semantics,
+            )
+                .chain(),
+        );
+        for priority in [
+            AnnouncementPriority::Polite,
+            AnnouncementPriority::Assertive,
+        ] {
+            app.world_mut().write_message(AccessibilityAnnouncement {
+                message: "Saved".to_owned(),
+                priority,
+            });
+        }
+        app.update();
+        let mut nodes = app
+            .world_mut()
+            .query_filtered::<&AccessibilityNode, With<AnnouncementLifetime>>();
+        let announcements: Vec<_> = nodes
+            .iter(app.world())
+            .map(|node| (node.0.label().unwrap().to_owned(), node.0.live()))
+            .collect();
+        assert_eq!(announcements.len(), 2);
+        assert!(announcements.contains(&("Saved".to_owned(), Some(Live::Polite))));
+        assert!(announcements.contains(&("Saved".to_owned(), Some(Live::Assertive))));
+    }
     use crate::components::checkbox::{CheckboxConfig, CheckboxPlugin, spawn_checkbox};
     use crate::components::slider::component::SliderPlugin;
     use crate::primitives::focus::FocusPlugin;
@@ -1405,6 +1963,7 @@ mod tests {
             None,
             None,
             Some(&description),
+            None,
         );
         let projected = project_semantic_node(&derived);
 
@@ -1429,6 +1988,7 @@ mod tests {
             None,
             None,
             Some(&slider),
+            None,
             None,
             None,
             None,

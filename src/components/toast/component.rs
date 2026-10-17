@@ -206,7 +206,7 @@ struct ToastLane;
 
 /// Marker for the visible Toast card, nested inside the positioning lane.
 #[derive(Component)]
-struct ToastCard;
+pub(crate) struct ToastCard;
 
 /// Marker for the dismiss button.
 #[derive(Component)]
@@ -239,7 +239,13 @@ impl Plugin for ToastPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (spawn_toast_ui, update_toast_timers, dismiss_toasts).chain(),
+            (
+                spawn_toast_ui,
+                crate::primitives::composition::materialize_content_sections,
+                update_toast_timers,
+                dismiss_toasts,
+            )
+                .chain(),
         )
         .add_systems(
             PostUpdate,
@@ -316,13 +322,13 @@ fn spawn_toast_ui(
                 ToastCard,
                 Node {
                     display: Display::Flex,
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Stretch,
                     max_width: Val::Px(360.0),
                     border: UiRect::all(Val::Px(1.0)),
                     border_radius: BorderRadius::all(Val::Px(12.0)),
                     padding: UiRect::all(Val::Px(14.0)),
-                    column_gap: Val::Px(12.0),
+                    row_gap: Val::Px(8.0),
                     ..default()
                 },
                 BackgroundColor(Color::NONE),
@@ -331,86 +337,93 @@ fn spawn_toast_ui(
                     .uniform_border(1.0, Paint::solid(accent.with_alpha(0.35))),
             ))
             .with_children(|card| {
-                // Icon
-                card.spawn((Node {
-                    width: Val::Px(20.0),
-                    height: Val::Px(20.0),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    ..default()
-                },))
-                    .with_children(|icon| {
-                        icon.spawn_icon_colored(
-                            Icon::feather(toast.kind.feather_name()),
-                            20.0,
-                            accent,
-                        );
-                    });
+                if let Some(sections) = sections {
+                    spawn_toast_section(card, sections.header.clone(), "toast-header");
+                }
 
-                // Content
                 card.spawn(Node {
-                    flex_direction: FlexDirection::Column,
-                    flex_grow: 1.0,
+                    display: Display::Flex,
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(12.0),
                     ..default()
                 })
-                .with_children(|content| {
-                    if let Some(sections) = sections {
-                        spawn_toast_section(content, sections.header.clone(), "toast-header");
-                    }
+                .with_children(|row| {
+                    row.spawn((Node {
+                        width: Val::Px(20.0),
+                        height: Val::Px(20.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },))
+                        .with_children(|icon| {
+                            icon.spawn_icon_colored(
+                                Icon::feather(toast.kind.feather_name()),
+                                20.0,
+                                accent,
+                            );
+                        });
 
-                    if let Some(title) = &toast.title {
+                    row.spawn(Node {
+                        flex_direction: FlexDirection::Column,
+                        flex_grow: 1.0,
+                        ..default()
+                    })
+                    .with_children(|content| {
+                        if let Some(title) = &toast.title {
+                            content.spawn((
+                                ThemedTitle::new(TitleLevel::H5),
+                                Text::new(title.clone()),
+                                TextFont {
+                                    font_size: FontSize::Px(15.0),
+                                    ..default()
+                                },
+                                TextColor(colors.text),
+                            ));
+                        }
+
                         content.spawn((
-                            ThemedTitle::new(TitleLevel::H5),
-                            Text::new(title.clone()),
+                            ThemedText::new(TextRole::Body),
+                            Text::new(toast.message.clone()),
                             TextFont {
-                                font_size: FontSize::Px(15.0),
+                                font_size: FontSize::Px(14.0),
                                 ..default()
                             },
-                            TextColor(colors.text),
+                            TextColor(colors.text_muted),
                         ));
-                    }
 
-                    content.spawn((
-                        ThemedText::new(TextRole::Body),
-                        Text::new(toast.message.clone()),
-                        TextFont {
-                            font_size: FontSize::Px(14.0),
-                            ..default()
-                        },
-                        TextColor(colors.text_muted),
-                    ));
+                        if let Some(sections) = sections {
+                            spawn_toast_section(content, sections.body.clone(), "toast-body");
+                        }
+                    });
 
-                    if let Some(sections) = sections {
-                        spawn_toast_section(content, sections.body.clone(), "toast-body");
+                    if toast.dismissible {
+                        let close_label = toast
+                            .close_label
+                            .clone()
+                            .unwrap_or_else(|| "Dismiss notification".to_string());
+
+                        row.spawn((
+                            ToastDismissButton,
+                            Button,
+                            crate::primitives::a11y::TabIndex(0),
+                            SemanticNode::new(SemanticRole::Button).label(close_label),
+                            Node {
+                                width: Val::Px(28.0),
+                                height: Val::Px(28.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                        ))
+                        .with_children(|button| {
+                            button.spawn_icon_colored(Icon::feather("x"), 18.0, colors.text_muted);
+                        });
                     }
                 });
 
                 if let Some(sections) = sections {
                     spawn_toast_section(card, sections.footer.clone(), "toast-footer");
-                }
-
-                // Dismiss button
-                if toast.dismissible {
-                    let close_label = toast
-                        .close_label
-                        .clone()
-                        .unwrap_or_else(|| "Dismiss notification".to_string());
-
-                    card.spawn((
-                        ToastDismissButton,
-                        Button,
-                        SemanticNode::new(SemanticRole::Button).label(close_label),
-                        Node {
-                            width: Val::Px(28.0),
-                            height: Val::Px(28.0),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                    ))
-                    .with_children(|button| {
-                        button.spawn_icon_colored(Icon::feather("x"), 18.0, colors.text_muted);
-                    });
                 }
             });
         });
@@ -422,24 +435,7 @@ fn spawn_toast_section(
     children: Vec<crate::primitives::composition::UiElement>,
     name: &'static str,
 ) {
-    if children.is_empty() {
-        return;
-    }
-
-    parent
-        .spawn((
-            Name::new(name),
-            Node {
-                flex_direction: FlexDirection::Column,
-                row_gap: px(6),
-                ..default()
-            },
-        ))
-        .with_children(|section| {
-            for child in children {
-                child.spawn(section);
-            }
-        });
+    crate::primitives::composition::spawn_deferred_content_section(parent, name, children);
 }
 
 fn stack_toasts(
@@ -549,15 +545,17 @@ fn dismiss_toasts(
     mut animations: Query<&mut ToastAnimation>,
     interactions: Query<(&Interaction, &ChildOf), (Changed<Interaction>, With<ToastDismissButton>)>,
     cards: Query<&ChildOf, With<ToastCard>>,
+    parents: Query<&ChildOf>,
 ) {
     for (interaction, card_parent) in &interactions {
         if *interaction != Interaction::Pressed {
             continue;
         }
 
-        // interaction is on the dismiss button, whose parent is the card,
-        // whose parent is the Toast/lane entity itself.
-        let Ok(lane_parent) = cards.get(card_parent.0) else {
+        let Ok(row_parent) = parents.get(card_parent.0) else {
+            continue;
+        };
+        let Ok(lane_parent) = cards.get(row_parent.0) else {
             continue;
         };
 
@@ -570,6 +568,63 @@ fn dismiss_toasts(
 #[cfg(test)]
 mod animation_tests {
     use super::*;
+
+    #[test]
+    fn sections_toast_render_vertically_and_dismiss_the_lane() {
+        let mut app = App::new();
+        app.insert_resource(ThemeResource::default()).add_systems(
+            Update,
+            (
+                spawn_toast_ui,
+                crate::primitives::composition::materialize_content_sections,
+                dismiss_toasts,
+            )
+                .chain(),
+        );
+        let lane = app
+            .world_mut()
+            .spawn((
+                Toast::info("message"),
+                ToastSections {
+                    header: vec![crate::components::text::text("top")],
+                    body: vec![
+                        crate::components::text::text("middle"),
+                        crate::primitives::composition::UiElement::card(),
+                    ],
+                    footer: vec![crate::components::text::text("bottom")],
+                },
+            ))
+            .id();
+        app.update();
+        let card = app.world().get::<Children>(lane).unwrap()[0];
+        assert_eq!(
+            app.world().get::<Node>(card).unwrap().flex_direction,
+            FlexDirection::Column
+        );
+        let parts = app.world().get::<Children>(card).unwrap();
+        assert_eq!(parts.len(), 3);
+        assert_eq!(
+            app.world().get::<Name>(parts[0]).unwrap().as_str(),
+            "toast-header"
+        );
+        assert_eq!(
+            app.world().get::<Name>(parts[2]).unwrap().as_str(),
+            "toast-footer"
+        );
+        let dismiss = app
+            .world_mut()
+            .query_filtered::<Entity, With<ToastDismissButton>>()
+            .single(app.world())
+            .unwrap();
+        app.world_mut()
+            .entity_mut(dismiss)
+            .insert(Interaction::Pressed);
+        app.update();
+        assert_eq!(
+            app.world().get::<ToastAnimation>(lane).unwrap().exit,
+            Some(0.0)
+        );
+    }
 
     #[test]
     fn new_toast_enters_from_outside_and_pushes_existing_toast_inward() {

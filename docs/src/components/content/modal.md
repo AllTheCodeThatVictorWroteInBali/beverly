@@ -6,9 +6,33 @@
 
 <a href="../../assets/demos/index.html?demo=modal" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
 
-> **Current status:** Modal header/body/footer examples below describe the
-> planned fluent section API. The current source uses `BasicModalContent` and
-> `spawn_modal_with_surface(...)` for specialized modal construction.
+## Header, Body, and Footer
+
+`UiElement::modal(...)` implements `.header(...)`, `.body(...)`, and
+`.footer(...)` as top, middle, and bottom regions inside the modal surface.
+Each accepts a single element or an iterable, repeated calls append content,
+and sections render in that order regardless of builder-call order.
+
+```rust
+use beverly::components::modal::{BasicModalContent, ModalStyle};
+use beverly::prelude::*;
+
+UiElement::modal(
+    Modal::new(),
+    ModalStyle::default(),
+    BasicModalContent::new("Account", ""),
+)
+.header(text("Edit account details"))
+.body(UiElement::input("Email").label("Email address"))
+.footer(button().text("Save"))
+```
+
+The built-in dialog title and close button stay above custom sections. The
+body grows into available surface height, leaving footer content at the
+bottom. Custom sections replace the basic body and dismiss-button content;
+without sections, `BasicModalContent` supplies the title, body, and dismiss
+button. Sections support nested, resource-backed `UiElement` composition.
+For specialized construction, `spawn_modal_with_surface(...)` remains available.
 
 A Modal is a temporary surface that appears above the application's current interface.
 
@@ -286,30 +310,23 @@ A Modal is often useful for temporary workflows such as creating or editing a re
 
 The Form remains responsible for collecting input. The Model remains responsible for application state and validation.
 
-```rust id="t8q4zn"
-modal()
-    .header(
-        text(localize("user.create"))
-    )
-    .body(
-        form()
-            .children([
-                input()
-                    .label(localize("user.name.label"))
-                    .aria(localize("user.name.description"))
-                    .bind(User::name),
-
-                input()
-                    .label(localize("user.email.label"))
-                    .aria(localize("user.email.description"))
-                    .bind(User::email),
-            ])
-            .on("submit", Command::User::Create)
-            .on("reset", Command::User::ResetCreate)
-    )
+```rust
+let create_user_form = UiElement::form(Form::post("/api/users"))
+    .children([
+        UiElement::input("Name")
+            .name("name")
+            .bind(User::name),
+        UiElement::input("Email")
+            .name("email")
+            .bind(User::email),
+    ])
+    .submitting(|| [spinner(), text("Creating user…")]);
 ```
 
-The Modal does not become the Form and the Form does not become the Model.
+Place the resulting Form in the Modal's body. Its generated submit button emits
+`FormSubmitted`; the app handles the request and updates `FormStatusState` on
+the Form entity. The Modal does not become the Form, and the Form does not
+become the Model. See [Submit](../forms/submit.md).
 
 Each component retains its responsibility.
 
@@ -395,39 +412,29 @@ This distinction prevents presentation choices from becoming hidden application 
 
 ## Modal State
 
-Like other Beverly components, a Modal can present different visual states.
+Modal styles can vary with interaction state, while its success/submitting
+callbacks add separate content beneath the Modal surface. The app supplies the
+`FormStatusState`; the Modal doesn't infer it from a request or predicate.
 
 ```rust id="s3p7yd"
-modal()
-    .submitting(self.opacity(0.5))
-    .error(self.border_width(2))
-    .success(self.border_width(2))
-```
-
-The Modal does not determine what caused the state.
-
-For example, a create workflow might enter a submitting state because the Model is processing a request:
-
-```rust id="h8q2wf"
-modal()
-    .submitting(User::is_creating)
-```
-
-The Modal simply presents the state.
-
-A richer submitting presentation can replace or augment its content:
-
-```rust id="c5m9rk"
-modal()
-    .submitting(self.children([
+UiElement::modal(Modal::new(), ModalStyle::default(), BasicModalContent::new("Create user", ""))
+    .hover(|style| style.opacity(0.96))
+    .focused(|style| style.outline_width(2).outline_color("#2563eb"))
+    .submitting_style(|style| style.opacity(0.72))
+    .success_style(|style| style.border_color("#16a34a"))
+    .submitting(|| [
         spinner(),
         text(localize("user.creating")),
-    ]))
+    ])
+    .success(|| text(localize("user.created")))
 ```
 
-This follows the same component rule used elsewhere in Beverly:
-
-> **State determines when. Components determine what.**
+Set `FormStatusState::submitting()`, `success()`, or `idle()` on the spawned
+Modal entity from application code. `submitting`/`success` callbacks append
+supplementary content below the existing modal content; state-style callbacks
+change only the listed style properties. For method details and precedence,
+see [Styling DSL](../../foundations/styling.md) and
+[Form status callbacks](../forms/overview.md#pending-and-success-presentations).
 
 ## Error State
 
@@ -435,10 +442,7 @@ A Modal can present an error without implementing the operation that produced it
 
 ```rust id="u7n3qx"
 modal()
-    .error(self.children([
-        icon("error"),
-        text(localize("user.create.error")),
-    ]))
+    .error(|errors| text(errors.join("\n")))
 ```
 
 The underlying error should come from application state and should normally be localized at presentation time.
@@ -461,10 +465,10 @@ The same principle applies to successful operations.
 
 ```rust id="m4k8zp"
 modal()
-    .success(self.children([
+    .success(|| [
         icon("check"),
         text(localize("user.created")),
-    ]))
+    ])
 ```
 
 The Modal does not decide whether the operation succeeded. It presents the success state supplied by the application.
@@ -595,21 +599,22 @@ modal()
             .on("click", Command::User::CancelCreate),
 
         button().text(localize("user.create"))
-            .submitting(self.opacity(0.5))
+            .submitting_style(|style| style.opacity(0.5))
             .on("click", Command::User::Create),
     ])
-    .submitting(User::is_creating)
-    .error(self.children([
-        icon("error"),
-        text(User::create_error),
-    ]))
+    .submitting(|| [spinner(), text(localize("user.creating"))])
+    .error(|errors| text(errors.join("\n")))
     .on("escape", Ui::CreateModal::EscapePressed)
     .on("backdrop_click", Ui::CreateModal::BackdropClicked)
 ```
 
 There are several independent responsibilities here, but they remain easy to identify.
 
-The Modal owns its presentation and temporary interaction boundary. The Inputs bind to Model state. The Buttons produce UI interactions. The Commands represent application operations. The Model determines visibility, submission state, and errors.
+The Modal owns its presentation and temporary interaction boundary. Inputs bind
+to Model state; Buttons produce UI interactions; Commands represent application
+operations. The application sets `FormStatusState` on the spawned Modal entity
+after deciding whether the operation is pending or complete. Callbacks render
+supplementary content; they do not evaluate application predicates themselves.
 
 Nothing requires the Modal to understand the User domain.
 

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use super::data::TableResponse;
-use super::events::{TableEvent, table_interaction_system};
+use super::events::{TableEvent, table_interaction_system, table_keyboard_system};
 use super::header::spawn_header;
 use super::rows::spawn_row;
 use crate::animation::loading::LoadingAssets;
@@ -87,14 +87,19 @@ pub struct TablePlugin;
 
 impl Plugin for TablePlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<TableEvent>().add_systems(
-            Update,
-            (
-                table_interaction_system,
-                table_visual_system,
-                apply_table_demo_font_system,
-            ),
-        );
+        app.add_message::<TableEvent>()
+            .add_message::<bevy::input::keyboard::KeyboardInput>()
+            .add_message::<crate::primitives::focus::FocusRequest>()
+            .add_systems(
+                Update,
+                (
+                    table_keyboard_system,
+                    table_interaction_system,
+                    table_visual_system,
+                    apply_table_demo_font_system,
+                )
+                    .chain(),
+            );
     }
 }
 
@@ -116,12 +121,14 @@ pub(crate) struct TableCellNode {
     pub table_id: String,
     pub row_id: String,
     pub column_id: String,
+    pub column_index: usize,
 }
 
 #[derive(Component)]
 pub(crate) struct TableHeaderNode {
     pub table_id: String,
     pub column_id: String,
+    pub column_index: usize,
 }
 
 #[derive(Component)]

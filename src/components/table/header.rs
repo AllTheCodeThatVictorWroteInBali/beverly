@@ -24,14 +24,16 @@ pub(crate) fn spawn_header(parent: &mut ChildSpawnerCommands, config: &TableConf
             Surface::rounded_rect_fill(0.0, Paint::solid(Color::srgba(1.0, 1.0, 1.0, 0.08))),
         ))
         .with_children(|header| {
-            for column in &config.columns {
+            for (column_index, column) in config.columns.iter().enumerate() {
                 header
                     .spawn((
                         TableHeaderNode {
                             table_id: config.id.clone(),
                             column_id: column.id.clone(),
+                            column_index,
                         },
                         SemanticNode::new(SemanticRole::ColumnHeader).label(column.label.clone()),
+                        crate::primitives::a11y::TabIndex(if column_index == 0 { 0 } else { -1 }),
                         Button,
                         ButtonMotionDisabled,
                         Node {

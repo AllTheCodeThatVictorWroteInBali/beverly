@@ -6,6 +6,24 @@
 
 <a href="../../assets/demos/index.html?demo=alert" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
 
+## Header, Body, and Footer
+
+`UiElement::alert(...)` supports top, middle, and bottom content regions:
+
+```rust
+UiElement::alert(Alert::warning("Storage is almost full"))
+    .header(text("Workspace storage"))
+    .body(text("Remove unused files before uploading more."))
+    .footer(button().text("Review files"))
+```
+
+`.header(...)`, `.body(...)`, and `.footer(...)` each accept one element or an
+iterable; repeated calls append content. They render in that order in the
+alert's content column, regardless of builder-call order. Custom header content
+precedes the built-in title/message, body content follows the message, and
+footer actions appear last. The variant icon, accessible message, timer, and
+dismiss control retain their existing behavior.
+
 An Alert is a pre-styled Card used to communicate information to the user.
 
 Alerts follow the familiar contextual pattern popularized by Bootstrap: a common surface with a predefined visual treatment for different kinds of information, such as success, warning, error, and informational messages.
@@ -394,8 +412,8 @@ For example:
 
 ```rust
 alert(AlertType::Error)
-    .hover(self.opacity(0.95))
-    .focused(self.outline_width(2))
+    .hover(|style| style.opacity(0.95))
+    .focused(|style| style.outline_width(2).outline_color("#2563eb"))
     .children([
         icon("error"),
         text(User::error_message),

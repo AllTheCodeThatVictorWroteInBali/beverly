@@ -7,8 +7,8 @@
 <a href="../../assets/demos/index.html?demo=footer" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
 
 The standalone Footer component is created with `footer(...)`. This is
-different from the `.footer(...)` content-section helper available on Card and
-Toast fluent elements.
+different from the `.footer(...)` content-section helper available on Card,
+Container, Form, Modal, Alert, Toast, Tabs, and Sidebar fluent elements.
 
 ```rust
 app()

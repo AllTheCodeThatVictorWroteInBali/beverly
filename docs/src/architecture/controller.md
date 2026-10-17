@@ -61,21 +61,80 @@ Controllers are intentionally declarative.
 
 You should be able to glance at one and understand the application's behavior without tracing through a large amount of framework code.
 
-The current `controller!` macro generates one message-to-handler route per
-entry. Pipeline composition and parallel fan-out are design directions, not
-syntax supported by the current macro.
+`controller!` supports three composable route forms:
+
+| Route | Behavior |
+|---|---|
+| `Message => handler` | Calls `handler(&Message)`; its return value is ignored, preserving single-handler behavior. |
+| `Message => [first, next, last]` | Runs actions sequentially, passing each successful output to the next action. |
+| `Message => {left, right}` | Runs independent branches through Bevy's scoped compute pool, waits for all, and returns their outputs as a tuple. |
+
+Sequences and fan-out groups can nest recursively. Groups must contain at least
+one action; trailing commas are accepted. Composed actions return `Result`.
+The first action receives `&Message`; later actions receive their predecessor's
+owned output. Fan-out outputs form a tuple in declaration order, not completion
+order. Even a one-branch group produces a one-element tuple `(value,)`.
+
+## Complete Example
+
+```rust
+use bevy::prelude::*;
+use beverly::prelude::*;
+
+event! { Document::Process { id: u32 } }
+
+#[derive(Clone)]
+struct LoadedDocument {
+  id: u32,
+  text: String,
+}
+
+fn load(message: &Document::Process) -> Result<LoadedDocument, &'static str> {
+  Ok(LoadedDocument { id: message.id, text: "Report content".to_owned() })
+}
+
+fn summarize(document: LoadedDocument) -> Result<String, &'static str> {
+  Ok(document.text)
+}
+
+fn index(document: LoadedDocument) -> Result<u32, &'static str> {
+  Ok(document.id)
+}
+
+fn save((summary, id): (String, u32)) -> Result<(), &'static str> {
+  info!(id, summary, "document processed");
+  Ok(())
+}
+
+controller! {
+  DocumentController {
+    Document::Process => [load, { summarize, index }, save],
+  }
+}
+
+fn main() {
+  let mut app = App::new();
+  app.add_message::<Document::Process>().add_plugins(DocumentController);
+  app.world_mut().write_message(Document::Process { id: 42 });
+  app.update();
+}
+```
+
+Here `load` receives the message, the parallel branches receive independent
+`LoadedDocument` values, and `save` receives `(String, u32)` after both succeed.
+The compute pool is initialized on first use if the application has not
+initialized it through Bevy's normal task-pool setup.
 
 ## Sequential Pipelines
 
 Multiple actions can be composed into a **series** using an array:
 
 ```rust
-// Planned composition model; use separate handlers with the current macro.
-// controller! {
-//     DocumentController {
-//         Document::Process => process_document,
-//     }
-// }
+controller! {
+  DocumentController {
+    Document::Process => [load, parse, summarize, save],
+  }
+}
 ```
 
 The actions execute in order.
@@ -109,16 +168,19 @@ The Controller composes ordinary function signatures.
 Conceptually:
 
 ```rust
-load(DocumentId) -> Result<Document, Error>
-
-parse(Document) -> Result<ParsedDocument, Error>
-
-summarize(ParsedDocument) -> Result<Summary, Error>
-
-save(Summary) -> Result<(), Error>
+fn load(message: &Document::Process) -> Result<LoadedDocument, Error>
+fn parse(document: LoadedDocument) -> Result<ParsedDocument, Error>
+fn summarize(document: ParsedDocument) -> Result<Summary, Error>
+fn save(summary: Summary) -> Result<(), Error>
 ```
 
 The output of each step must be compatible with the input of the next.
+
+Sequential steps move values; intermediate values do not need to implement
+`Clone`. Use ordinary functions or associated function paths, such as
+`DocumentModel::load`. These are function calls, not Bevy systems with injected
+`Res`, `ResMut`, or `Commands` parameters. Obtain application dependencies
+explicitly through the message or values passed between actions.
 
 If it isn't, Rust catches the problem at compile time.
 
@@ -202,6 +264,15 @@ Err(error)
 
 the current chain stops.
 
+Sequential stages can use a common error type or convert earlier errors into
+the last stage's error type through `From`, as with ordinary Rust `?`.
+Fan-out branches must share one error type. The composed route's error must
+implement `Display`: Beverly logs it with the controller and message type,
+then continues processing later messages. The final successful value is
+discarded; emit a follow-up message explicitly when the application needs a
+new workflow boundary. A plain `Message => handler` route still ignores its
+return value; use `[handler]` for a one-stage route with composed error logging.
+
 ```text
 Action A
    ↓
@@ -225,12 +296,11 @@ Not every action needs to happen in sequence.
 A Controller can fan an input out to multiple actions in **parallel** using braces:
 
 ```rust
-// Planned fan-out model; register separate handlers with the current macro.
-// controller! {
-//     UserController {
-//         User::Created => notify_user_created,
-//     }
-// }
+controller! {
+  UserController {
+    User::Created => { notify_user_created, record_analytics, inform_agent },
+  }
+}
 ```
 
 Conceptually:
@@ -244,6 +314,25 @@ Conceptually:
 ```
 
 The actions can execute independently.
+
+Each branch above receives `&User::Created` and returns `Result<Output, Error>`.
+Borrowing the same message does not require the message itself to be `Clone`.
+For an owned intermediate value, fan-out clones the input for all but one
+branch, so that input must implement `Clone`. Use `Arc` for shared read-only
+data when cloning a large payload would be expensive.
+
+Fan-out uses Bevy's scoped compute pool and waits for every branch to finish.
+Captured values and results must be `Send`; shared borrows must be `Sync`.
+Native builds support simultaneous execution when pool workers are available.
+Single-threaded browser builds preserve tuple and error semantics but do not
+execute synchronous branch bodies simultaneously. Branches must not rely on
+another branch running concurrently to make progress.
+
+Branch completion order is unspecified. Outputs are joined in declaration
+order. If branches fail, all siblings are still allowed to finish; there is no
+rollback or sibling cancellation. The first error in declaration order is
+propagated and any following sequential stage is skipped. Protect shared
+mutable state explicitly and keep branch side effects independent.
 
 This is useful when multiple systems need to react to the same Fact and there is no reason for them to wait on one another.
 
@@ -263,7 +352,11 @@ The other means **fan this work out**.
 Series and parallel operations can be composed.
 
 ```rust
-// Planned series/fan-out composition; not part of the current macro syntax.
+controller! {
+  DocumentController {
+    Document::Process => [load, { index, analyze, metadata }, save],
+  }
+}
 ```
 
 The conceptual flow is:
@@ -281,6 +374,21 @@ The conceptual flow is:
 ```
 
 A parallel stage can produce a result that becomes the input to the next stage.
+
+In this example, `save` receives `(IndexOutput, AnalysisOutput, MetadataOutput)`
+as one tuple argument. For a sequence inside one branch, write:
+
+```rust
+controller! {
+  DocumentController {
+    Document::Process => [load, { [parse, summarize], index }, save],
+  }
+}
+```
+
+That `save` receives `(Summary, IndexOutput)`. Fan-out inside fan-out produces
+nested tuples; it does not flatten them. Each nested sequence preserves its
+own order while independent branches can overlap.
 
 This means:
 
@@ -344,6 +452,14 @@ AI-generated pipelines don't have to be trusted blindly.
 The type system verifies that the data actually flows between the operations as described.
 
 ## Async Is Explicit
+
+Controller composition is synchronous from the route's perspective: the
+controller's `Update` system waits for the pipeline and all parallel branches.
+It accepts functions returning `Result`, not `async fn` or detached jobs. Long
+CPU work can still block a UI update even when it uses multiple worker threads.
+For long-running inference, network I/O, or cancellable work, use a worker and
+explicit request/response messages rather than treating fan-out as background
+execution.
 
 Asynchronous operations are intentionally modeled differently.
 

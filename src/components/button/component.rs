@@ -885,10 +885,11 @@ mod tests {
 
     fn test_app() -> App {
         let mut app = App::new();
-        app.insert_resource(ThemeResource {
-            current: light_theme(),
-        })
-        .add_plugins(ButtonPlugin);
+        app.init_resource::<Time>()
+            .insert_resource(ThemeResource {
+                current: light_theme(),
+            })
+            .add_plugins(ButtonPlugin);
         app
     }
 

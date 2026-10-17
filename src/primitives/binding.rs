@@ -228,9 +228,276 @@ impl BoundField {
 
 pub struct BindingPlugin;
 
+pub type ErrorCallback =
+    Arc<dyn Fn(&[String]) -> Vec<crate::primitives::composition::UiElement> + Send + Sync>;
+
+pub type FormStateCallback =
+    Arc<dyn Fn() -> Vec<crate::primitives::composition::UiElement> + Send + Sync>;
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum FormStatus {
+    #[default]
+    Idle,
+    Submitting,
+    Success,
+}
+
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct FormStatusState {
+    pub status: FormStatus,
+}
+
+impl FormStatusState {
+    pub fn idle(&mut self) {
+        self.status = FormStatus::Idle;
+    }
+
+    pub fn submitting(&mut self) {
+        self.status = FormStatus::Submitting;
+    }
+
+    pub fn success(&mut self) {
+        self.status = FormStatus::Success;
+    }
+}
+
+#[derive(Component)]
+pub(crate) struct FormStatePresentation {
+    pub host: Entity,
+    pub submitting: Option<FormStateCallback>,
+    pub success: Option<FormStateCallback>,
+    previous: Option<FormStatus>,
+    content: Option<Entity>,
+}
+
+impl FormStatePresentation {
+    pub(crate) fn new(
+        host: Entity,
+        submitting: Option<FormStateCallback>,
+        success: Option<FormStateCallback>,
+    ) -> Self {
+        Self {
+            host,
+            submitting,
+            success,
+            previous: None,
+            content: None,
+        }
+    }
+}
+
+#[derive(Component)]
+pub(crate) struct ErrorPresentation {
+    pub callback: ErrorCallback,
+    pub host: Entity,
+    previous: Vec<String>,
+    content: Option<Entity>,
+}
+
+impl ErrorPresentation {
+    pub(crate) fn new(callback: ErrorCallback, host: Entity) -> Self {
+        Self {
+            callback,
+            host,
+            previous: Vec::new(),
+            content: None,
+        }
+    }
+}
+
+#[derive(Component)]
+pub(crate) struct ErrorPresentationHost(pub Entity);
+
+fn render_error_presentations(world: &mut World) {
+    let orphaned: Vec<_> = world
+        .query::<(Entity, &ErrorPresentationHost)>()
+        .iter(world)
+        .filter(|(_, host)| world.get_entity(host.0).is_err())
+        .map(|(entity, _)| entity)
+        .collect();
+    for entity in orphaned {
+        world.despawn(entity);
+    }
+    let entities: Vec<_> = world
+        .query_filtered::<Entity, With<ErrorPresentation>>()
+        .iter(world)
+        .collect();
+    for entity in entities {
+        let messages = world
+            .get::<BindingErrorState>(entity)
+            .map(|state| state.messages.clone())
+            .unwrap_or_default();
+        let presentation = world.get::<ErrorPresentation>(entity).unwrap();
+        if presentation.previous == messages {
+            continue;
+        }
+        let callback = presentation.callback.clone();
+        let host = presentation.host;
+        let content = presentation.content;
+        if let Some(content) = content {
+            let focused = world
+                .get_resource::<bevy::input_focus::InputFocus>()
+                .and_then(|focus| focus.get());
+            let mut ancestor = focused;
+            while let Some(target) = ancestor {
+                if target == content {
+                    if world.contains_resource::<bevy::ecs::message::Messages<crate::primitives::focus::FocusRequest>>() {
+                        world.write_message(crate::primitives::focus::FocusRequest { target: entity, origin: crate::primitives::focus::FocusOrigin::Keyboard });
+                    }
+                    break;
+                }
+                ancestor = world.get::<ChildOf>(target).map(ChildOf::parent);
+            }
+            world.despawn(content);
+        }
+        let content = if messages.is_empty() {
+            None
+        } else {
+            let children = callback(&messages);
+            let content = world
+                .spawn((
+                    Name::new("form-error-content"),
+                    Node {
+                        width: percent(100),
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(4),
+                        ..default()
+                    },
+                    ChildOf(host),
+                ))
+                .id();
+            let mut context = crate::primitives::composition::UiBuildContext {
+                world,
+                parent: content,
+            };
+            for child in children {
+                let plain_text = matches!(
+                    child,
+                    crate::primitives::composition::UiElement::Text { .. }
+                );
+                let child = child.spawn_in_context(&mut context);
+                if plain_text {
+                    let color = context
+                        .world
+                        .get_resource::<crate::theme::ThemeResource>()
+                        .map_or_else(
+                            || crate::theme::light_theme().colors.error,
+                            |theme| theme.current.colors.error,
+                        );
+                    context.world.entity_mut(child).insert((
+                        TextColor(color),
+                        crate::components::text::ThemedText::new(
+                            crate::components::text::TextRole::Body,
+                        )
+                        .color(color),
+                    ));
+                }
+            }
+            Some(content)
+        };
+        let mut presentation = world.get_mut::<ErrorPresentation>(entity).unwrap();
+        presentation.previous = messages;
+        presentation.content = content;
+    }
+}
+
+fn render_form_state_presentations(world: &mut World) {
+    let entities: Vec<_> = world
+        .query_filtered::<Entity, With<FormStatePresentation>>()
+        .iter(world)
+        .collect();
+    for entity in entities {
+        let status = world
+            .get::<FormStatusState>(entity)
+            .copied()
+            .unwrap_or_default()
+            .status;
+        let presentation = world.get::<FormStatePresentation>(entity).unwrap();
+        if presentation.previous == Some(status) {
+            continue;
+        }
+        let host = presentation.host;
+        let callback = match status {
+            FormStatus::Idle => None,
+            FormStatus::Submitting => presentation.submitting.clone(),
+            FormStatus::Success => presentation.success.clone(),
+        };
+        if let Some(content) = presentation.content {
+            if let Some(focused) = world
+                .get_resource::<bevy::input_focus::InputFocus>()
+                .and_then(|focus| focus.get())
+            {
+                let mut ancestor = Some(focused);
+                while let Some(target) = ancestor {
+                    if target == content {
+                        if world.contains_resource::<
+                            bevy::ecs::message::Messages<crate::primitives::focus::FocusRequest>,
+                        >() {
+                            world.write_message(crate::primitives::focus::FocusRequest {
+                                target: entity,
+                                origin: crate::primitives::focus::FocusOrigin::Keyboard,
+                            });
+                        }
+                        break;
+                    }
+                    ancestor = world.get::<ChildOf>(target).map(ChildOf::parent);
+                }
+            }
+            world.despawn(content);
+        }
+        let content = callback.map(|callback| {
+            let mut semantic = crate::primitives::semantic::SemanticNode::new(
+                crate::primitives::semantic::SemanticRole::Status,
+            );
+            semantic.live = Some(crate::primitives::semantic::AnnouncementPriority::Polite);
+            semantic.state.busy = status == FormStatus::Submitting;
+            let content = world
+                .spawn((
+                    Name::new("form-state-content"),
+                    semantic,
+                    Node {
+                        width: percent(100),
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(4),
+                        ..default()
+                    },
+                    ChildOf(host),
+                ))
+                .id();
+            let mut context = crate::primitives::composition::UiBuildContext {
+                world,
+                parent: content,
+            };
+            for child in callback() {
+                child.spawn_in_context(&mut context);
+            }
+            content
+        });
+        let mut presentation = world.get_mut::<FormStatePresentation>(entity).unwrap();
+        presentation.previous = Some(status);
+        presentation.content = content;
+    }
+}
+
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct BindingSystems;
+
 impl Plugin for BindingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PostUpdate, sync_bound_fields);
+        app.add_systems(
+            PostUpdate,
+            (
+                sync_bound_fields,
+                render_error_presentations,
+                render_form_state_presentations,
+            )
+                .chain()
+                .in_set(BindingSystems),
+        )
+        .configure_sets(
+            PostUpdate,
+            BindingSystems.before(bevy::ui::UiSystems::Layout),
+        );
     }
 }
 
@@ -297,16 +564,52 @@ pub(crate) fn sync_bound_fields(world: &mut World) {
             bound.error = error.clone();
         }
         if let Some(mut state) = world.get_mut::<BindingErrorState>(entity) {
-            if let Some(error) = error {
-                state.messages = error.messages;
-            } else {
-                state.clear();
-            }
+            state.set_if_neq(BindingErrorState {
+                messages: error.map(|error| error.messages).unwrap_or_default(),
+            });
+        }
+    }
+}
+
+#[derive(Component, Clone, Copy)]
+pub(crate) struct SelectBindingAdapter {
+    read: fn(&World, Entity) -> Result<BindingValue, BindingErrors>,
+    write: fn(&mut World, Entity, &BindingValue) -> Result<(), BindingErrors>,
+}
+
+impl SelectBindingAdapter {
+    pub(crate) fn new<T: BindingValueType>() -> Self {
+        Self {
+            read: |world, entity| {
+                let select = world
+                    .get::<crate::components::select::Select<T>>(entity)
+                    .unwrap();
+                Ok(select.selected_value().map_or_else(
+                    || BindingValue::Text(String::new()),
+                    BindingValueType::to_binding_value,
+                ))
+            },
+            write: |world, entity, value| {
+                let value = T::from_binding_value(value.clone())?;
+                let mut select = world
+                    .get_mut::<crate::components::select::Select<T>>(entity)
+                    .unwrap();
+                let selected = select
+                    .options
+                    .iter()
+                    .position(|option| option == &value)
+                    .ok_or_else(|| BindingErrors::new("model value is not a select option"))?;
+                select.selected = Some(selected);
+                Ok(())
+            },
         }
     }
 }
 
 fn read_control_value(world: &World, entity: Entity) -> Result<BindingValue, BindingErrors> {
+    if let Some(adapter) = world.get::<SelectBindingAdapter>(entity) {
+        return (adapter.read)(world, entity);
+    }
     if let Some(search) = world.get::<crate::components::search::Search>(entity) {
         let nested_input = world.get::<Children>(entity).and_then(|children| {
             children
@@ -366,6 +669,9 @@ fn write_control_value(
     entity: Entity,
     value: &BindingValue,
 ) -> Result<(), BindingErrors> {
+    if let Some(adapter) = world.get::<SelectBindingAdapter>(entity).copied() {
+        return (adapter.write)(world, entity, value);
+    }
     if world
         .get::<crate::components::search::Search>(entity)
         .is_some()
@@ -715,5 +1021,58 @@ mod tests {
         sync_bound_fields(&mut world);
         assert_eq!(world.resource::<UserModel>().name, "User query");
         assert_eq!(world.get::<Search>(search).unwrap().query, "User query");
+    }
+
+    #[test]
+    fn bound_typed_select_syncs_values_and_reports_missing_options() {
+        let mut world = World::new();
+        world.insert_resource(UserModel {
+            name: "Name".into(),
+            age: 30,
+        });
+        let entity = world
+            .spawn((
+                crate::components::select::Select::new(vec![30u32, 42]),
+                SelectBindingAdapter::new::<u32>(),
+                BoundField::new(UserModel::age.erase()),
+                BindingErrorState::default(),
+            ))
+            .id();
+        sync_bound_fields(&mut world);
+        assert_eq!(
+            world
+                .get::<crate::components::select::Select<u32>>(entity)
+                .unwrap()
+                .selected_value(),
+            Some(&30)
+        );
+        world
+            .get_mut::<crate::components::select::Select<u32>>(entity)
+            .unwrap()
+            .select(1);
+        sync_bound_fields(&mut world);
+        assert_eq!(world.resource::<UserModel>().age, 42);
+        world.resource_mut::<UserModel>().age = 99;
+        sync_bound_fields(&mut world);
+        assert_eq!(
+            world.get::<BindingErrorState>(entity).unwrap().messages,
+            ["model value is not a select option"]
+        );
+        world.resource_mut::<UserModel>().age = 30;
+        sync_bound_fields(&mut world);
+        assert!(
+            world
+                .get::<BindingErrorState>(entity)
+                .unwrap()
+                .messages
+                .is_empty()
+        );
+        assert_eq!(
+            world
+                .get::<crate::components::select::Select<u32>>(entity)
+                .unwrap()
+                .selected_value(),
+            Some(&30)
+        );
     }
 }

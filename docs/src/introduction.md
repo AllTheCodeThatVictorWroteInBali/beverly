@@ -2,9 +2,10 @@
 
 > **API status:** Code examples in this book fall into two categories. Tutorial
 > and component-reference examples use the current Bevy/Beverly API and should
-> compile. Architecture and design-vision examples may use conceptual names
-> such as `Command::...`, `.header(...)`, or `.footer(...)`; those describe
-> intended application patterns and are not currently implemented DSL syntax.
+> compile. `.header(...)`, `.body(...)`, and `.footer(...)` are implemented
+> content-section helpers on the supported fluent containers. Architecture
+> and design-vision examples may still use application-owned conceptual names
+> such as `Command::...`; those are not additional built-in DSL syntax.
 # Beverly
 
 ## What is Beverly?

@@ -6,8 +6,9 @@
 
 <a href="../../assets/demos/index.html?demo=checkbox" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
 
-> **Current status:** `.bind(...)` examples describe planned model-setter
-> integration and are not currently executable against the crate.
+> **Model binding:** `CheckboxConfig::new().label("Active").bind(User::active)`
+> connects a boolean model field to the checkbox. Configure first, then bind;
+> the result is a composable `UiElement`. See [Binding Controls](overview.md#binding-controls).
 
 `checkbox()` is the standard Beverly form element for boolean values.
 
@@ -143,11 +144,7 @@ checkbox()
     .label(localize("user.active.label"))
     .aria(localize("user.active.description"))
     .bind(User::active)
-    .error(
-        self.children([
-            text(|errors: &[String]| errors.join(" "))
-        ])
-    )
+    .error(|errors| text(errors.join("\n")))
 ```
 
 The errors are derived from the binding.
@@ -158,14 +155,12 @@ The checkbox does not invent them.
 
 ## Error Context
 
-Just like the text input and textarea, the checkbox's `.error(...)` content receives an automatically exposed array of error strings.
+Just like the text input and textarea, the checkbox's `.error(...)` callback
+receives `&[String]` from the current validation state and returns visible
+content below the control. See [Error Callbacks](overview.md#error-callbacks).
 
 ```rust id="r4k9n3"
-.error(
-    self.children([
-        text(|errors: &[String]| errors.join(" "))
-    ])
-)
+.error(|errors| text(errors.join("\n")))
 ```
 
 Two things are automatically available inside the state hook:
@@ -196,11 +191,7 @@ checkbox()
     .label(localize("user.active.label"))
     .aria(localize("user.active.description"))
     .bind(User::active)
-    .error(
-        self.children([
-            text(|errors: &[String]| errors.join(" "))
-        ])
-    )
+    .error(|errors| text(errors.join("\n")))
 ```
 
 The label and ARIA description come from localization.
@@ -268,9 +259,7 @@ checkbox()
     .label(localize("user.active.label"))
     .aria(localize("user.active.description"))
     .bind(User::active)
-    .submitting(
-        self.opacity(0.5)
-    )
+    .submitting(|| [spinner()])
 ```
 
 Or:
@@ -280,19 +269,19 @@ checkbox()
     .label(localize("user.active.label"))
     .aria(localize("user.active.description"))
     .bind(User::active)
-    .submitting(
-        self.children([
+    .submitting(|| [
             spinner(),
             text(localize("user.active.updating"))
         ])
-    )
 ```
 
 Again, `self` refers to the checkbox.
 
 The async operation does not directly manipulate the component.
 
-The Model enters a pending state, and the checkbox presents that state.
+The application sets `FormStatusState::submitting()` and sets `idle()` or
+`success()` when the operation changes state. The callback supplies content
+below the checkbox; it does not style or disable the checkbox.
 
 ## No Manual Change Handler
 
@@ -344,13 +333,7 @@ checkbox()
     .label(localize("user.active.label"))
     .aria(localize("user.active.description"))
     .bind(User::active)
-    .error(
-        self
-            .color("red")
-            .children([
-                text(|errors: &[String]| errors.join(" "))
-            ])
-    )
+    .error(|errors| text(errors.join("\n")))
 ```
 
 Pending presentation:
@@ -360,9 +343,7 @@ checkbox()
     .label(localize("user.active.label"))
     .aria(localize("user.active.description"))
     .bind(User::active)
-    .submitting(
-        self.opacity(0.5)
-    )
+    .submitting(|| [spinner()])
 ```
 
 The same API works for normal, error, and pending states.
@@ -377,14 +358,8 @@ checkbox()
     .aria(localize("user.active.description"))
     .bind(User::active)
     .gap(8)
-    .error(
-        self.children([
-            text(|errors: &[String]| errors.join(" "))
-        ])
-    )
-    .submitting(
-        self.opacity(0.5)
-    )
+    .error(|errors| text(errors.join("\n")))
+    .submitting(|| [spinner()])
 ```
 
 The checkbox has:

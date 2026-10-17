@@ -13,16 +13,33 @@ Tabs organize several related views within the same area. They are useful for se
 ## Example
 
 ```rust
-use bevy::prelude::*;
 use beverly::prelude::*;
+use beverly::components::tabs::TabsConfig;
 
-fn build_tabs(mut commands: Commands) {
-    commands.spawn(BeverlyTabs::new()
-        .tab("Overview")
-        .tab("Activity")
-        .tab("Settings"));
-}
+app().children([
+    UiElement::tabs(TabsConfig::new(vec![
+        Tab::new("overview", "Overview"),
+        Tab::new("activity", "Activity"),
+    ]))
+    .header(text("Workspace"))
+    .body(text("Panel content"))
+    .footer(button().text("Refresh")),
+]).run();
 ```
+
+## Header, Body, and Footer
+
+`.header(...)`, `.body(...)`, and `.footer(...)` create top, middle, and bottom
+regions inside each tab's content zone, below the tab navigation bar. Each
+accepts one element or an iterable; repeated calls append, and section order
+does not depend on call order. Ordinary `.children(...)` content joins the
+body before explicit body content. The body grows into available panel height.
+
+The fluent builder supplies the same section content to every tab. For content
+that differs per tab, use `spawn_tabs(...)` or `spawn_tabs_in(...)` and build
+each zone with the callback's tab index or definition. `ContentSection` markers
+identify the fluent section entities. Existing tab selection, transitions, and
+keyboard navigation are unchanged.
 
 ## Guidance
 

@@ -6,10 +6,27 @@
 
 <a href="../../assets/demos/index.html?demo=textarea" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
 
-> **Current status:** `.bind(...)` examples describe planned model-setter
-> integration and are not currently executable against the crate.
+> **Model binding:** `TextareaConfig::new("Notes").label("Notes").bind(User::notes)`
+> connects a text field to the textarea and returns a composable `UiElement`.
+> Validation messages live in `BindingErrorState`; `.error(|errors| ...)`
+> renders their visible presentation. See [Error Callbacks](overview.md#error-callbacks).
 
 `textarea()` is the multiline counterpart to `input()`.
+
+## Disabled and Read-Only State
+
+```rust
+TextareaConfig::new("Notes")
+    .label("Notes")
+    .required(true)
+    .read_only(true)
+```
+
+`.disabled(true)` removes the initial tab stop and rejects focus and editing.
+`.read_only(true)` keeps content available for focus, selection, and copying
+while rejecting insertion/deletion/cut/paste mutations. Both states and
+`required` are projected to AccessKit. Bound validation automatically exposes
+invalid state and related error text; visible error styling remains app-owned.
 
 It follows the same patterns:
 
@@ -205,11 +222,7 @@ textarea()
     .label(localize("profile.bio.label"))
     .aria(localize("profile.bio.description"))
     .bind(User::bio)
-    .error(
-        self.children([
-            text(|errors: &[String]| errors.join(" "))
-        ])
-    )
+    .error(|errors| text(errors.join("\n")))
 ```
 
 The error context is automatically exposed to the `.error(...)` content.
@@ -252,11 +265,7 @@ textarea()
     .label(localize("profile.bio.label"))
     .aria(localize("profile.bio.description"))
     .bind(User::bio)
-    .error(
-        self.children([
-            text(|errors: &[String]| errors.join(" "))
-        ])
-    )
+    .error(|errors| text(errors.join("\n")))
 ```
 
 The textarea contains no language-specific validation copy.
@@ -291,11 +300,7 @@ textarea()
     .label(localize("profile.bio.label"))
     .aria(localize("profile.bio.description"))
     .bind(User::bio)
-    .error(
-        self.children([
-            text(|errors: &[String]| errors.join("\n"))
-        ])
-    )
+    .error(|errors| text(errors.join("\n")))
 ```
 
 The Model determines the errors.
@@ -348,9 +353,7 @@ textarea()
     .label(localize("profile.bio.label"))
     .aria(localize("profile.bio.description"))
     .bind(User::bio)
-    .submitting(
-        self.opacity(0.5)
-    )
+    .submitting(|| [spinner()])
 ```
 
 Or:
@@ -360,23 +363,22 @@ textarea()
     .label(localize("profile.bio.label"))
     .aria(localize("profile.bio.description"))
     .bind(User::bio)
-    .submitting(
-        self.children([
+    .submitting(|| [
             spinner(),
             text(localize("profile.bio.checking"))
         ])
-    )
 ```
 
 Again, `self` refers to the textarea itself.
 
 The async Event or setter does not directly manipulate the textarea.
 
-The Model enters a pending state.
+The application sets `FormStatusState::submitting()` while that work is pending.
 
 The textarea observes that state and presents itself accordingly.
 
-> **State determines when. The component determines what.**
+The callback supplies supplementary content below the textarea; set `idle()` or
+`success()` to replace or remove it.
 
 ## Debouncing
 
@@ -477,13 +479,7 @@ textarea()
     .label(localize("profile.bio.label"))
     .aria(localize("profile.bio.description"))
     .bind(User::bio)
-    .error(
-        self
-            .color("red")
-            .children([
-                text(|errors: &[String]| errors.join(" "))
-            ])
-    )
+    .error(|errors| text(errors.join("\n")))
 ```
 
 Pending presentation:
@@ -493,9 +489,7 @@ textarea()
     .label(localize("profile.bio.label"))
     .aria(localize("profile.bio.description"))
     .bind(User::bio)
-    .submitting(
-        self.opacity(0.5)
-    )
+    .submitting(|| [spinner()])
 ```
 
 The same component API handles normal, error, and pending states.
@@ -513,14 +507,8 @@ textarea()
     .radius(8)
     .width(400)
     .height(160)
-    .error(
-        self.children([
-            text(|errors: &[String]| errors.join(" "))
-        ])
-    )
-    .submitting(
-        self.opacity(0.5)
-    )
+    .error(|errors| text(errors.join("\n")))
+    .submitting(|| [spinner()])
 ```
 
 There is no manual change handler.

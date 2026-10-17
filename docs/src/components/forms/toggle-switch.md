@@ -37,4 +37,9 @@ setting, or `.thumb_icons(...)` to configure the two thumb icons.
 
 Read `Toggle::checked` through a query when synchronizing application settings
 or status text. The demo counts checked switches, including the disabled one.
-This API does not require the planned model-binding DSL.
+Model binding is optional. Use `ToggleConfig::new().bind(User::enabled)` to
+connect a boolean model field, or handle toggle events explicitly.
+
+Use `.error(|errors| text(errors.join("\n")))` on a `ToggleConfig` or its bound
+`UiElement` to render validation messages below the switch. See
+[Error Callbacks](overview.md#error-callbacks).

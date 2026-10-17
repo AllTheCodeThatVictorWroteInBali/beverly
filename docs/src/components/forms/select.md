@@ -1,7 +1,13 @@
 # Select
 
-> **Current status:** `.bind(...)` examples describe planned model-setter
-> integration and are not currently executable against the crate.
+> **Model binding:** `Select::new(vec!["free".to_owned()]).bind(User::plan)`
+> connects a typed Select to a model field and returns `UiElement`. See
+> [Binding Controls](overview.md#binding-controls).
+
+`Select<T>::error(|errors| ...)` and bound fluent selects render the current
+error messages below the control. Typed selects preserve their actual option
+type and can use application-owned `BindingErrorState` even without automatic
+field binding. See [Error Callbacks](overview.md#error-callbacks).
 
 `select()` lets a user choose a value from a list of available choices.
 
@@ -38,9 +44,11 @@ spawn_select(parent, Select::new(regions), font_handle);
 ```
 
 Read `SelectChanged<Region>` (from `beverly::components::select`) as a Bevy
-message to receive the selected typed value. The fluent `.bind(...)` examples
-below describe planned model-setter integration; they are not the mechanism
-used by this component API today.
+message to receive the selected typed value. `.bind(...)` provides automatic
+two-way synchronization when `T` implements `BindingValueType + Display`.
+Built-in conversions cover strings and numeric scalar values; custom types can
+implement `BindingValueType` to map to a model field. Enum-valued selects can
+also use typed messages when no binding conversion is appropriate.
 
 ## Basic Select
 
@@ -199,11 +207,7 @@ select()
     .label(localize("user.role.label"))
     .aria(localize("user.role.description"))
     .bind(User::role)
-    .error(
-        self.children([
-            text(|errors: &[String]| errors.join(" "))
-        ])
-    )
+    .error(|errors| text(errors.join("\n")))
 ```
 
 The error context is supplied automatically to the field presentation.
@@ -242,9 +246,7 @@ select()
     .label(localize("user.role.label"))
     .aria(localize("user.role.description"))
     .bind(User::role)
-    .submitting(
-        self.opacity(0.5)
-    )
+    .submitting(|| [spinner()])
 ```
 
 Or provide a richer pending presentation:
@@ -254,12 +256,10 @@ select()
     .label(localize("user.role.label"))
     .aria(localize("user.role.description"))
     .bind(User::role)
-    .submitting(
-        self.children([
+    .submitting(|| [
             spinner(),
             text(localize("user.role.updating")),
         ])
-    )
 ```
 
 Again, `self` refers to the Select component.
@@ -268,7 +268,8 @@ It does not refer to the Event that caused the state change.
 
 The Event or Model transition changes state. The component hook declares how the Select presents that state.
 
-> **State determines when. Components determine what.**
+The app sets and clears `FormStatusState`; the callback supplies supplementary
+content below the Select.
 
 ## Styling
 
@@ -285,12 +286,8 @@ State-specific styling uses the same mechanism:
 
 ```rust id="z6p2r8"
 select()
-    .error(
-        self.color("red")
-    )
-    .submitting(
-        self.opacity(0.5)
-    )
+    .error(|errors| text(errors.join("\n")))
+    .submitting(|| [spinner()])
 ```
 
 There is no separate styling system for form states.
@@ -342,14 +339,8 @@ select()
         option("id")
             .label(localize("country.id")),
     ])
-    .error(
-        self.children([
-            text(|errors: &[String]| errors.join(" "))
-        ])
-    )
-    .submitting(
-        self.opacity(0.5)
-    )
+    .error(|errors| text(errors.join("\n")))
+    .submitting(|| [spinner()])
 ```
 
 The Select itself remains simple.

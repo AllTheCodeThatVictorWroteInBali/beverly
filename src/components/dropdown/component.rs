@@ -43,6 +43,7 @@ fn dropdown_palette(mode: ThemeMode) -> DropdownPalette {
 
 #[derive(Component)]
 pub struct Dropdown {
+    pub disabled: bool,
     pub placeholder: String,
     pub options: Vec<DropdownOption>,
 }
@@ -75,6 +76,7 @@ impl DropdownOption {
 
 #[derive(Clone)]
 pub struct DropdownConfig {
+    pub disabled: bool,
     pub placeholder: String,
     pub options: Vec<DropdownOption>,
     pub selected: Option<usize>,
@@ -96,6 +98,7 @@ pub enum DropdownMenuAnimationKind {
 impl DropdownConfig {
     pub fn new(placeholder: impl Into<String>) -> Self {
         Self {
+            disabled: false,
             placeholder: placeholder.into(),
             options: Vec::new(),
             selected: None,
@@ -111,6 +114,11 @@ impl DropdownConfig {
 
     pub fn selected(mut self, index: usize) -> Self {
         self.selected = Some(index);
+        self
+    }
+
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
         self
     }
 
@@ -217,6 +225,7 @@ pub fn spawn_dropdown(parent: &mut ChildSpawnerCommands, config: DropdownConfig)
     let colors = light_theme().colors;
 
     let DropdownConfig {
+        disabled,
         placeholder,
         options,
         selected,
@@ -229,6 +238,7 @@ pub fn spawn_dropdown(parent: &mut ChildSpawnerCommands, config: DropdownConfig)
 
     let mut dropdown_entity = parent.spawn((
         Dropdown {
+            disabled,
             placeholder,
             options: options.clone(),
         },
@@ -257,7 +267,7 @@ pub fn spawn_dropdown(parent: &mut ChildSpawnerCommands, config: DropdownConfig)
             .spawn((
                 Button,
                 DropdownSurface { owner: dropdown_id },
-                a11y::TabIndex(0),
+                a11y::TabIndex(if disabled { -1 } else { 0 }),
                 SemanticNode::new(SemanticRole::ComboBox).label(accessible_label),
                 Node {
                     width: percent(100),
@@ -317,6 +327,7 @@ pub fn spawn_dropdown(parent: &mut ChildSpawnerCommands, config: DropdownConfig)
                 viewport
                     .spawn((
                         DropdownMenu { owner: dropdown_id },
+                        SemanticNode::new(SemanticRole::ListBox).label("Choices"),
                         DropdownMenuAnimation {
                             progress: 0.0,
                             target: 0.0,
@@ -416,6 +427,9 @@ fn dropdown_surface_system(
         let Ok((dropdown, mut state)) = dropdown_query.get_mut(surface.owner) else {
             continue;
         };
+        if dropdown.disabled {
+            continue;
+        }
 
         focus.entity = Some(surface.owner);
 
@@ -458,7 +472,7 @@ fn dropdown_option_system(
             continue;
         };
 
-        if option_button.index >= dropdown.options.len() {
+        if dropdown.disabled || !state.open || option_button.index >= dropdown.options.len() {
             continue;
         }
 
@@ -547,6 +561,9 @@ fn dropdown_keyboard_navigation_system(
     let Ok((dropdown, mut state)) = dropdown_query.get_mut(focused_entity) else {
         return;
     };
+    if dropdown.disabled {
+        return;
+    }
 
     let option_count = dropdown.options.len();
     if option_count == 0 {
@@ -977,30 +994,66 @@ fn spring_step(animation: &mut DropdownMenuAnimation, dt: f32) {
 /// Keeps the trigger's expanded/label state and each option's selected
 /// state in sync with `DropdownState` for screen readers.
 fn dropdown_a11y_system(
-    dropdown_query: Query<(Entity, &Dropdown, &DropdownState), Changed<DropdownState>>,
-    mut surface_query: Query<(&DropdownSurface, &mut SemanticNode), Without<DropdownOptionButton>>,
-    mut option_query: Query<(&DropdownOptionButton, &mut SemanticNode), Without<DropdownSurface>>,
+    dropdown_query: Query<(Entity, &Dropdown, &DropdownState)>,
+    mut surface_query: Query<
+        (Entity, &DropdownSurface, &mut SemanticNode),
+        (Without<DropdownOptionButton>, Without<DropdownMenu>),
+    >,
+    mut option_query: Query<
+        (Entity, &DropdownOptionButton, &mut SemanticNode),
+        (Without<DropdownSurface>, Without<DropdownMenu>),
+    >,
+    mut menus: Query<
+        (Entity, &DropdownMenu, &mut SemanticNode),
+        (Without<DropdownSurface>, Without<DropdownOptionButton>),
+    >,
 ) {
     for (entity, dropdown, state) in &dropdown_query {
-        let label_text = state
-            .selected
-            .and_then(|index| dropdown.options.get(index))
-            .map(|option| option.label.clone())
-            .unwrap_or_else(|| dropdown.placeholder.clone());
-
-        for (surface, mut node) in &mut surface_query {
+        let menu = menus
+            .iter()
+            .find(|(_, menu, _)| menu.owner == entity)
+            .map(|(entity, _, _)| entity);
+        let active = if state.open {
+            option_query
+                .iter()
+                .find(|(_, option, _)| {
+                    option.owner == entity && Some(option.index) == state.highlighted
+                })
+                .map(|(entity, _, _)| entity)
+        } else {
+            None
+        };
+        let mut trigger = None;
+        for (surface_entity, surface, mut node) in &mut surface_query {
             if surface.owner != entity {
                 continue;
             }
-            node.label = Some(label_text.clone());
+            trigger = Some(surface_entity);
+            node.label = Some(dropdown.placeholder.clone());
+            node.value = state
+                .selected
+                .and_then(|index| dropdown.options.get(index))
+                .map(|option| option.value.clone());
             node.state.expanded = Some(state.open);
+            node.state.disabled = dropdown.disabled;
+            node.relationships.controls = menu.into_iter().collect();
+            node.relationships.active_descendant = active;
         }
 
-        for (option, mut node) in &mut option_query {
+        for (_, option, mut node) in &mut option_query {
             if option.owner != entity {
                 continue;
             }
             node.state.selected = Some(option.index) == state.selected;
+            node.state.hidden = !state.open;
+            node.state.disabled = dropdown.disabled;
+        }
+        for (_, menu, mut node) in &mut menus {
+            if menu.owner == entity {
+                node.label = Some(dropdown.placeholder.clone());
+                node.state.hidden = !state.open;
+                node.relationships.controlled_by = trigger;
+            }
         }
     }
 }
@@ -1031,6 +1084,73 @@ impl Plugin for DropdownPlugin {
                 dropdown_option_visual_system,
             )
                 .chain(),
+        );
+    }
+}
+
+#[cfg(test)]
+mod accessibility_tests {
+    use super::*;
+
+    #[test]
+    fn dropdown_semantics_link_trigger_menu_and_active_option() {
+        let mut app = App::new();
+        app.add_systems(Update, dropdown_a11y_system);
+        let parent = app.world_mut().spawn(Node::default()).id();
+        let mut root = None;
+        app.world_mut()
+            .commands()
+            .entity(parent)
+            .with_children(|children| {
+                root = Some(spawn_dropdown(
+                    children,
+                    DropdownConfig::new("Plan")
+                        .option("Free", "free")
+                        .option("Pro", "pro"),
+                ));
+            });
+        app.world_mut().flush();
+        let root = root.unwrap();
+        app.update();
+        let trigger = app
+            .world_mut()
+            .query_filtered::<Entity, With<DropdownSurface>>()
+            .single(app.world())
+            .unwrap();
+        let menu = app
+            .world_mut()
+            .query_filtered::<Entity, With<DropdownMenu>>()
+            .single(app.world())
+            .unwrap();
+        assert_eq!(
+            app.world()
+                .get::<SemanticNode>(trigger)
+                .unwrap()
+                .relationships
+                .controls,
+            [menu]
+        );
+        assert!(app.world().get::<SemanticNode>(menu).unwrap().state.hidden);
+        {
+            let mut state = app.world_mut().get_mut::<DropdownState>(root).unwrap();
+            state.open = true;
+            state.selected = Some(0);
+            state.highlighted = Some(1);
+        }
+        app.update();
+        let semantic = app.world().get::<SemanticNode>(trigger).unwrap();
+        assert_eq!(semantic.label.as_deref(), Some("Plan"));
+        assert_eq!(semantic.value.as_deref(), Some("free"));
+        assert!(semantic.relationships.active_descendant.is_some());
+        assert!(!app.world().get::<SemanticNode>(menu).unwrap().state.hidden);
+        app.world_mut().get_mut::<Dropdown>(root).unwrap().disabled = true;
+        app.update();
+        assert!(
+            app.world()
+                .get::<SemanticNode>(trigger)
+                .unwrap()
+                .state
+                .disabled
         );
     }
 }

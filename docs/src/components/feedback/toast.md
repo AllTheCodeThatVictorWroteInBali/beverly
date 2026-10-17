@@ -10,6 +10,24 @@ Toast supports the same fluent `.header(...)`, `.body(...)`, and
 `.footer(...)` section helpers as Card. The standalone `footer(...)` function
 creates the separate Footer component.
 
+## Header, Body, and Footer
+
+Use `UiElement::toast(...)` to compose top, middle, and bottom regions:
+
+```rust
+UiElement::toast(Toast::success("Changes saved").title("Saved"))
+    .header(text("Account update"))
+    .body(text("All devices will receive the update."))
+    .footer(button().text("View account"))
+```
+
+Each section accepts one element or an iterable, and repeated calls append
+content. Header, body, and footer render vertically in that order regardless
+of builder-call order. The header appears above the notification row; custom
+body content follows the built-in title/message within that row; footer
+content appears beneath it, not beside it. The icon, dismiss control, duration,
+positioning, and notification lifecycle remain intact.
+
 A Toast is a transient notification presented as a floating Card.
 
 It is a composite component built from familiar Beverly primitives: a Card, content, a close Button, positioning, animation, and a timed lifecycle.

@@ -10,6 +10,7 @@ use crate::theme::{ThemeColors, ThemeMode, ThemeResource, dark_theme};
 /// Identifies a radio group.
 #[derive(Component)]
 pub struct RadioGroup {
+    pub disabled: bool,
     pub id: String,
     pub selected: String,
 }
@@ -71,6 +72,7 @@ impl RadioOption {
 /// Reusable radio group builder.
 #[derive(Clone)]
 pub struct RadioGroupBuilder {
+    disabled: bool,
     id: String,
     options: Vec<RadioOption>,
     selected: Option<String>,
@@ -81,6 +83,7 @@ pub struct RadioGroupBuilder {
 impl RadioGroupBuilder {
     pub fn new(id: impl Into<String>) -> Self {
         Self {
+            disabled: false,
             id: id.into(),
             options: Vec::new(),
             selected: None,
@@ -142,6 +145,7 @@ impl RadioGroupBuilder {
             },
             group_semantic,
             RadioGroup {
+                disabled: self.disabled,
                 id: self.id.clone(),
                 selected: selected.clone(),
             },
@@ -158,7 +162,7 @@ impl RadioGroupBuilder {
 
                 let mut button_commands = group_parent.spawn((
                     Button,
-                    a11y::TabIndex(if is_selected { 0 } else { -1 }),
+                    a11y::TabIndex(if is_selected && !self.disabled { 0 } else { -1 }),
                     semantic,
                     Node {
                         width: Val::Percent(100.0),
@@ -263,7 +267,7 @@ fn radio_interaction_system(
         }
 
         for mut group in &mut groups {
-            if group.id != button.group_id {
+            if group.disabled || group.id != button.group_id {
                 continue;
             }
 
@@ -373,6 +377,56 @@ mod tests {
     use super::*;
 
     #[test]
+    fn disabled_radio_group_rejects_activation_and_removes_tab_stops() {
+        let mut app = App::new();
+        app.add_message::<RadioChanged>().add_systems(
+            Update,
+            (radio_interaction_system, radio_a11y_sync_system).chain(),
+        );
+        let parent = app.world_mut().spawn(Node::default()).id();
+        let mut root = None;
+        app.world_mut()
+            .commands()
+            .entity(parent)
+            .with_children(|children| {
+                root = Some(
+                    RadioGroupBuilder::new("plan")
+                        .option("free", "Free")
+                        .option("pro", "Pro")
+                        .disabled(true)
+                        .spawn(children),
+                );
+            });
+        app.world_mut().flush();
+        let root = root.unwrap();
+        let children: Vec<_> = app.world().get::<Children>(root).unwrap().iter().collect();
+        app.world_mut()
+            .entity_mut(children[1])
+            .insert(Interaction::Pressed);
+        app.update();
+        assert_eq!(
+            app.world().get::<RadioGroup>(root).unwrap().selected,
+            "free"
+        );
+        for child in children {
+            assert_eq!(app.world().get::<a11y::TabIndex>(child).unwrap().0, -1);
+            assert!(
+                app.world()
+                    .get::<SemanticNode>(child)
+                    .unwrap()
+                    .state
+                    .disabled
+            );
+        }
+        assert_eq!(
+            app.world()
+                .resource::<bevy::ecs::message::Messages<RadioChanged>>()
+                .len(),
+            0
+        );
+    }
+
+    #[test]
     fn selected_radio_color_tracks_theme_mode() {
         assert_eq!(radio_active_color(ThemeMode::Light), Color::BLACK);
         assert_eq!(radio_active_color(ThemeMode::Dark), Color::WHITE);
@@ -414,6 +468,12 @@ fn radio_roving_nav_system(
         return;
     };
     let group_entity = child_of.parent();
+    if group_query
+        .get(group_entity)
+        .is_ok_and(|group| group.disabled)
+    {
+        return;
+    }
     let Ok(children) = groups.get(group_entity) else {
         return;
     };
@@ -460,22 +520,31 @@ fn radio_roving_nav_system(
 /// which value is currently selected (only the selected radio is a tab
 /// stop, matching the native roving-tabindex pattern).
 fn radio_a11y_sync_system(
-    groups: Query<(&RadioGroup, &Children), Changed<RadioGroup>>,
+    groups: Query<(Entity, &RadioGroup, &Children)>,
     mut buttons: Query<(&RadioButton, &mut a11y::TabIndex, &mut SemanticNode)>,
 ) {
-    for (group, children) in &groups {
+    for (group_entity, group, children) in &groups {
         for child in children.iter() {
             let Ok((button, mut tab_index, mut node)) = buttons.get_mut(child) else {
                 continue;
             };
             let selected = button.value == group.selected;
-            tab_index.0 = if selected { 0 } else { -1 };
+            tab_index.0 = if selected && !group.disabled { 0 } else { -1 };
             node.state.checked = Some(selected);
+            node.state.disabled = group.disabled;
+            node.relationships.controlled_by = Some(group_entity);
         }
     }
 }
 
 pub struct RadioPlugin;
+
+impl RadioGroupBuilder {
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
+        self
+    }
+}
 
 impl Plugin for RadioPlugin {
     fn build(&self, app: &mut App) {

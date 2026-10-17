@@ -60,6 +60,7 @@ impl FileType {
 
 #[derive(Component, Debug, Clone)]
 pub struct FileInput {
+    pub disabled: bool,
     pub variant: FileInputVariant,
 
     pub accepted_types: Vec<FileType>,
@@ -92,6 +93,7 @@ pub enum FileInputVariant {
 impl Default for FileInput {
     fn default() -> Self {
         Self {
+            disabled: false,
             variant: FileInputVariant::DropZone,
             accepted_types: vec![FileType::Image, FileType::Audio, FileType::Video],
             multiple: false,
@@ -155,6 +157,11 @@ impl FileInput {
 
     pub fn drag_and_drop(mut self, enabled: bool) -> Self {
         self.drag_and_drop = enabled;
+        self
+    }
+
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
         self
     }
 
@@ -322,6 +329,12 @@ impl Plugin for FileInputPlugin {
                 activate_file_input,
                 file_input_visual_system,
             ),
+        )
+        .add_systems(
+            PostUpdate,
+            file_input_semantics_system
+                .after(crate::primitives::binding::BindingSystems)
+                .before(crate::primitives::semantic::SemanticAccessibilitySystems),
         );
     }
 }
@@ -333,7 +346,7 @@ fn activate_file_input(
     mut opened: MessageWriter<FileInputOpened>,
 ) {
     for (entity, interaction, input) in &inputs {
-        if *interaction != Interaction::Pressed {
+        if input.disabled || *interaction != Interaction::Pressed {
             continue;
         }
 
@@ -346,6 +359,25 @@ fn activate_file_input(
         }
         open_file_input(entity, input, &channels);
         opened.write(FileInputOpened { entity });
+    }
+}
+
+fn file_input_semantics_system(
+    mut inputs: Query<(&FileInput, &FileInputSelectionState, &mut SemanticNode)>,
+) {
+    for (input, selection, mut semantic) in &mut inputs {
+        semantic.state.disabled = input.disabled;
+        semantic.label = Some(input.label.clone());
+        semantic.value = Some(if selection.files.is_empty() {
+            "No files selected".to_owned()
+        } else {
+            selection
+                .files
+                .iter()
+                .filter_map(SelectedFile::filename)
+                .collect::<Vec<_>>()
+                .join(", ")
+        });
     }
 }
 
@@ -372,6 +404,9 @@ pub fn spawn_file_input_in(parent: &mut ChildSpawnerCommands, input: FileInput) 
 
 fn file_input_bundle(input: FileInput) -> impl Bundle {
     let label = input.label.clone();
+    let disabled = input.disabled;
+    let mut semantic = SemanticNode::new(SemanticRole::Button).label(label.clone());
+    semantic.state.disabled = disabled;
     let node = match input.variant {
         FileInputVariant::Button => Node {
             min_width: px(180),
@@ -390,8 +425,8 @@ fn file_input_bundle(input: FileInput) -> impl Bundle {
         FileInputDragState::default(),
         FileInputSelectionState::default(),
         Button,
-        a11y::TabIndex(0),
-        SemanticNode::new(SemanticRole::Button).label(label),
+        a11y::TabIndex(if disabled { -1 } else { 0 }),
+        semantic,
         node,
         BackgroundColor(Color::NONE),
         Surface::rounded_rect_fill(8.0, Paint::solid(Color::NONE))
@@ -533,6 +568,9 @@ fn file_input_visual_system(
 // ============================================================================
 
 pub fn open_file_input(entity: Entity, _input: &FileInput, channels: &FilePickerChannels) {
+    if _input.disabled {
+        return;
+    }
     let _ = channels.request_sender.send(PickerRequest {
         entity,
         #[cfg(feature = "file_dialog")]
@@ -729,6 +767,7 @@ fn process_os_drag_and_drop(
                     if let Ok(mut state) = drag_states.get_mut(entity) {
                         let is_target = target == Some(entity)
                             && input.drag_and_drop
+                            && !input.disabled
                             && input.accepts(path_buf);
                         if is_target {
                             let was_target = state.dragging && state.window == Some(*window);
@@ -779,7 +818,11 @@ fn file_input_drop_target_for_window(
     let eligible = targets
         .iter()
         .filter(|(_, input, node, _, _, visibility, _)| {
-            input.drag_and_drop && input.accepts(path) && visibility.get() && !node.is_empty()
+            !input.disabled
+                && input.drag_and_drop
+                && input.accepts(path)
+                && visibility.get()
+                && !node.is_empty()
         })
         .collect::<Vec<_>>();
 
@@ -854,7 +897,7 @@ fn handle_dropped_file(
     let Ok((_, input)) = inputs.get(entity) else {
         return;
     };
-    if !input.drag_and_drop || !input.accepts(&path) {
+    if input.disabled || !input.drag_and_drop || !input.accepts(&path) {
         return;
     }
 

@@ -6,8 +6,12 @@
 
 <a href="../../assets/demos/index.html?demo=file_input" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
 
-> **Current status:** `.bind(...)` examples describe planned model-setter
-> integration and are not currently executable against the crate.
+> **Model binding:** `FileInput::new("Files").bind(User::files)` connects a
+> `Vec<SelectedFile>` model field to the selected files and returns `UiElement`.
+> See [Binding Controls](overview.md#binding-controls).
+
+`FileInput::error(|errors| ...)` renders file-selection validation errors below
+the control. See [Error Callbacks](overview.md#error-callbacks).
 
 The `FileInput` lets a user select a file from their device.
 
@@ -368,11 +372,7 @@ file_input()
     .label(localize("document.file.label"))
     .aria(localize("document.file.description"))
     .bind(Document::file)
-    .error(
-        self.children([
-            text(|errors: &[String]| errors.join(" ")),
-        ])
-    )
+    .error(|errors| text(errors.join("\n")))
 ```
 
 The UI does not need to hard-code validation messages.
@@ -404,7 +404,7 @@ file_input()
     .label(localize("document.file.label"))
     .aria(localize("document.file.description"))
     .bind(Document::file)
-    .submitting(self.opacity(0.5))
+    .submitting(|| [spinner()])
 ```
 
 The component does not need to know why the application is submitting.
@@ -422,18 +422,17 @@ file_input()
     .label(localize("document.file.label"))
     .aria(localize("document.file.description"))
     .bind(Document::file)
-    .submitting(self.opacity(0.5))
-    .error(self.children([
-        text(|errors: &[String]| errors.join(" ")),
-    ]))
-    .success(self.opacity(1.0))
+    .submitting(|| [spinner()])
+    .error(|errors| text(errors.join("\n")))
+    .success(|| [text("Saved")])
 ```
 
 These hooks describe how the component should appear when the associated state exists.
 
 They do not create or own that state.
 
-> **State determines when. Components determine what.**
+The application sets `FormStatusState`; the callback supplies supplementary
+content and does not infer picker or upload state.
 
 ---
 

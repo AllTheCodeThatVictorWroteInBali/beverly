@@ -6,8 +6,12 @@
 
 <a href="../../assets/demos/index.html?demo=radio" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
 
-> **Current status:** `.bind(...)` examples describe planned model-setter
-> integration and are not currently executable against the crate.
+> **Model binding:** `RadioGroupBuilder::new("plan").option("free", "Free").bind(User::plan)`
+> connects the group's string-valued selection to a model field and returns
+> `UiElement`. See [Binding Controls](overview.md#binding-controls).
+
+`RadioGroupBuilder::error(|errors| ...)` renders the group's current validation
+errors below its options. See [Error Callbacks](overview.md#error-callbacks).
 
 A radio control represents a choice from a set of mutually exclusive options.
 
@@ -198,11 +202,7 @@ radio_group()
             .label(localize("subscription.plan.pro.label"))
             .aria(localize("subscription.plan.pro.description")),
     ])
-    .error(
-        self.children([
-            text(|errors: &[String]| errors.join(" "))
-        ])
-    )
+    .error(|errors| text(errors.join("\n")))
 ```
 
 The error text is not hard-coded into the View.
@@ -237,9 +237,7 @@ radio_group()
     .label(localize("subscription.plan.label"))
     .aria(localize("subscription.plan.description"))
     .bind(User::plan)
-    .submitting(
-        self.opacity(0.5)
-    )
+    .submitting(|| [spinner()])
 ```
 
 Or provide a richer pending presentation:
@@ -249,12 +247,10 @@ radio_group()
     .label(localize("subscription.plan.label"))
     .aria(localize("subscription.plan.description"))
     .bind(User::plan)
-    .submitting(
-        self.children([
+    .submitting(|| [
             spinner(),
             text(localize("subscription.plan.updating")),
         ])
-    )
 ```
 
 The `self` here refers to the **radio group itself**.
@@ -263,7 +259,8 @@ It does not refer to the Event that caused the state change.
 
 The Event changes application state. The component hook declares how the component should present itself while that state is active.
 
-> **State determines when. Components determine what.**
+The app sets and clears `FormStatusState`; the callback supplies supplementary
+content below the RadioGroup.
 
 ## Accessibility
 
@@ -317,12 +314,8 @@ State-specific styling follows the same pattern:
 
 ```rust
 radio_group()
-    .error(
-        self.color("red")
-    )
-    .submitting(
-        self.opacity(0.5)
-    )
+    .error(|errors| text(errors.join("\n")))
+    .submitting(|| [spinner()])
 ```
 
 The same API works because these are not special radio behaviors. They are component state presentations.
@@ -349,14 +342,8 @@ radio_group()
             .label(localize("subscription.plan.enterprise.label"))
             .aria(localize("subscription.plan.enterprise.description")),
     ])
-    .error(
-        self.children([
-            text(|errors: &[String]| errors.join(" "))
-        ])
-    )
-    .submitting(
-        self.opacity(0.5)
-    )
+    .error(|errors| text(errors.join("\n")))
+    .submitting(|| [spinner()])
 ```
 
 There is no manual change handler.

@@ -4,6 +4,8 @@ use crate::icons::{Icon, IconCommands};
 use bevy::prelude::*;
 use std::time::Duration;
 
+use crate::primitives::a11y::TabIndex;
+use crate::primitives::semantic::AnnouncementPriority;
 use crate::primitives::semantic::{SemanticNode, SemanticRole};
 use crate::rendering::{Paint, Surface};
 use crate::theme::{ThemeColors, ThemeMode, ThemeResource};
@@ -115,6 +117,13 @@ pub struct Alert {
     /// Internal lifetime timer.
     #[allow(dead_code)]
     pub timer: Option<Timer>,
+}
+
+#[derive(Component, Clone, Default)]
+pub struct AlertSections {
+    pub header: Vec<crate::primitives::composition::UiElement>,
+    pub body: Vec<crate::primitives::composition::UiElement>,
+    pub footer: Vec<crate::primitives::composition::UiElement>,
 }
 
 impl Default for Alert {
@@ -244,7 +253,13 @@ impl Plugin for AlertPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (spawn_alert_ui, update_alert_timers, dismiss_alerts),
+            (
+                spawn_alert_ui,
+                crate::primitives::composition::materialize_content_sections,
+                update_alert_timers,
+                dismiss_alerts,
+            )
+                .chain(),
         );
     }
 }
@@ -252,12 +267,12 @@ impl Plugin for AlertPlugin {
 /// Creates the visual representation of newly-added alerts.
 fn spawn_alert_ui(
     mut commands: Commands,
-    alerts: Query<(Entity, &Alert), Added<Alert>>,
+    alerts: Query<(Entity, &Alert, Option<&AlertSections>), Added<Alert>>,
     theme: Res<ThemeResource>,
 ) {
     let colors = theme.current.colors;
 
-    for (entity, alert) in &alerts {
+    for (entity, alert, sections) in &alerts {
         let mut root = commands.entity(entity);
         let variant = alert.variant.resolve(theme.current.mode);
         let background = flatten(variant.background_color(colors), colors.background);
@@ -276,22 +291,32 @@ fn spawn_alert_ui(
             }
         };
 
+        let mut semantic = SemanticNode::new(
+            if matches!(
+                variant,
+                AlertVariant::Error | AlertVariant::Danger | AlertVariant::Warning
+            ) {
+                SemanticRole::Alert
+            } else {
+                SemanticRole::Status
+            },
+        )
+        .label(
+            alert
+                .title
+                .clone()
+                .unwrap_or_else(|| variant.label().to_string()),
+        )
+        .description(alert.message.clone());
+        semantic.live = Some(if semantic.role == SemanticRole::Alert {
+            AnnouncementPriority::Assertive
+        } else {
+            AnnouncementPriority::Polite
+        });
+
         root.insert((
             AlertRoot,
-            SemanticNode::new(
-                if matches!(variant, AlertVariant::Error | AlertVariant::Danger | AlertVariant::Warning) {
-                    SemanticRole::Alert
-                } else {
-                    SemanticRole::Status
-                },
-            )
-            .label(
-                alert
-                    .title
-                    .clone()
-                    .unwrap_or_else(|| variant.label().to_string()),
-            )
-            .description(alert.message.clone()),
+            semantic,
             Node {
                 display: Display::Flex,
                 flex_direction: FlexDirection::Row,
@@ -305,7 +330,7 @@ fn spawn_alert_ui(
             BackgroundColor(Color::NONE),
             BorderColor::all(Color::NONE),
             Surface::rounded_rect_fill(12.0, Paint::solid(background))
-            .uniform_border(1.0, Paint::solid(border)),
+                .uniform_border(1.0, Paint::solid(border)),
         ));
 
         // Icon
@@ -322,11 +347,7 @@ fn spawn_alert_ui(
                     },
                 ))
                 .with_children(|icon| {
-                    icon.spawn_icon_colored(
-                        Icon::feather(variant.feather_name()),
-                        20.0,
-                        accent,
-                    );
+                    icon.spawn_icon_colored(Icon::feather(variant.feather_name()), 20.0, accent);
                 });
 
             // Content
@@ -337,6 +358,13 @@ fn spawn_alert_ui(
                     ..default()
                 })
                 .with_children(|parent| {
+                    if let Some(sections) = sections {
+                        crate::primitives::composition::spawn_deferred_content_section(
+                            parent,
+                            "alert-header",
+                            sections.header.clone(),
+                        );
+                    }
                     if let Some(title) = &alert.title {
                         parent.spawn((
                             AlertTitle,
@@ -360,6 +388,18 @@ fn spawn_alert_ui(
                         },
                         TextColor(body_color),
                     ));
+                    if let Some(sections) = sections {
+                        crate::primitives::composition::spawn_deferred_content_section(
+                            parent,
+                            "alert-body",
+                            sections.body.clone(),
+                        );
+                        crate::primitives::composition::spawn_deferred_content_section(
+                            parent,
+                            "alert-footer",
+                            sections.footer.clone(),
+                        );
+                    }
                 });
 
             // Dismiss button
@@ -368,6 +408,8 @@ fn spawn_alert_ui(
                     .spawn((
                         AlertDismissButton,
                         Button,
+                        TabIndex(0),
+                        SemanticNode::new(SemanticRole::Button).label("Dismiss alert"),
                         Node {
                             width: Val::Px(28.0),
                             height: Val::Px(28.0),

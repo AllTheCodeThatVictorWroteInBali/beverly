@@ -10,6 +10,9 @@ use crate::rendering::{Paint, Surface};
 
 #[derive(Component)]
 pub struct Textarea {
+    pub disabled: bool,
+    pub read_only: bool,
+    pub required: bool,
     pub value: String,
     pub placeholder: String,
 
@@ -52,6 +55,9 @@ pub struct TextareaPlaceholder;
 
 #[derive(Clone)]
 pub struct TextareaConfig {
+    pub disabled: bool,
+    pub read_only: bool,
+    pub required: bool,
     pub placeholder: String,
     pub accessible_label: Option<String>,
     pub max_length: Option<usize>,
@@ -62,6 +68,9 @@ pub struct TextareaConfig {
 impl Textarea {
     pub fn new(placeholder: impl Into<String>) -> Self {
         Self {
+            disabled: false,
+            read_only: false,
+            required: false,
             value: String::new(),
             placeholder: placeholder.into(),
 
@@ -174,6 +183,9 @@ impl Textarea {
     }
 
     pub fn delete_selection(&mut self) -> bool {
+        if self.disabled || self.read_only {
+            return false;
+        }
         let Some((start, end)) = self.selection_range() else {
             return false;
         };
@@ -197,6 +209,9 @@ impl Textarea {
     }
 
     pub fn insert_text(&mut self, text: &str) -> bool {
+        if self.disabled || self.read_only {
+            return false;
+        }
         self.delete_selection();
 
         let current_length = self.value.chars().count();
@@ -245,6 +260,9 @@ impl Textarea {
     }
 
     pub fn backspace(&mut self) -> bool {
+        if self.disabled || self.read_only {
+            return false;
+        }
         if self.delete_selection() {
             return true;
         }
@@ -268,6 +286,9 @@ impl Textarea {
     }
 
     pub fn delete_forward(&mut self) -> bool {
+        if self.disabled || self.read_only {
+            return false;
+        }
         if self.delete_selection() {
             return true;
         }
@@ -294,6 +315,9 @@ impl Textarea {
 impl TextareaConfig {
     pub fn new(placeholder: impl Into<String>) -> Self {
         Self {
+            disabled: false,
+            read_only: false,
+            required: false,
             placeholder: placeholder.into(),
             accessible_label: None,
             max_length: None,
@@ -323,10 +347,28 @@ impl TextareaConfig {
         self.height = height;
         self
     }
+
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
+        self
+    }
+
+    pub fn read_only(mut self, read_only: bool) -> Self {
+        self.read_only = read_only;
+        self
+    }
+
+    pub fn required(mut self, required: bool) -> Self {
+        self.required = required;
+        self
+    }
 }
 
 pub fn spawn_textarea(parent: &mut ChildSpawnerCommands, config: TextareaConfig) -> Entity {
     let mut textarea = Textarea::new(config.placeholder.clone()).with_value(config.initial_value);
+    textarea.disabled = config.disabled;
+    textarea.read_only = config.read_only;
+    textarea.required = config.required;
     if config.accessible_label.is_none() {
         bevy::log::warn!(
             "Textarea (placeholder {:?}) has no accessible name: call `.label(...)` so screen \
@@ -351,7 +393,7 @@ pub fn spawn_textarea(parent: &mut ChildSpawnerCommands, config: TextareaConfig)
             Button,
             ButtonMotionDisabled,
             UiTransform::default(),
-            a11y::TabIndex(0),
+            a11y::TabIndex(if config.disabled { -1 } else { 0 }),
             semantic,
             textarea,
             Node {

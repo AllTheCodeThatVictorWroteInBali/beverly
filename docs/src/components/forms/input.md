@@ -6,8 +6,9 @@
 
 <a href="../../assets/demos/index.html?demo=input" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
 
-> **Current status:** `.bind(...)` examples describe planned model-setter
-> integration and are not currently executable against the crate.
+> **Model binding:** `TextInputConfig::new("Email").label("Email").bind(User::email)`
+> connects the input to a generated model field handle. Configure first, then
+> bind; the result is a `UiElement`. See [Binding Controls](overview.md#binding-controls).
 
 The text input is the most common form element in Beverly.
 
@@ -32,9 +33,10 @@ But a production input has several responsibilities:
 
 Beverly keeps these responsibilities together without requiring the developer to manually wire them up.
 
-## A Valid Input Has a Label and ARIA
+## Labels and Accessible Descriptions
 
-Every Beverly form element requires both a label and an ARIA declaration.
+Every input needs a persistent accessible name. An additional ARIA description
+is useful when the label alone does not explain the expected value or context.
 
 ```rust
 input()
@@ -42,13 +44,14 @@ input()
     .aria(localize("user.email.description"))
 ```
 
-These are part of the form element's contract, not optional accessibility enhancements.
+The accessible name is essential; the description is optional context.
 
 The label identifies the field.
 
 The ARIA declaration provides additional accessible semantics or descriptive information.
 
-Beverly can therefore treat missing required accessibility metadata as a compile-time error.
+If no explicit accessible label or floating label is present, Beverly warns at
+spawn time rather than treating the placeholder as the accessible name.
 
 > **Accessible by construction, not accessible by cleanup.**
 
@@ -318,7 +321,10 @@ The field therefore receives the error.
 
 When `.error(...)` is configured, the current field errors are automatically exposed to the content inside the error hook.
 
-Just as `self` refers to the component itself, the error context exposes the field's errors.
+The callback receives the field's current errors as `&[String]` and returns
+the content to display below the input. Both `TextInputConfig::error(...)`
+and `UiElement::error(...)` use this contract; see
+[Error Callbacks](overview.md#error-callbacks) for concrete examples.
 
 The error context is an array of strings:
 
@@ -327,11 +333,7 @@ input()
     .label(localize("user.email.label"))
     .aria(localize("user.email.description"))
     .bind(User::email)
-    .error(
-        self.children([
-            text(|errors: &[String]| errors.join(" "))
-        ])
-    )
+    .error(|errors| text(errors.join("\n")))
 ```
 
 The important part is that the strings come from the Model's error response.
@@ -358,11 +360,7 @@ The error presentation can decide how those messages should be displayed.
 For example:
 
 ```rust
-.error(
-    self.children([
-        text(|errors: &[String]| errors.join("\n"))
-    ])
-)
+.error(|errors| text(errors.join("\n")))
 ```
 
 The exact presentation is the View's responsibility.
@@ -378,11 +376,7 @@ Validation text should not be hard-coded into the form element.
 Avoid:
 
 ```rust
-.error(
-    self.children([
-        text("Invalid email address.")
-    ])
-)
+.error(|errors| text(errors.join("\n")))
 ```
 
 The Model should return the semantic validation error, and the resulting error context should provide the appropriate localized message.
@@ -470,9 +464,7 @@ input()
     .label(localize("user.email.label"))
     .aria(localize("user.email.description"))
     .bind(User::email)
-    .submitting(
-        self.opacity(0.5)
-    )
+    .submitting(|| [spinner()])
 ```
 
 Or the pending presentation can contain additional content:
@@ -482,23 +474,17 @@ input()
     .label(localize("user.email.label"))
     .aria(localize("user.email.description"))
     .bind(User::email)
-    .submitting(
-        self.children([
+    .submitting(|| [
             spinner(),
             text(localize("user.email.checking"))
         ])
-    )
 ```
 
 The same principle applies:
 
-**The state determines when the presentation is active. The component determines what that state looks like.**
-
-The async request does not directly manipulate the UI.
-
-The Model enters a pending state.
-
-The input reflects that state.
+The application sets `FormStatusState::submitting()` before async work and
+sets `success()` or `idle()` when it completes. The hook adds supplementary
+content below the input; it does not observe the Model or restyle the input.
 
 ## Debouncing Belongs in the Model
 
@@ -707,9 +693,7 @@ input()
     .label(localize("user.email.label"))
     .aria(localize("user.email.description"))
     .bind(User::email)
-    .error(
-        self.color("red")
-    )
+    .error(|errors| text(errors.join("\n")))
 ```
 
 Or:
@@ -719,12 +703,7 @@ input()
     .label(localize("user.email.label"))
     .aria(localize("user.email.description"))
     .bind(User::email)
-    .error(
-        self.children([
-            error_icon(),
-            text(|errors: &[String]| errors.join(" "))
-        ])
-    )
+    .error(|errors| text(errors.join("\n")))
 ```
 
 The component API does not change because the input is in an error state.
@@ -741,14 +720,8 @@ input()
     .padding(12)
     .radius(8)
     .width(320)
-    .error(
-        self.children([
-            text(|errors: &[String]| errors.join(" "))
-        ])
-    )
-    .submitting(
-        self.opacity(0.5)
-    )
+    .error(|errors| text(errors.join("\n")))
+    .submitting(|| [spinner()])
 ```
 
 The input has:

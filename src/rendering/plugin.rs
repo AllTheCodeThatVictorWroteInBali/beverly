@@ -295,116 +295,115 @@ fn sync_surface_materials(
             || removed_inputs.contains(&entity);
         let noise_time = if animated { time.elapsed_secs() } else { 0.0 };
 
-        let next =
-            if dirty {
-                #[cfg(test)]
-                {
-                    stats.rebuilds += 1;
-                }
-                let (logical_size, scale_factor) = computed
-                    .as_ref()
-                    .map(|computed| {
-                        let inverse = computed.inverse_scale_factor();
-                        let inverse = if inverse.is_finite() && inverse > 0.0 {
-                            inverse
-                        } else {
-                            1.0
-                        };
-                        (computed.size() * inverse, 1.0 / inverse)
-                    })
-                    .unwrap_or_else(|| {
-                        (
-                            node.as_deref().map(declared_size).unwrap_or(Vec2::ZERO),
-                            1.0,
-                        )
-                    });
-                let mut uniforms = build_shape_uniform_with_debug_and_time(
-                    &surface,
-                    logical_size,
-                    scale_factor,
-                    // Ineligible positional effects cannot read this metadata. Use
-                    // one canonical region so translated skeletons can share, while
-                    // preserving actual geometry and linear transform columns below.
-                    if shareable {
-                        BackdropSampleRegion::default()
+        let next = if dirty {
+            #[cfg(test)]
+            {
+                stats.rebuilds += 1;
+            }
+            let (logical_size, scale_factor) = computed
+                .as_ref()
+                .map(|computed| {
+                    let inverse = computed.inverse_scale_factor();
+                    let inverse = if inverse.is_finite() && inverse > 0.0 {
+                        inverse
                     } else {
-                        compute_backdrop_sample_region(
-                            computed.as_deref(),
-                            target.as_deref(),
-                            transform.as_deref(),
-                            window_size,
-                        )
-                    },
-                    settings.enabled
-                        && !settings.reduced_effects
-                        && capture.as_ref().is_none_or(|state| state.permits(entity)),
-                    settings.backdrop_debug_view,
-                    settings.render_debug_view,
-                    noise_time,
-                    settings.reduced_effects,
-                );
-                if let Some(transform) = transform.as_deref() {
-                    let origin = transform.transform_point2(Vec2::ZERO);
-                    let x = transform.transform_point2(Vec2::X) - origin;
-                    let y = transform.transform_point2(Vec2::Y) - origin;
-                    if x.is_finite() && y.is_finite() {
-                        uniforms.surface_axes = Vec4::new(x.x, x.y, y.x, y.y);
-                    }
+                        1.0
+                    };
+                    (computed.size() * inverse, 1.0 / inverse)
+                })
+                .unwrap_or_else(|| {
+                    (
+                        node.as_deref().map(declared_size).unwrap_or(Vec2::ZERO),
+                        1.0,
+                    )
+                });
+            let mut uniforms = build_shape_uniform_with_debug_and_time(
+                &surface,
+                logical_size,
+                scale_factor,
+                // Ineligible positional effects cannot read this metadata. Use
+                // one canonical region so translated skeletons can share, while
+                // preserving actual geometry and linear transform columns below.
+                if shareable {
+                    BackdropSampleRegion::default()
+                } else {
+                    compute_backdrop_sample_region(
+                        computed.as_deref(),
+                        target.as_deref(),
+                        transform.as_deref(),
+                        window_size,
+                    )
+                },
+                settings.enabled
+                    && !settings.reduced_effects
+                    && capture.as_ref().is_none_or(|state| state.permits(entity)),
+                settings.backdrop_debug_view,
+                settings.render_debug_view,
+                noise_time,
+                settings.reduced_effects,
+            );
+            if let Some(transform) = transform.as_deref() {
+                let origin = transform.transform_point2(Vec2::ZERO);
+                let x = transform.transform_point2(Vec2::X) - origin;
+                let y = transform.transform_point2(Vec2::Y) - origin;
+                if x.is_finite() && y.is_finite() {
+                    uniforms.surface_axes = Vec4::new(x.x, x.y, y.x, y.y);
                 }
-                uniforms.glass_debug.x = match std::env::var("UI_GLASS_DEBUG").ok().as_deref() {
-                    Some("refraction") => 1.0,
-                    Some("bezel") => 2.0,
-                    Some("normal") => 3.0,
-                    Some("fresnel") => 4.0,
-                    Some("specular") => 5.0,
-                    Some("uv") => 6.0,
-                    _ => 0.0,
-                };
-                if policy
-                    .as_ref()
-                    .is_some_and(|policy| policy.current.reduced_motion)
-                {
-                    uniforms.glass_state.y = 0.0;
-                }
-                if settings.reduced_effects
-                    || policy.as_ref().is_some_and(|policy| {
-                        policy.current.reduced_motion || policy.current.reduced_effects
-                    })
-                {
-                    // Apply to ANY Surface authoring shimmer or a spinning gradient.
-                    if matches!(
-                        &surface.fill,
-                        super::paint::Paint::Shimmer(_) | super::paint::Paint::Spinning(_)
-                    ) {
-                        uniforms.fill_paint.kind_and_flags.w = 0.0;
-                    }
-                    if surface.border.as_ref().is_some_and(|border| {
-                        matches!(
-                            &border.paint,
-                            super::paint::Paint::Shimmer(_) | super::paint::Paint::Spinning(_)
-                        )
-                    }) {
-                        uniforms.border_paint.kind_and_flags.w = 0.0;
-                    }
-                }
-                // Missing/unsupported capture must remain readable, not disappear.
-                if surface
-                    .backdrop
-                    .and_then(|b| b.liquid_glass)
-                    .is_some_and(|g| g.enabled)
-                    && uniforms.glass_optics.x < 0.5
-                {
-                    if let Some(backdrop) = surface.backdrop {
-                        uniforms.fill_paint.solid_color = backdrop.tint.to_linear().to_vec4();
-                        uniforms.fill_paint.solid_color.w = 1.0;
-                        uniforms.fill_paint.kind_and_flags.x = 0.0;
-                    }
-                }
-                Some(uniforms)
-            } else {
-                // Static surfaces do not rebuild uniforms or request mutable assets.
-                None
+            }
+            uniforms.glass_debug.x = match std::env::var("UI_GLASS_DEBUG").ok().as_deref() {
+                Some("refraction") => 1.0,
+                Some("bezel") => 2.0,
+                Some("normal") => 3.0,
+                Some("fresnel") => 4.0,
+                Some("specular") => 5.0,
+                Some("uv") => 6.0,
+                _ => 0.0,
             };
+            if policy
+                .as_ref()
+                .is_some_and(|policy| policy.current.reduced_motion)
+            {
+                uniforms.glass_state.y = 0.0;
+            }
+            if settings.reduced_effects
+                || policy.as_ref().is_some_and(|policy| {
+                    policy.current.reduced_motion || policy.current.reduced_effects
+                })
+            {
+                // Apply to ANY Surface authoring shimmer or a spinning gradient.
+                if matches!(
+                    &surface.fill,
+                    super::paint::Paint::Shimmer(_) | super::paint::Paint::Spinning(_)
+                ) {
+                    uniforms.fill_paint.kind_and_flags.w = 0.0;
+                }
+                if surface.border.as_ref().is_some_and(|border| {
+                    matches!(
+                        &border.paint,
+                        super::paint::Paint::Shimmer(_) | super::paint::Paint::Spinning(_)
+                    )
+                }) {
+                    uniforms.border_paint.kind_and_flags.w = 0.0;
+                }
+            }
+            // Missing/unsupported capture must remain readable, not disappear.
+            if surface
+                .backdrop
+                .and_then(|b| b.liquid_glass)
+                .is_some_and(|g| g.enabled)
+                && uniforms.glass_optics.x < 0.5
+            {
+                if let Some(backdrop) = surface.backdrop {
+                    uniforms.fill_paint.solid_color = backdrop.tint.to_linear().to_vec4();
+                    uniforms.fill_paint.solid_color.w = 1.0;
+                    uniforms.fill_paint.kind_and_flags.x = 0.0;
+                }
+            }
+            Some(uniforms)
+        } else {
+            // Static surfaces do not rebuild uniforms or request mutable assets.
+            None
+        };
 
         let handle = if shareable {
             let selected = if let Some(next) = next {

@@ -18,6 +18,7 @@ impl Plugin for BeverlyPlugin {
             // Cross-cutting primitives.
             .add_plugins(crate::primitives::a11y::A11yPlugin)
             .add_plugins(crate::primitives::binding::BindingPlugin)
+            .add_plugins(crate::primitives::style::StylingPlugin)
             .add_plugins(crate::primitives::clipboard::ClipboardPlugin)
             .add_plugins(crate::primitives::focus::FocusPlugin)
             .add_plugins(crate::primitives::interaction::InteractionPlugin)
@@ -45,6 +46,7 @@ impl Plugin for BeverlyPlugin {
             .add_plugins(crate::components::form::FormPlugin)
             .add_plugins(crate::components::footer::FooterPlugin)
             .add_plugins(crate::components::input::TextInputPlugin)
+            .add_plugins(crate::components::image::WebImagePlugin)
             .add_plugins(crate::components::link::LinkPlugin)
             .add_plugins(crate::primitives::routing::RouterPlugin)
             .add_plugins(crate::components::list_item::ListItemPlugin)

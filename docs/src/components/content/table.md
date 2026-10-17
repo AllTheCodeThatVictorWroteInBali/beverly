@@ -1,5 +1,16 @@
 # Table
 
+## Keyboard and Accessibility
+
+Table cells and column headers expose semantic roles and contextual names.
+Arrow keys move between adjacent cells/headers, Home/End move to the start/end
+of the current row, and Enter/Space activate the focused item. Tab enters or
+leaves the table through its tab stops. Keyboard and pointer activation emit
+the same `TableEvent` contract. With `selectable_rows`, activating a cell or row
+selects its row, clears the previous selection, and projects selected state.
+The table id must be meaningful to the application's users, not an opaque id.
+Real-window focus and screen-reader navigation still require platform testing.
+
 ## Live Demo
 
 <iframe src="../../assets/demos/index.html?demo=table" title="Interactive Beverly table demo" loading="lazy" allow="fullscreen" style="display: block; width: 100%; height: min(820px, 90vh); min-height: 580px; border: 0;"></iframe>

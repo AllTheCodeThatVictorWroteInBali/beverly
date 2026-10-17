@@ -130,13 +130,25 @@ impl Plugin for LinkPlugin {
     }
 }
 
-fn link_semantics_system(mut commands: Commands, links: Query<(Entity, &Link), Added<Link>>) {
+fn link_semantics_system(
+    mut commands: Commands,
+    links: Query<(Entity, &Link), Changed<Link>>,
+    semantics: Query<&SemanticNode>,
+) {
     for (entity, link) in &links {
+        let mut semantic = semantics
+            .get(entity)
+            .cloned()
+            .unwrap_or_else(|_| SemanticNode::new(SemanticRole::Link));
+        semantic.role = SemanticRole::Link;
+        semantic.label = Some(link.text.clone());
+        semantic.value = link.target_path.clone();
+        semantic.state.disabled = link.disabled;
         commands.entity(entity).insert((
             Button,
             crate::primitives::a11y::TabIndex(if link.disabled { -1 } else { 0 }),
             crate::primitives::interaction::PointerCursorOnHover,
-            SemanticNode::new(SemanticRole::Link).label(link.text.clone()),
+            semantic,
         ));
         if let Some(description) = &link.aria_description {
             commands

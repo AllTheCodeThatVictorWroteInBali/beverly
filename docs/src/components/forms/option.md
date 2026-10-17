@@ -1,7 +1,12 @@
 # Option
 
-> **Current status:** `.bind(...)` examples describe planned model-setter
-> integration and are not currently executable against the crate.
+> **Model binding:** Bind the containing `Select<T>` to a model field when `T`
+> implements `BindingValueType + Display`;
+> an individual option is a choice, not a separate value-bearing control.
+> See [Binding Controls](overview.md#binding-controls).
+
+Error callbacks also belong to the containing Select/RadioGroup/Dropdown,
+not to an individual option. See [Error Callbacks](overview.md#error-callbacks).
 
 `option()` represents a single available choice.
 

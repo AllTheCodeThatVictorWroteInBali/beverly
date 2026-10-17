@@ -71,7 +71,7 @@ This keeps the system readable. The material is not a catch-all for every visual
 
 Material definitions should not be tied to a single widget. Instead, they should respond to theme tokens and broader design policy. That means the theme can change colors, surfaces, and contrast while the material interface remains stable.
 
-This allows a product to evolve visually without rewriting component logic. The same button material can work in a light theme, dark theme, or even a branded experimental theme so long as the material contract remains consistent.
+This allows a product to evolve visually without rewriting component logic. The same button material can work in a light theme, dark theme, or a custom branded theme so long as the material contract remains consistent.
 
 ## Interaction-aware materials
 

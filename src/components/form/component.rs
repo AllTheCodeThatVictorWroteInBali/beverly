@@ -8,6 +8,8 @@ pub enum FormMethod {
     #[default]
     Get,
     Post,
+    Put,
+    Patch,
 }
 
 #[derive(Component, Clone, Debug, Default, PartialEq, Eq)]
@@ -34,7 +36,7 @@ pub struct FormPlugin;
 impl Plugin for FormPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<FormSubmitted>()
-            .add_systems(Update, submit_get_forms);
+            .add_systems(Update, submit_forms);
     }
 }
 
@@ -68,6 +70,14 @@ impl Form {
 
     pub fn post(action: impl Into<String>) -> Self {
         Self::new().action(action).method(FormMethod::Post)
+    }
+
+    pub fn put(action: impl Into<String>) -> Self {
+        Self::new().action(action).method(FormMethod::Put)
+    }
+
+    pub fn patch(action: impl Into<String>) -> Self {
+        Self::new().action(action).method(FormMethod::Patch)
     }
 
     pub fn action(mut self, action: impl Into<String>) -> Self {
@@ -213,29 +223,30 @@ impl FormRequest {
     ) -> reqwest::blocking::RequestBuilder {
         match self.method {
             FormMethod::Get => client.get(self.request_url()),
-            FormMethod::Post => match self.encoding {
-                FormEncoding::UrlEncoded => {
-                    let mut request = client.post(&self.action);
-                    if !self.fields.is_empty() {
-                        request = request.form(&self.fields);
+            FormMethod::Post | FormMethod::Put | FormMethod::Patch => {
+                let method = match self.method {
+                    FormMethod::Post => reqwest::Method::POST,
+                    FormMethod::Put => reqwest::Method::PUT,
+                    FormMethod::Patch => reqwest::Method::PATCH,
+                    FormMethod::Get => unreachable!(),
+                };
+                let request = client.request(method, &self.action);
+                match self.encoding {
+                    FormEncoding::UrlEncoded => request.form(&self.fields),
+                    FormEncoding::Json => {
+                        let mut map = serde_json::Map::new();
+                        for (key, value) in &self.fields {
+                            map.insert(key.clone(), serde_json::Value::String(value.clone()));
+                        }
+                        request.json(&serde_json::Value::Object(map))
                     }
-                    request
                 }
-                FormEncoding::Json => {
-                    let mut map = serde_json::Map::new();
-                    for (key, value) in &self.fields {
-                        map.insert(key.clone(), serde_json::Value::String(value.clone()));
-                    }
-                    client
-                        .post(&self.action)
-                        .json(&serde_json::Value::Object(map))
-                }
-            },
+            }
         }
     }
 }
 
-fn submit_get_forms(world: &mut World) {
+fn submit_forms(world: &mut World) {
     let submissions = {
         let mut query = world.query_filtered::<(Entity, &Interaction), (Changed<Interaction>, With<FormSubmitButton>)>();
         query
@@ -247,6 +258,12 @@ fn submit_get_forms(world: &mut World) {
     };
 
     for submit_button in submissions {
+        if world
+            .get::<crate::primitives::interaction::DisabledInteraction>(submit_button)
+            .is_some()
+        {
+            continue;
+        }
         let mut ancestor = world.get::<ChildOf>(submit_button).map(ChildOf::parent);
         let mut form_entity = None;
         while let Some(entity) = ancestor {
@@ -263,7 +280,7 @@ fn submit_get_forms(world: &mut World) {
         let Some(form) = world.get::<Form>(form_entity).cloned() else {
             continue;
         };
-        if form.disabled || form.method != FormMethod::Get {
+        if form.disabled {
             continue;
         }
 
@@ -275,6 +292,9 @@ fn submit_get_forms(world: &mut World) {
                 .unwrap_or_default(),
         );
         while let Some(entity) = pending.pop_front() {
+            if world.get::<Form>(entity).is_some() {
+                continue;
+            }
             if let Some(children) = world.get::<Children>(entity) {
                 pending.extend(children.iter());
             }
@@ -290,7 +310,7 @@ fn submit_get_forms(world: &mut World) {
             form: form_entity,
             request: FormRequest {
                 action: form.action,
-                method: FormMethod::Get,
+                method: form.method,
                 encoding: form.encoding,
                 fields,
             },
@@ -303,7 +323,7 @@ fn read_form_control_value(world: &World, entity: Entity) -> Option<Vec<String>>
         return (!input.disabled).then(|| vec![input.value.clone()]);
     }
     if let Some(textarea) = world.get::<crate::components::textarea::Textarea>(entity) {
-        return Some(vec![textarea.value.clone()]);
+        return (!textarea.disabled).then(|| vec![textarea.value.clone()]);
     }
     if let Some(checkbox) = world.get::<crate::components::checkbox::CheckboxState>(entity) {
         return (!checkbox.disabled && checkbox.checked).then(|| vec!["on".to_owned()]);
@@ -312,7 +332,7 @@ fn read_form_control_value(world: &World, entity: Entity) -> Option<Vec<String>>
         return (!toggle.disabled && toggle.checked).then(|| vec!["on".to_owned()]);
     }
     if let Some(radio) = world.get::<crate::components::radio::RadioGroup>(entity) {
-        return Some(vec![radio.selected.clone()]);
+        return (!radio.disabled).then(|| vec![radio.selected.clone()]);
     }
     if let Some(select) = world.get::<crate::components::select::Select<String>>(entity) {
         return (!select.disabled)
@@ -324,6 +344,9 @@ fn read_form_control_value(world: &World, entity: Entity) -> Option<Vec<String>>
         world.get::<crate::components::dropdown::Dropdown>(entity),
         world.get::<crate::components::dropdown::DropdownState>(entity),
     ) {
+        if dropdown.disabled {
+            return None;
+        }
         return state
             .selected
             .and_then(|index| dropdown.options.get(index))
@@ -333,7 +356,7 @@ fn read_form_control_value(world: &World, entity: Entity) -> Option<Vec<String>>
         return (!slider.disabled).then(|| vec![slider.value.to_string()]);
     }
     if let Some(search) = world.get::<crate::components::search::Search>(entity) {
-        return Some(vec![search.query.clone()]);
+        return (!search.disabled).then(|| vec![search.query.clone()]);
     }
     None
 }
@@ -540,11 +563,16 @@ mod tests {
     }
 
     #[test]
-    fn disabled_or_non_get_forms_do_not_emit_get_submissions() {
-        for form_component in [Form::get("/search").disabled(true), Form::post("/submit")] {
+    fn disabled_forms_do_not_emit_submissions() {
+        for form_component in [
+            Form::get("/search"),
+            Form::post("/submit"),
+            Form::put("/submit"),
+            Form::patch("/submit"),
+        ] {
             let mut app = App::new();
             app.add_plugins(FormPlugin);
-            let form = app.world_mut().spawn(form_component).id();
+            let form = app.world_mut().spawn(form_component.disabled(true)).id();
             app.world_mut().spawn((
                 Button,
                 FormSubmitButton,
@@ -559,6 +587,96 @@ mod tests {
                     .next()
                     .is_none()
             );
+        }
+    }
+
+    #[test]
+    fn all_methods_emit_requests_and_skip_nested_forms() {
+        for form_component in [
+            Form::get("/items"),
+            Form::post("/items"),
+            Form::put("/items"),
+            Form::patch("/items"),
+        ] {
+            let expected_method = form_component.method.clone();
+            let mut app = App::new();
+            app.add_plugins(FormPlugin);
+            let form = app
+                .world_mut()
+                .spawn(form_component.field("name", "Beverly"))
+                .id();
+            let nested = app
+                .world_mut()
+                .spawn((Form::get("/nested"), ChildOf(form)))
+                .id();
+            app.world_mut().spawn((
+                crate::components::search::Search::new("nested"),
+                FormFieldName("excluded".into()),
+                ChildOf(nested),
+            ));
+            app.world_mut().spawn((
+                Button,
+                FormSubmitButton,
+                Interaction::Pressed,
+                ChildOf(form),
+            ));
+            app.update();
+            let messages = app.world().resource::<Messages<FormSubmitted>>();
+            let submitted = messages.iter_current_update_messages().next().unwrap();
+            assert_eq!(submitted.request.method, expected_method);
+            assert_eq!(
+                submitted.request.fields,
+                vec![("name".into(), "Beverly".into())]
+            );
+            assert_eq!(
+                submitted.request.request_url(),
+                if expected_method == FormMethod::Get {
+                    "/items?name=Beverly"
+                } else {
+                    "/items"
+                }
+            );
+        }
+    }
+
+    #[cfg(feature = "http_form")]
+    #[test]
+    fn body_methods_encode_urlencoded_and_json_requests() {
+        let client = reqwest::blocking::Client::new();
+        for (form, verb) in [
+            (Form::post("https://example.test/items"), "POST"),
+            (Form::put("https://example.test/items"), "PUT"),
+            (Form::patch("https://example.test/items"), "PATCH"),
+        ] {
+            for encoding in [FormEncoding::UrlEncoded, FormEncoding::Json] {
+                let request = form
+                    .clone()
+                    .encoding(encoding.clone())
+                    .field("name", "A & B")
+                    .build_request()
+                    .request_builder(&client)
+                    .build()
+                    .unwrap();
+                assert_eq!(request.method().as_str(), verb);
+                assert!(request.url().query().is_none());
+                let body = request.body().unwrap().as_bytes().unwrap();
+                match encoding {
+                    FormEncoding::UrlEncoded => {
+                        assert_eq!(
+                            request.headers()["content-type"],
+                            "application/x-www-form-urlencoded"
+                        );
+                        assert_eq!(body, b"name=A+%26+B");
+                    }
+                    FormEncoding::Json => {
+                        assert_eq!(request.headers()["content-type"], "application/json");
+                        assert_eq!(
+                            serde_json::from_slice::<serde_json::Value>(body).unwrap(),
+                            serde_json::json!({"name": "A & B"})
+                        );
+                    }
+                }
+            }
         }
     }
 }

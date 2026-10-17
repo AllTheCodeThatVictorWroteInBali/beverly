@@ -160,7 +160,7 @@ Or a Divider can be used as part of a state-driven presentation:
 ```rust id="s4r9m1"
 divider()
     .width(200)
-    .error(self.opacity(0.5))
+    .error(|errors| text(errors.join("\n")))
 ```
 
 The important distinction is architectural: the Divider has its own geometry and presentation, so animation does not require modifying a border belonging to another component.

@@ -85,7 +85,10 @@ There is no separate composition system for Cards. A Card uses the same `childre
 
 ## Named Sections
 
-Cards can provide named sections when an application benefits from a common semantic structure such as a header, body, and footer.
+Cards implement `.header(...)`, `.body(...)`, and `.footer(...)` as top,
+middle, and bottom content regions. Regions always render in that order,
+regardless of builder-call order. Each accepts one `UiElement` or an iterable
+of elements; repeated calls append to the same region.
 
 ```rust id="r5h3tx"
 card()
@@ -99,7 +102,20 @@ card()
 
 These sections are implemented by Beverly as child entities carrying
 `CardHeader`, `CardBody`, and `CardFooter` markers. They do not replace
-`children()`; content without a named section remains a normal card child.
+`children()`: when sections are used, ordinary children join the body before
+explicit body content. The body grows to fill available card height, keeping
+the header at the top and footer at the bottom. Without sections, ordinary
+children retain their existing direct-child layout.
+
+The concrete fluent constructor is `UiElement::card()`, available through
+`beverly::prelude::*`:
+
+```rust
+UiElement::card()
+    .header(text("Account"))
+    .body(text("Account information"))
+    .footer(button().text("Save"))
+```
 
 The same sections can accept one value or multiple values:
 
@@ -155,31 +171,30 @@ The exact visual treatment can belong to the application's design system while t
 Cards can respond to state when the application needs state-specific presentation.
 
 ```rust id="n4c8wy"
-card()
-    .hover(self.elevation(8))
-    .focused(self.outline_width(2))
-    .disabled(self.opacity(0.5))
-    .error(self.border_width(2))
-    .success(self.border_width(2))
+UiElement::card()
+    .hover(|style| style.scale(1.02))
+    .success_style(|style| style.border_width(2).border_color("#16a34a"))
+    .children([text("Remote resource")])
 ```
 
-These declarations describe how the Card presents itself when its state changes. They do not make the Card responsible for deciding why that state exists.
-
-For example, an application may have a Card representing a remote resource:
+Hover styling reads pointer interaction on the Card or its descendants. A Card
+is not focusable by default, so focused styles require the app to make it
+focusable and request focus. To use app-owned status styling, attach a
+`FormStatusState` to the Card entity:
 
 ```rust id="t7p2mx"
-card()
-    .disabled(Resource::is_unavailable)
-    .error(Resource::has_error)
-    .children([
-        text(Resource::name),
-        text(Resource::status),
-    ])
+let card = UiElement::card()
+    .success_style(|style| style.border_color("#16a34a"))
+    .body(text("Remote resource"))
+    .spawn_in_context(&mut context);
+context.world.entity_mut(card).insert(FormStatusState {
+    status: FormStatus::Success,
+});
 ```
 
-The Card presents the state. The Model or application state determines the state.
-
-> **State determines when. Components determine what.**
+Card style callbacks do not accept model predicates. Set status on the entity
+from app code, or attach a `SemanticNode`/interaction component for its
+corresponding interaction state. Card itself does not have a disabled policy.
 
 ## Interactive Cards
 
@@ -312,7 +327,7 @@ card()
         text(localize("document.title")),
         text(Document::summary),
     ])
-    .submitting(self.opacity(0.5))
+    .submitting_style(|style| style.opacity(0.5))
 ```
 
 A richer presentation can replace or augment its contents:
@@ -323,10 +338,10 @@ card()
         text(Document::title),
         text(Document::summary),
     ])
-    .submitting(self.children([
+    .submitting(|| [
         spinner(),
         text(localize("document.loading")),
-    ]))
+    ])
 ```
 
 The Card does not perform the asynchronous operation. It presents the state produced by the application.
@@ -341,14 +356,11 @@ Cards can present application state such as errors or successful operations.
 
 ```rust id="d4m7zp"
 card()
-    .error(self.children([
-        icon("error"),
-        text(localize("document.error")),
-    ]))
-    .success(self.children([
+    .error(|errors| text(errors.join("\n")))
+    .success(|| [
         icon("check"),
         text(localize("document.saved")),
-    ]))
+    ])
 ```
 
 The messages should come from the application's localization and state mechanisms rather than being hard-coded into the component.

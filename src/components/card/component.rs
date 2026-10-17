@@ -263,7 +263,8 @@ fn spawn_card_internal(
                 ZIndex(2),
             ))
             .with_children(|handle| {
-                let glyph = handle.spawn_icon_colored(Icon::feather("grid"), 12.0, colors.text_muted);
+                let glyph =
+                    handle.spawn_icon_colored(Icon::feather("grid"), 12.0, colors.text_muted);
                 handle.commands().entity(glyph).insert(CardResizeGlyph);
             });
     });
@@ -343,7 +344,12 @@ fn card_resize_drag_system(
     let follow = card_nodes
         .get(resize.card)
         .ok()
-        .and_then(|(card, parent)| Some(corner_follow_factor(parent_nodes.get(parent.parent()).ok()?, card)))
+        .and_then(|(card, parent)| {
+            Some(corner_follow_factor(
+                parent_nodes.get(parent.parent()).ok()?,
+                card,
+            ))
+        })
         .unwrap_or(Vec2::ONE);
     let new_width = (resize.start_width + delta.x / follow.x).max(CARD_MIN_WIDTH);
     let new_height = (resize.start_height + delta.y / follow.y).max(CARD_MIN_HEIGHT);
@@ -687,11 +693,13 @@ fn card_resize_cursor_icon(
         return;
     };
 
-    let target = handles.iter().fold(None, |acc, interaction| match interaction {
-        Interaction::Pressed => Some(SystemCursorIcon::Grabbing),
-        Interaction::Hovered => acc.or(Some(SystemCursorIcon::Grab)),
-        Interaction::None => acc,
-    });
+    let target = handles
+        .iter()
+        .fold(None, |acc, interaction| match interaction {
+            Interaction::Pressed => Some(SystemCursorIcon::Grabbing),
+            Interaction::Hovered => acc.or(Some(SystemCursorIcon::Grab)),
+            Interaction::None => acc,
+        });
 
     // Bevy windows don't carry a `CursorIcon` until one is inserted.
     let Some(mut icon) = icon else {
@@ -719,10 +727,7 @@ fn card_resize_cursor_icon(
     }
 }
 
-fn card_theme_system(
-    theme: Res<ThemeResource>,
-    mut cards: Query<(&Card, &mut Surface)>,
-) {
+fn card_theme_system(theme: Res<ThemeResource>, mut cards: Query<(&Card, &mut Surface)>) {
     let colors = theme.current.colors;
 
     for (card, mut surface) in &mut cards {

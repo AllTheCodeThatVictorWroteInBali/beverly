@@ -12,6 +12,7 @@ pub mod dropdown;
 pub mod file_input;
 pub mod footer;
 pub mod form;
+pub mod image;
 pub mod input;
 pub mod link;
 pub mod list_item;

@@ -10,6 +10,13 @@ Beverly is currently in early development, so version numbers and release conven
 
 ### Added
 
+- `controller!` composition for sequential and parallel controller actions.
+- Named top/middle/bottom sections for container-like UI components.
+- Two-way `.bind(...)` support across form controls, including typed Select values.
+- Form submission messages for GET, POST, PUT, and PATCH with URL-encoded or JSON bodies.
+- Fluent layout and paint styling, including interaction and form-status state patches.
+- External and local image sources with SVG rasterization and load-state reporting.
+- Accessibility state projection, validation announcements, and keyboard behavior across controls.
 - Public Beverly project repository
 - Beverly marketing website
 - Custom domain at `beverlyui.com`
@@ -48,7 +55,7 @@ The initial public development phase of Beverly.
 
 ### Notes
 
-This release is experimental. APIs and architecture are expected to change as Beverly develops.
+APIs and architecture may change as Beverly develops.
 
 ---
 

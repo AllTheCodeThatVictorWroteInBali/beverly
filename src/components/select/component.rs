@@ -44,6 +44,7 @@ where
     pub options: Vec<T>,
     pub selected: Option<usize>,
     pub placeholder: String,
+    pub accessible_label: Option<String>,
     pub disabled: bool,
     pub is_open: bool,
     pub width: Val,
@@ -59,6 +60,7 @@ where
             options,
             selected: None,
             placeholder: "Select an option...".to_string(),
+            accessible_label: None,
             disabled: false,
             is_open: false,
             width: Val::Px(240.0),
@@ -68,6 +70,11 @@ where
 
     pub fn placeholder(mut self, value: impl Into<String>) -> Self {
         self.placeholder = value.into();
+        self
+    }
+
+    pub fn label(mut self, value: impl Into<String>) -> Self {
+        self.accessible_label = Some(value.into());
         self
     }
 
@@ -138,7 +145,7 @@ where
 pub struct SelectRoot;
 
 #[derive(Component, Clone, Copy)]
-struct SelectButton {
+pub(crate) struct SelectButton {
     owner: Entity,
 }
 
@@ -281,6 +288,7 @@ where
         parent
             .spawn((
                 SelectDropdown { owner: root_id },
+                SemanticNode::new(SemanticRole::ListBox).label(placeholder.clone()),
                 Node {
                     width: Val::Percent(100.0),
                     flex_direction: FlexDirection::Column,
@@ -447,8 +455,18 @@ fn select_input_system<T>(
 /// state in sync with the `Select` component for screen readers.
 fn select_a11y_system<T>(
     select_query: Query<(Entity, &Select<T>)>,
-    mut button_query: Query<(&SelectButton, &mut SemanticNode), Without<SelectOption>>,
-    mut option_query: Query<(&SelectOption, &mut SemanticNode), Without<SelectButton>>,
+    mut button_query: Query<
+        (Entity, &SelectButton, &mut SemanticNode),
+        (Without<SelectOption>, Without<SelectDropdown>),
+    >,
+    mut option_query: Query<
+        (Entity, &SelectOption, &mut SemanticNode),
+        (Without<SelectButton>, Without<SelectDropdown>),
+    >,
+    mut menus: Query<
+        (Entity, &SelectDropdown, &mut SemanticNode),
+        (Without<SelectButton>, Without<SelectOption>),
+    >,
 ) where
     T: SelectSemanticValue + Clone + Send + Sync + 'static,
 {
@@ -459,13 +477,36 @@ fn select_a11y_system<T>(
             .map(SelectSemanticValue::accessible_label)
             .unwrap_or_else(|| select.placeholder.clone());
 
-        for (button, mut node) in &mut button_query {
+        let label = select
+            .accessible_label
+            .as_ref()
+            .unwrap_or(&select.placeholder);
+        let menu = menus
+            .iter()
+            .find(|(_, menu, _)| menu.owner == entity)
+            .map(|(entity, _, _)| entity);
+        let active = if select.is_open {
+            option_query
+                .iter()
+                .find(|(_, option, _)| {
+                    option.parent == entity && Some(option.index) == select.selected
+                })
+                .map(|(entity, _, _)| entity)
+        } else {
+            None
+        };
+        let mut trigger = None;
+        for (button_entity, button, mut node) in &mut button_query {
             if button.owner != entity {
                 continue;
             }
-            if node.label.as_deref() != Some(label_text.as_str()) {
-                node.label = Some(label_text.clone());
+            trigger = Some(button_entity);
+            if node.label.as_ref() != Some(label) {
+                node.label = Some(label.clone());
             }
+            node.value = select.selected.map(|_| label_text.clone());
+            node.relationships.controls = menu.into_iter().collect();
+            node.relationships.active_descendant = active;
             if node.state.expanded != Some(select.is_open) {
                 node.state.expanded = Some(select.is_open);
             }
@@ -474,13 +515,22 @@ fn select_a11y_system<T>(
             }
         }
 
-        for (option, mut node) in &mut option_query {
+        for (_, option, mut node) in &mut option_query {
             if option.parent != entity {
                 continue;
             }
             let selected = Some(option.index) == select.selected;
             if node.state.selected != selected {
                 node.state.selected = selected;
+            }
+            node.state.disabled = select.disabled;
+            node.state.hidden = !select.is_open;
+        }
+        for (_, menu, mut node) in &mut menus {
+            if menu.owner == entity {
+                node.label = Some(label.clone());
+                node.state.hidden = !select.is_open;
+                node.relationships.controlled_by = trigger;
             }
         }
     }
@@ -594,7 +644,7 @@ mod tests {
     fn spawn_region_select(app: &mut App) -> (Entity, Entity, Entity) {
         let root = app
             .world_mut()
-            .spawn(Select::new(vec![Region::UsEast, Region::UsWest]))
+            .spawn(Select::new(vec![Region::UsEast, Region::UsWest]).label("Region"))
             .id();
         let button = app
             .world_mut()
@@ -686,9 +736,17 @@ mod tests {
             app.world()
                 .get::<SemanticNode>(button)
                 .unwrap()
-                .label
+                .value
                 .as_deref(),
             Some("US West"),
+        );
+        assert_eq!(
+            app.world()
+                .get::<SemanticNode>(button)
+                .unwrap()
+                .label
+                .as_deref(),
+            Some("Region")
         );
     }
 }

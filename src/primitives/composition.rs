@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::sync::Arc;
 
-use crate::components::alert::Alert;
+use crate::components::alert::{Alert, AlertSections};
 use crate::components::avatar::{AvatarConfig, spawn_avatar_in};
 use crate::components::button::{BeverlyButton, ButtonChild, ButtonChildSetup, ButtonColor};
 use crate::components::card::{CardBody, CardFooter, CardHeader, CardStyle, spawn_card};
@@ -11,12 +11,13 @@ use crate::components::dropdown::{DropdownConfig, spawn_dropdown};
 use crate::components::file_input::{FileInput, spawn_file_input};
 use crate::components::footer::{FooterConfig, spawn_footer};
 use crate::components::form::{Form, spawn_form};
+use crate::components::image::{ImageConfig, ImageSource, spawn_image};
 use crate::components::input::TextInputKind;
 use crate::components::input::{TextInputConfig, spawn_text_input};
 use crate::components::link::Link;
 use crate::components::list_item::spawn_list_item;
 use crate::components::modal::{
-    BasicModalContent, Modal, ModalBody, ModalFooter, ModalHeader, ModalStyle,
+    BasicModalContent, Modal, ModalBody, ModalFooter, ModalHeader, ModalStyle, spawn_modal,
     spawn_modal_with_surface,
 };
 use crate::components::navbar::spawn_navbar;
@@ -48,6 +49,9 @@ pub enum UiElement {
     Container {
         node: Node,
         children: Vec<UiElement>,
+        header: Vec<UiElement>,
+        body: Vec<UiElement>,
+        footer: Vec<UiElement>,
     },
     Text {
         value: Text,
@@ -65,6 +69,9 @@ pub enum UiElement {
     },
     Alert {
         value: Alert,
+        header: Vec<UiElement>,
+        body: Vec<UiElement>,
+        footer: Vec<UiElement>,
     },
     Toast {
         value: Toast,
@@ -84,6 +91,7 @@ pub enum UiElement {
     },
     Avatar(AvatarConfig),
     Photo(Photo),
+    Image(ImageConfig),
     Card {
         style: CardStyle,
         children: Vec<UiElement>,
@@ -99,12 +107,18 @@ pub enum UiElement {
     Form {
         value: Form,
         children: Vec<UiElement>,
+        header: Vec<UiElement>,
+        body: Vec<UiElement>,
+        footer: Vec<UiElement>,
     },
     Radio(RadioGroupBuilder),
     Table(TableConfig),
     Tabs {
         config: TabsConfig,
         children: Vec<UiElement>,
+        header: Vec<UiElement>,
+        body: Vec<UiElement>,
+        footer: Vec<UiElement>,
     },
     Modal {
         value: Modal,
@@ -128,6 +142,9 @@ pub enum UiElement {
     },
     Sidebar {
         top_offset_px: f32,
+        header: Vec<UiElement>,
+        body: Vec<UiElement>,
+        footer: Vec<UiElement>,
     },
     Link(Link),
     Tooltip(Tooltip),
@@ -137,6 +154,7 @@ pub enum UiElement {
     Custom(UiElementSetup),
     ButtonCustom(ButtonChildSetup),
     ContextCustom(UiContextSetup),
+    TypedSelect(Arc<dyn Fn(&mut UiBuildContext<'_>) -> Entity + Send + Sync>),
     Aria {
         element: Box<UiElement>,
         description: String,
@@ -148,6 +166,19 @@ pub enum UiElement {
     Bound {
         element: Box<UiElement>,
         binding: Arc<dyn crate::primitives::binding::ErasedFieldBinding>,
+    },
+    WithError {
+        element: Box<UiElement>,
+        callback: crate::primitives::binding::ErrorCallback,
+    },
+    Styled {
+        element: Box<UiElement>,
+        style: crate::primitives::style::UiStyle,
+    },
+    WithFormState {
+        element: Box<UiElement>,
+        submitting: Option<crate::primitives::binding::FormStateCallback>,
+        success: Option<crate::primitives::binding::FormStateCallback>,
     },
 }
 
@@ -166,6 +197,54 @@ pub type UiElementSetup = fn(&mut ChildSpawnerCommands) -> Entity;
 
 /// Context-aware custom setup for components that need Bevy resources.
 pub type UiContextSetup = fn(&mut UiBuildContext<'_>) -> Entity;
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ContentSection {
+    Header,
+    Body,
+    Footer,
+}
+
+#[derive(Component)]
+struct PendingContentSection(Vec<UiElement>);
+
+pub(crate) fn spawn_deferred_content_section(
+    parent: &mut ChildSpawnerCommands,
+    name: &'static str,
+    children: Vec<UiElement>,
+) {
+    if children.is_empty() {
+        return;
+    }
+    parent.spawn((
+        Name::new(name),
+        PendingContentSection(children),
+        Node {
+            width: percent(100),
+            flex_direction: FlexDirection::Column,
+            row_gap: px(8),
+            ..default()
+        },
+    ));
+}
+
+pub(crate) fn materialize_content_sections(world: &mut World) {
+    let sections: Vec<_> = world
+        .query::<(Entity, &mut PendingContentSection)>()
+        .iter_mut(world)
+        .map(|(entity, mut pending)| (entity, std::mem::take(&mut pending.0)))
+        .collect();
+    for (entity, children) in sections {
+        world.entity_mut(entity).remove::<PendingContentSection>();
+        let mut context = UiBuildContext {
+            world,
+            parent: entity,
+        };
+        for child in children {
+            child.spawn_in_context(&mut context);
+        }
+    }
+}
 
 /// Fluent constructor for the standalone Footer component.
 ///
@@ -211,12 +290,13 @@ where
     spawned.expect("component spawn helper did not return an entity")
 }
 
-fn spawn_card_section<M: Component>(
+pub(crate) fn spawn_content_section<M: Component>(
     parent: &mut ChildSpawnerCommands,
     marker: M,
     children: Vec<UiElement>,
+    grow: bool,
 ) {
-    if children.is_empty() {
+    if children.is_empty() && !grow {
         return;
     }
 
@@ -227,6 +307,8 @@ fn spawn_card_section<M: Component>(
                 width: percent(100),
                 flex_direction: FlexDirection::Column,
                 row_gap: px(8),
+                flex_grow: if grow { 1.0 } else { 0.0 },
+                flex_shrink: if grow { 1.0 } else { 0.0 },
                 ..default()
             },
         ))
@@ -237,30 +319,38 @@ fn spawn_card_section<M: Component>(
         });
 }
 
-fn spawn_modal_section<M: Component>(
-    parent: &mut ChildSpawnerCommands,
+fn spawn_section_in_context<M: Component>(
+    context: &mut UiBuildContext<'_>,
     marker: M,
     children: Vec<UiElement>,
-) {
-    if children.is_empty() {
-        return;
+    grow: bool,
+) -> Option<Entity> {
+    if children.is_empty() && !grow {
+        return None;
     }
 
-    parent
+    let section = context
+        .world
         .spawn((
             marker,
+            ChildOf(context.parent),
             Node {
                 width: percent(100),
                 flex_direction: FlexDirection::Column,
                 row_gap: px(8),
+                flex_grow: if grow { 1.0 } else { 0.0 },
+                flex_shrink: if grow { 1.0 } else { 0.0 },
                 ..default()
             },
         ))
-        .with_children(|section| {
-            for child in children {
-                child.spawn(section);
-            }
+        .id();
+    for child in children {
+        child.spawn_in_context(&mut UiBuildContext {
+            world: context.world,
+            parent: section,
         });
+    }
+    Some(section)
 }
 
 impl UiElement {
@@ -272,6 +362,9 @@ impl UiElement {
                 ..default()
             },
             children: Vec::new(),
+            header: Vec::new(),
+            body: Vec::new(),
+            footer: Vec::new(),
         }
     }
 
@@ -283,15 +376,287 @@ impl UiElement {
                 ..default()
             },
             children: Vec::new(),
+            header: Vec::new(),
+            body: Vec::new(),
+            footer: Vec::new(),
         }
     }
 
-    pub fn gap(mut self, gap: Val) -> Self {
-        if let Self::Container { node, .. } = &mut self {
-            node.row_gap = gap;
-            node.column_gap = gap;
+    fn styled(self, update: impl FnOnce(&mut crate::primitives::style::UiStyle)) -> Self {
+        match self {
+            Self::Styled { element, mut style } => {
+                update(&mut style);
+                Self::Styled { element, style }
+            }
+            Self::Aria {
+                element,
+                description,
+            } => Self::Aria {
+                element: Box::new(element.styled(update)),
+                description,
+            },
+            Self::Named { element, name } => Self::Named {
+                element: Box::new(element.styled(update)),
+                name,
+            },
+            Self::Bound { element, binding } => Self::Bound {
+                element: Box::new(element.styled(update)),
+                binding,
+            },
+            Self::WithError { element, callback } => Self::WithError {
+                element: Box::new(element.styled(update)),
+                callback,
+            },
+            element => {
+                let mut style = crate::primitives::style::UiStyle::default();
+                update(&mut style);
+                Self::Styled {
+                    element: Box::new(element),
+                    style,
+                }
+            }
         }
-        self
+    }
+
+    fn with_state_style<F>(self, state: crate::primitives::style::StyleState, callback: F) -> Self
+    where
+        F: FnOnce(crate::primitives::style::UiStyle) -> crate::primitives::style::UiStyle,
+    {
+        match self {
+            Self::Styled { element, mut style } => {
+                let patch = callback(crate::primitives::style::UiStyle::default());
+                if let Some((_, existing)) = style
+                    .state_styles
+                    .iter_mut()
+                    .find(|(current, _)| *current == state)
+                {
+                    *existing = Box::new(patch);
+                } else {
+                    style.state_styles.push((state, Box::new(patch)));
+                }
+                Self::Styled { element, style }
+            }
+            Self::Aria {
+                element,
+                description,
+            } => Self::Aria {
+                element: Box::new(element.with_state_style(state, callback)),
+                description,
+            },
+            Self::Named { element, name } => Self::Named {
+                element: Box::new(element.with_state_style(state, callback)),
+                name,
+            },
+            Self::Bound { element, binding } => Self::Bound {
+                element: Box::new(element.with_state_style(state, callback)),
+                binding,
+            },
+            Self::WithError {
+                element,
+                callback: error,
+            } => Self::WithError {
+                element: Box::new(element.with_state_style(state, callback)),
+                callback: error,
+            },
+            Self::WithFormState {
+                element,
+                submitting,
+                success,
+            } => Self::WithFormState {
+                element: Box::new(element.with_state_style(state, callback)),
+                submitting,
+                success,
+            },
+            element => {
+                let patch = callback(crate::primitives::style::UiStyle::default());
+                let mut style = crate::primitives::style::UiStyle::default();
+                style.state_styles.push((state, Box::new(patch)));
+                Self::Styled {
+                    element: Box::new(element),
+                    style,
+                }
+            }
+        }
+    }
+
+    pub fn hover<F>(self, style: F) -> Self
+    where
+        F: FnOnce(crate::primitives::style::UiStyle) -> crate::primitives::style::UiStyle,
+    {
+        self.with_state_style(crate::primitives::style::StyleState::Hover, style)
+    }
+    pub fn focused<F>(self, style: F) -> Self
+    where
+        F: FnOnce(crate::primitives::style::UiStyle) -> crate::primitives::style::UiStyle,
+    {
+        self.with_state_style(crate::primitives::style::StyleState::Focused, style)
+    }
+    pub fn pressed<F>(self, style: F) -> Self
+    where
+        F: FnOnce(crate::primitives::style::UiStyle) -> crate::primitives::style::UiStyle,
+    {
+        self.with_state_style(crate::primitives::style::StyleState::Pressed, style)
+    }
+    pub fn active<F>(self, style: F) -> Self
+    where
+        F: FnOnce(crate::primitives::style::UiStyle) -> crate::primitives::style::UiStyle,
+    {
+        self.with_state_style(crate::primitives::style::StyleState::Active, style)
+    }
+    pub fn inactive<F>(self, style: F) -> Self
+    where
+        F: FnOnce(crate::primitives::style::UiStyle) -> crate::primitives::style::UiStyle,
+    {
+        self.with_state_style(crate::primitives::style::StyleState::Inactive, style)
+    }
+    pub fn disabled_style<F>(self, style: F) -> Self
+    where
+        F: FnOnce(crate::primitives::style::UiStyle) -> crate::primitives::style::UiStyle,
+    {
+        self.with_state_style(crate::primitives::style::StyleState::Disabled, style)
+    }
+    pub fn submitting_style<F>(self, style: F) -> Self
+    where
+        F: FnOnce(crate::primitives::style::UiStyle) -> crate::primitives::style::UiStyle,
+    {
+        self.with_state_style(crate::primitives::style::StyleState::Submitting, style)
+    }
+    pub fn success_style<F>(self, style: F) -> Self
+    where
+        F: FnOnce(crate::primitives::style::UiStyle) -> crate::primitives::style::UiStyle,
+    {
+        self.with_state_style(crate::primitives::style::StyleState::Success, style)
+    }
+
+    pub fn padding(self, value: impl crate::primitives::style::IntoStyleValue) -> Self {
+        self.styled(|style| style.padding = Some(UiRect::all(value.into_style_value())))
+    }
+    pub fn margin(self, value: impl crate::primitives::style::IntoStyleValue) -> Self {
+        self.styled(|style| style.margin = Some(UiRect::all(value.into_style_value())))
+    }
+    pub fn width(self, value: impl crate::primitives::style::IntoStyleValue) -> Self {
+        self.styled(|style| style.width = Some(value.into_style_value()))
+    }
+    pub fn height(self, value: impl crate::primitives::style::IntoStyleValue) -> Self {
+        self.styled(|style| style.height = Some(value.into_style_value()))
+    }
+    pub fn gap(self, value: impl crate::primitives::style::IntoStyleValue) -> Self {
+        let value = value.into_style_value();
+        self.styled(|style| {
+            style.row_gap = Some(value);
+            style.column_gap = Some(value);
+        })
+    }
+    pub fn radius(self, value: impl crate::primitives::style::IntoStyleNumber) -> Self {
+        let value = value.into_style_number();
+        self.styled(|style| style.radius = Some(value.max(0.0)))
+    }
+    pub fn border_width(self, value: impl crate::primitives::style::IntoStyleNumber) -> Self {
+        let value = value.into_style_number();
+        self.styled(|style| style.border_width = Some(value.max(0.0)))
+    }
+    pub fn border_color(self, value: impl crate::primitives::style::IntoStyleColor) -> Self {
+        let value = value.into_style_color();
+        self.styled(|style| style.border_color = Some(value))
+    }
+    pub fn background(self, value: impl crate::primitives::style::IntoStylePaint) -> Self {
+        self.styled(|style| style.background = Some(value.into_style_paint()))
+    }
+    pub fn color(self, value: impl crate::primitives::style::IntoStyleColor) -> Self {
+        let value = value.into_style_color();
+        self.styled(|style| style.color = Some(value))
+    }
+
+    pub fn min_width(self, value: impl crate::primitives::style::IntoStyleValue) -> Self {
+        self.styled(|style| style.min_width = Some(value.into_style_value()))
+    }
+    pub fn max_width(self, value: impl crate::primitives::style::IntoStyleValue) -> Self {
+        self.styled(|style| style.max_width = Some(value.into_style_value()))
+    }
+    pub fn min_height(self, value: impl crate::primitives::style::IntoStyleValue) -> Self {
+        self.styled(|style| style.min_height = Some(value.into_style_value()))
+    }
+    pub fn max_height(self, value: impl crate::primitives::style::IntoStyleValue) -> Self {
+        self.styled(|style| style.max_height = Some(value.into_style_value()))
+    }
+    pub fn padding_x(self, value: impl crate::primitives::style::IntoStyleValue) -> Self {
+        let value = value.into_style_value();
+        self.styled(|style| {
+            let padding = style.padding.get_or_insert(UiRect::ZERO);
+            padding.left = value;
+            padding.right = value;
+        })
+    }
+    pub fn padding_y(self, value: impl crate::primitives::style::IntoStyleValue) -> Self {
+        let value = value.into_style_value();
+        self.styled(|style| {
+            let padding = style.padding.get_or_insert(UiRect::ZERO);
+            padding.top = value;
+            padding.bottom = value;
+        })
+    }
+    pub fn padding_rect(self, value: UiRect) -> Self {
+        self.styled(|style| style.padding = Some(value))
+    }
+    pub fn margin_rect(self, value: UiRect) -> Self {
+        self.styled(|style| style.margin = Some(value))
+    }
+    pub fn margin_x(self, value: impl crate::primitives::style::IntoStyleValue) -> Self {
+        let value = value.into_style_value();
+        self.styled(|style| {
+            let margin = style.margin.get_or_insert(UiRect::ZERO);
+            margin.left = value;
+            margin.right = value;
+        })
+    }
+    pub fn margin_y(self, value: impl crate::primitives::style::IntoStyleValue) -> Self {
+        let value = value.into_style_value();
+        self.styled(|style| {
+            let margin = style.margin.get_or_insert(UiRect::ZERO);
+            margin.top = value;
+            margin.bottom = value;
+        })
+    }
+    pub fn row_gap(self, value: impl crate::primitives::style::IntoStyleValue) -> Self {
+        self.styled(|style| style.row_gap = Some(value.into_style_value()))
+    }
+    pub fn column_gap(self, value: impl crate::primitives::style::IntoStyleValue) -> Self {
+        self.styled(|style| style.column_gap = Some(value.into_style_value()))
+    }
+    pub fn font_size(self, value: impl crate::primitives::style::IntoStyleNumber) -> Self {
+        self.styled(|style| style.font_size = Some(value.into_style_number().max(0.0)))
+    }
+    pub fn align_items(self, value: AlignItems) -> Self {
+        self.styled(|style| style.align_items = Some(value))
+    }
+    pub fn align_self(self, value: AlignSelf) -> Self {
+        self.styled(|style| style.align_self = Some(value))
+    }
+    pub fn justify_content(self, value: JustifyContent) -> Self {
+        self.styled(|style| style.justify_content = Some(value))
+    }
+    pub fn flex_grow(self, value: impl crate::primitives::style::IntoStyleNumber) -> Self {
+        self.styled(|style| style.flex_grow = Some(value.into_style_number().max(0.0)))
+    }
+    pub fn flex_shrink(self, value: impl crate::primitives::style::IntoStyleNumber) -> Self {
+        self.styled(|style| style.flex_shrink = Some(value.into_style_number().max(0.0)))
+    }
+    pub fn scale(self, value: impl crate::primitives::style::IntoStyleNumber) -> Self {
+        self.scale_xy(Vec2::splat(value.into_style_number()))
+    }
+    pub fn scale_xy(self, value: Vec2) -> Self {
+        self.styled(|style| style.scale = Some(value))
+    }
+    pub fn outline_width(self, value: impl crate::primitives::style::IntoStyleNumber) -> Self {
+        self.styled(|style| style.outline_width = Some(value.into_style_number().max(0.0)))
+    }
+    pub fn outline_color(self, value: impl crate::primitives::style::IntoStyleColor) -> Self {
+        self.styled(|style| style.outline_color = Some(value.into_style_color()))
+    }
+    pub fn opacity(self, value: impl crate::primitives::style::IntoStyleNumber) -> Self {
+        let value = value.into_style_number();
+        assert!(value.is_finite(), "opacity must be finite");
+        self.styled(|style| style.opacity = Some(value.clamp(0.0, 1.0)))
     }
 
     pub fn custom(setup: UiElementSetup) -> Self {
@@ -349,6 +714,46 @@ impl UiElement {
         self
     }
 
+    /// Connects a supported value control to a resource-model field.
+    ///
+    /// Initialize the model before the UI updates. `BeverlyPlugin` includes
+    /// `BindingPlugin`; custom apps can install it separately. Configure a
+    /// concrete control builder before calling its `.bind(...)` method, which
+    /// returns the same bound `UiElement` representation used here.
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// use beverly::prelude::*;
+    /// use beverly::components::input::TextInputConfig;
+    ///
+    /// #[model]
+    /// struct Account {
+    ///     #[setter = normalize_email]
+    ///     email: String,
+    /// }
+    /// impl Account {
+    ///     fn normalize_email(&mut self, value: String) -> Result<(), &'static str> {
+    ///         let value = value.trim().to_lowercase();
+    ///         if !value.contains('@') { return Err("Enter an email address"); }
+    ///         self.email = value;
+    ///         Ok(())
+    ///     }
+    /// }
+    /// let mut app = App::new();
+    /// app.add_plugins(BindingPlugin).insert_resource(Account {
+    ///     email: "initial@example.com".to_owned(),
+    /// });
+    /// let parent = app.world_mut().spawn(Node::default()).id();
+    /// let input = TextInputConfig::new("Email").label("Email address")
+    ///     .bind(Account::email)
+    ///     .spawn_in_context(&mut UiBuildContext { world: app.world_mut(), parent });
+    /// app.update();
+    /// assert_eq!(app.world().get::<TextInput>(input).unwrap().value, "initial@example.com");
+    /// app.world_mut().get_mut::<TextInput>(input).unwrap().value = " USER@EXAMPLE.COM ".to_owned();
+    /// app.update();
+    /// assert_eq!(app.world().resource::<Account>().get_email(), "user@example.com");
+    /// assert_eq!(app.world().get::<TextInput>(input).unwrap().value, "user@example.com");
+    /// ```
     pub fn bind<Model, Value>(
         self,
         binding: crate::primitives::binding::FieldBinding<Model, Value>,
@@ -370,6 +775,148 @@ impl UiElement {
         }
     }
 
+    /// Builds error content below this control from its current validation messages.
+    ///
+    /// Install `BindingPlugin` (included by `BeverlyPlugin`). The callback runs
+    /// only for nonempty, changed error messages. Recovery removes its content
+    /// without calling it with an empty slice. Bound controls use setter errors;
+    /// Forms and unbound controls use their `BindingErrorState` directly.
+    /// Captures must be `Send + Sync + 'static`. Return one `UiElement`, an
+    /// array, a vector, or another iterable of elements. Repeated `.error(...)`
+    /// calls on the same error wrapper replace its callback.
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// use beverly::prelude::*;
+    /// use beverly::components::input::TextInputConfig;
+    /// let mut app = App::new();
+    /// app.add_plugins(BindingPlugin);
+    /// let parent = app.world_mut().spawn(Node::default()).id();
+    /// let input = TextInputConfig::new("Email").label("Email address")
+    ///     .error(|errors| text(errors.join("\n")))
+    ///     .spawn_in_context(&mut UiBuildContext { world: app.world_mut(), parent });
+    /// app.world_mut().get_mut::<BindingErrorState>(input).unwrap()
+    ///     .error(BindingErrors::new("Enter a valid email address"));
+    /// app.update();
+    /// assert!(app.world_mut().query::<&Text>().iter(app.world())
+    ///     .any(|text| text.0 == "Enter a valid email address"));
+    /// ```
+    pub fn error<F, I>(self, callback: F) -> Self
+    where
+        F: Fn(&[String]) -> I + Send + Sync + 'static,
+        I: IntoIterator,
+        I::Item: Into<UiElement>,
+    {
+        let callback = Arc::new(move |errors: &[String]| {
+            callback(errors).into_iter().map(Into::into).collect()
+        });
+        self.with_error(callback)
+    }
+
+    pub fn submitting<F, I>(self, callback: F) -> Self
+    where
+        F: Fn() -> I + Send + Sync + 'static,
+        I: IntoIterator,
+        I::Item: Into<UiElement>,
+    {
+        let callback = Arc::new(move || callback().into_iter().map(Into::into).collect());
+        self.with_form_state(Some(callback), None)
+    }
+
+    pub fn success<F, I>(self, callback: F) -> Self
+    where
+        F: Fn() -> I + Send + Sync + 'static,
+        I: IntoIterator,
+        I::Item: Into<UiElement>,
+    {
+        let callback = Arc::new(move || callback().into_iter().map(Into::into).collect());
+        self.with_form_state(None, Some(callback))
+    }
+
+    fn with_form_state(
+        self,
+        submitting: Option<crate::primitives::binding::FormStateCallback>,
+        success: Option<crate::primitives::binding::FormStateCallback>,
+    ) -> Self {
+        match self {
+            Self::WithFormState {
+                element,
+                submitting: old_submitting,
+                success: old_success,
+            } => Self::WithFormState {
+                element,
+                submitting: submitting.or(old_submitting),
+                success: success.or(old_success),
+            },
+            Self::Aria {
+                element,
+                description,
+            } => Self::Aria {
+                element: Box::new(element.with_form_state(submitting, success)),
+                description,
+            },
+            Self::Named { element, name } => Self::Named {
+                element: Box::new(element.with_form_state(submitting, success)),
+                name,
+            },
+            Self::Bound { element, binding } => Self::Bound {
+                element: Box::new(element.with_form_state(submitting, success)),
+                binding,
+            },
+            Self::WithError { element, callback } => Self::WithError {
+                element: Box::new(element.with_form_state(submitting, success)),
+                callback,
+            },
+            Self::Styled { element, style } => Self::Styled {
+                element: Box::new(element.with_form_state(submitting, success)),
+                style,
+            },
+            element => Self::WithFormState {
+                element: Box::new(element),
+                submitting,
+                success,
+            },
+        }
+    }
+
+    fn with_error(self, callback: crate::primitives::binding::ErrorCallback) -> Self {
+        match self {
+            Self::WithError { element, .. } => Self::WithError { element, callback },
+            Self::WithFormState {
+                element,
+                submitting,
+                success,
+            } => Self::WithFormState {
+                element: Box::new(element.with_error(callback)),
+                submitting,
+                success,
+            },
+            Self::Styled { element, style } => Self::Styled {
+                element: Box::new(element.with_error(callback)),
+                style,
+            },
+            Self::Bound { element, binding } => Self::Bound {
+                element: Box::new(element.with_error(callback)),
+                binding,
+            },
+            Self::Aria {
+                element,
+                description,
+            } => Self::Aria {
+                element: Box::new(element.with_error(callback)),
+                description,
+            },
+            Self::Named { element, name } => Self::Named {
+                element: Box::new(element.with_error(callback)),
+                name,
+            },
+            element => Self::WithError {
+                element: Box::new(element),
+                callback,
+            },
+        }
+    }
+
     pub fn checkbox() -> Self {
         Self::Checkbox {
             config: CheckboxConfig::default(),
@@ -383,7 +930,12 @@ impl UiElement {
     }
 
     pub fn alert(value: Alert) -> Self {
-        Self::Alert { value }
+        Self::Alert {
+            value,
+            header: Vec::new(),
+            body: Vec::new(),
+            footer: Vec::new(),
+        }
     }
 
     pub fn toast(value: Toast) -> Self {
@@ -434,6 +986,49 @@ impl UiElement {
         Self::Photo(value)
     }
 
+    pub fn image() -> Self {
+        Self::Image(ImageConfig::default())
+    }
+
+    pub fn src(mut self, source: impl Into<ImageSource>) -> Self {
+        match &mut self {
+            Self::Image(config) => config.source = Some(source.into()),
+            Self::Styled { element, .. }
+            | Self::Aria { element, .. }
+            | Self::Named { element, .. }
+            | Self::Bound { element, .. }
+            | Self::WithError { element, .. } => **element = element.clone().src(source),
+            _ => panic!(".src(...) requires an image element"),
+        }
+        self
+    }
+
+    pub fn alt(mut self, alt: impl Into<String>) -> Self {
+        match &mut self {
+            Self::Image(config) => config.alt = Some(alt.into()),
+            Self::Styled { element, .. }
+            | Self::Aria { element, .. }
+            | Self::Named { element, .. }
+            | Self::Bound { element, .. }
+            | Self::WithError { element, .. } => **element = element.clone().alt(alt),
+            _ => panic!(".alt(...) requires an image element"),
+        }
+        self
+    }
+
+    pub fn decorative(mut self, decorative: bool) -> Self {
+        match &mut self {
+            Self::Image(config) => config.decorative = decorative,
+            Self::Styled { element, .. }
+            | Self::Aria { element, .. }
+            | Self::Named { element, .. }
+            | Self::Bound { element, .. }
+            | Self::WithError { element, .. } => **element = element.clone().decorative(decorative),
+            _ => panic!(".decorative(...) requires an image element"),
+        }
+        self
+    }
+
     pub fn card() -> Self {
         Self::Card {
             style: CardStyle::default(),
@@ -459,43 +1054,88 @@ impl UiElement {
         self
     }
 
+    /// Appends content to the top region of a sectioned container.
     pub fn header<I>(mut self, children: I) -> Self
     where
         I: IntoIterator,
         I::Item: Into<UiElement>,
     {
         match &mut self {
-            Self::Card { header, .. } | Self::Toast { header, .. } | Self::Modal { header, .. } => {
+            Self::Container { header, .. }
+            | Self::Alert { header, .. }
+            | Self::Card { header, .. }
+            | Self::Form { header, .. }
+            | Self::Tabs { header, .. }
+            | Self::Sidebar { header, .. }
+            | Self::Toast { header, .. }
+            | Self::Modal { header, .. } => {
                 header.extend(children.into_iter().map(Into::into));
             }
+            Self::Aria { element, .. }
+            | Self::Named { element, .. }
+            | Self::Bound { element, .. } => {
+                **element = element.clone().header(children);
+            }
+            Self::WithError { element, .. } => **element = element.clone().header(children),
+            Self::Styled { element, .. } => **element = element.clone().header(children),
             _ => {}
         }
         self
     }
 
+    /// Appends content to the middle region of a sectioned container.
     pub fn body<I>(mut self, children: I) -> Self
     where
         I: IntoIterator,
         I::Item: Into<UiElement>,
     {
         match &mut self {
-            Self::Card { body, .. } | Self::Toast { body, .. } | Self::Modal { body, .. } => {
+            Self::Container { body, .. }
+            | Self::Alert { body, .. }
+            | Self::Card { body, .. }
+            | Self::Form { body, .. }
+            | Self::Tabs { body, .. }
+            | Self::Sidebar { body, .. }
+            | Self::Toast { body, .. }
+            | Self::Modal { body, .. } => {
                 body.extend(children.into_iter().map(Into::into));
             }
+            Self::Aria { element, .. }
+            | Self::Named { element, .. }
+            | Self::Bound { element, .. } => {
+                **element = element.clone().body(children);
+            }
+            Self::WithError { element, .. } => **element = element.clone().body(children),
+            Self::Styled { element, .. } => **element = element.clone().body(children),
             _ => {}
         }
         self
     }
 
+    /// Appends content to the bottom region of a sectioned container.
     pub fn footer<I>(mut self, children: I) -> Self
     where
         I: IntoIterator,
         I::Item: Into<UiElement>,
     {
         match &mut self {
-            Self::Card { footer, .. } | Self::Toast { footer, .. } | Self::Modal { footer, .. } => {
+            Self::Container { footer, .. }
+            | Self::Alert { footer, .. }
+            | Self::Card { footer, .. }
+            | Self::Form { footer, .. }
+            | Self::Tabs { footer, .. }
+            | Self::Sidebar { footer, .. }
+            | Self::Toast { footer, .. }
+            | Self::Modal { footer, .. } => {
                 footer.extend(children.into_iter().map(Into::into));
             }
+            Self::Aria { element, .. }
+            | Self::Named { element, .. }
+            | Self::Bound { element, .. } => {
+                **element = element.clone().footer(children);
+            }
+            Self::WithError { element, .. } => **element = element.clone().footer(children),
+            Self::Styled { element, .. } => **element = element.clone().footer(children),
             _ => {}
         }
         self
@@ -505,6 +1145,9 @@ impl UiElement {
         Self::Form {
             value,
             children: Vec::new(),
+            header: Vec::new(),
+            body: Vec::new(),
+            footer: Vec::new(),
         }
     }
 
@@ -520,6 +1163,9 @@ impl UiElement {
         Self::Tabs {
             config: value,
             children: Vec::new(),
+            header: Vec::new(),
+            body: Vec::new(),
+            footer: Vec::new(),
         }
     }
 
@@ -557,7 +1203,12 @@ impl UiElement {
     }
 
     pub fn sidebar(top_offset_px: f32) -> Self {
-        Self::Sidebar { top_offset_px }
+        Self::Sidebar {
+            top_offset_px,
+            header: Vec::new(),
+            body: Vec::new(),
+            footer: Vec::new(),
+        }
     }
 
     pub fn link(value: Link) -> Self {
@@ -592,6 +1243,7 @@ impl UiElement {
             | Self::Slider { .. }
             | Self::Avatar(_)
             | Self::Photo(_)
+            | Self::Image(_)
             | Self::Container { .. }
             | Self::Card { .. }
             | Self::ListItem { .. }
@@ -613,10 +1265,14 @@ impl UiElement {
             | Self::Icon(_)
             | Self::Custom(_)
             | Self::ContextCustom(_)
+            | Self::TypedSelect(_)
             | Self::ButtonCustom(_)
             | Self::Aria { .. } => {}
             Self::Named { .. } => {}
-            Self::Bound { element, .. } => {
+            Self::Bound { element, .. }
+            | Self::WithError { element, .. }
+            | Self::Styled { element, .. }
+            | Self::WithFormState { element, .. } => {
                 let replacement = std::mem::replace(
                     element,
                     Box::new(Self::Text {
@@ -634,6 +1290,10 @@ impl UiElement {
         match &mut self {
             Self::Button { value, .. } => value.icon = Some(icon),
             Self::Link(value) => value.icon = Some(icon.to_string()),
+            Self::WithError { element, .. }
+            | Self::Bound { element, .. }
+            | Self::Styled { element, .. }
+            | Self::WithFormState { element, .. } => **element = element.clone().icon(icon),
             _ => {}
         }
         self
@@ -643,6 +1303,14 @@ impl UiElement {
         event: &'static str,
         command: crate::components::button::ButtonCommand,
     ) -> Self {
+        if let Self::WithError { element, .. }
+        | Self::Bound { element, .. }
+        | Self::Styled { element, .. }
+        | Self::WithFormState { element, .. } = &mut self
+        {
+            **element = element.clone().on(event, command);
+            return self;
+        }
         if let Self::Button { value, .. } = &mut self {
             value.handlers.push((
                 crate::components::button::ButtonEventType::parse(event)
@@ -663,6 +1331,22 @@ impl UiElement {
             Self::Link(value) => value.disabled = disabled,
             Self::Checkbox { config } => config.disabled = disabled,
             Self::TextInput { config } => config.disabled = disabled,
+            Self::Textarea(config) => config.disabled = disabled,
+            Self::Toggle(config) => config.disabled = disabled,
+            Self::Slider { value, .. } => value.disabled = disabled,
+            Self::Select(value) => value.disabled = disabled,
+            Self::Dropdown(config) => config.disabled = disabled,
+            Self::Tabs { config, .. } => config.disabled = disabled,
+            Self::Radio(config) => *config = config.clone().disabled(disabled),
+            Self::FileInput(value) => value.disabled = disabled,
+            Self::Aria { element, .. }
+            | Self::Named { element, .. }
+            | Self::Bound { element, .. } => {
+                **element = element.clone().disabled(disabled);
+            }
+            Self::WithError { element, .. } => **element = element.clone().disabled(disabled),
+            Self::WithFormState { element, .. } => **element = element.clone().disabled(disabled),
+            Self::Styled { element, .. } => **element = element.clone().disabled(disabled),
             _ => {}
         }
         self
@@ -673,6 +1357,17 @@ impl UiElement {
         match &mut self {
             Self::Checkbox { config } => config.label = Some(label),
             Self::TextInput { config } => config.accessible_label = Some(label),
+            Self::Textarea(config) => config.accessible_label = Some(label),
+            Self::Toggle(config) => config.label = Some(label),
+            Self::Select(value) => value.accessible_label = Some(label),
+            Self::Aria { element, .. }
+            | Self::Named { element, .. }
+            | Self::Bound { element, .. } => {
+                **element = element.clone().label(label);
+            }
+            Self::WithError { element, .. } => **element = element.clone().label(label),
+            Self::WithFormState { element, .. } => **element = element.clone().label(label),
+            Self::Styled { element, .. } => **element = element.clone().label(label),
             _ => {}
         }
         self
@@ -681,12 +1376,22 @@ impl UiElement {
     pub fn checked(mut self, checked: bool) -> Self {
         match &mut self {
             Self::Checkbox { config } => config.checked = checked,
+            Self::WithError { element, .. }
+            | Self::Bound { element, .. }
+            | Self::Styled { element, .. } => **element = element.clone().checked(checked),
             _ => {}
         }
         self
     }
 
     pub fn kind(mut self, kind: TextInputKind) -> Self {
+        if let Self::WithError { element, .. }
+        | Self::Bound { element, .. }
+        | Self::Styled { element, .. } = &mut self
+        {
+            **element = element.clone().kind(kind);
+            return self;
+        }
         if let Self::TextInput { config } = &mut self {
             config.kind = kind;
         }
@@ -694,6 +1399,13 @@ impl UiElement {
     }
 
     pub fn invalid(mut self, invalid: bool) -> Self {
+        if let Self::WithError { element, .. }
+        | Self::Bound { element, .. }
+        | Self::Styled { element, .. } = &mut self
+        {
+            **element = element.clone().invalid(invalid);
+            return self;
+        }
         if let Self::TextInput { config } = &mut self {
             config.invalid = invalid;
         }
@@ -746,6 +1458,7 @@ impl UiElement {
             | Self::Slider { .. }
             | Self::Avatar(_)
             | Self::Photo(_)
+            | Self::Image(_)
             | Self::ListItem { .. }
             | Self::Radio(_)
             | Self::Table(_)
@@ -763,10 +1476,18 @@ impl UiElement {
             | Self::Icon(_)
             | Self::Custom(_)
             | Self::ContextCustom(_)
+            | Self::TypedSelect(_)
             | Self::ButtonCustom(_)
             | Self::Aria { .. } => {}
             Self::Named { .. } => {}
             Self::Bound { .. } => {}
+            Self::WithError { element, .. } => {
+                **element = element.clone().children(children);
+            }
+            Self::WithFormState { element, .. } => {
+                **element = element.clone().children(children);
+            }
+            Self::Styled { element, .. } => **element = element.clone().children(children),
         }
         self
     }
@@ -774,12 +1495,30 @@ impl UiElement {
     /// Spawns this element and its descendants below a Bevy UI parent.
     pub fn spawn(self, parent: &mut ChildSpawnerCommands) -> Entity {
         match self {
-            Self::Container { node, children } => {
+            Self::Container {
+                mut node,
+                children,
+                header,
+                mut body,
+                footer,
+            } => {
+                if header.is_empty() && body.is_empty() && footer.is_empty() {
+                    let mut entity = parent.spawn(node);
+                    entity.with_children(|parent| {
+                        for child in children {
+                            child.spawn(parent);
+                        }
+                    });
+                    return entity.id();
+                }
+
+                node.flex_direction = FlexDirection::Column;
+                body.splice(0..0, children);
                 let mut entity = parent.spawn(node);
                 entity.with_children(|parent| {
-                    for child in children {
-                        child.spawn(parent);
-                    }
+                    spawn_content_section(parent, ContentSection::Header, header, false);
+                    spawn_content_section(parent, ContentSection::Body, body, true);
+                    spawn_content_section(parent, ContentSection::Footer, footer, false);
                 });
                 entity.id()
             }
@@ -815,7 +1554,9 @@ impl UiElement {
                         | UiElement::Textarea(_)
                         | UiElement::Toggle(_)
                         | UiElement::Slider { .. } => continue,
-                        UiElement::Avatar(_) | UiElement::Photo(_) => continue,
+                        UiElement::Avatar(_) | UiElement::Photo(_) | UiElement::Image(_) => {
+                            continue;
+                        }
                         UiElement::Card { .. } | UiElement::ListItem { .. } => continue,
                         UiElement::Form { .. } | UiElement::Radio(_) | UiElement::Table(_) => {
                             continue;
@@ -836,14 +1577,45 @@ impl UiElement {
                         | UiElement::Aria { .. }
                         | UiElement::Named { .. }
                         | UiElement::Bound { .. } => continue,
+                        UiElement::WithError { .. } => continue,
+                        UiElement::TypedSelect(_) => continue,
+                        UiElement::Styled { .. } | UiElement::WithFormState { .. } => continue,
                     });
                 }
                 parent.spawn(value).id()
             }
             Self::Checkbox { config } => spawn_checkbox(parent, config),
             Self::TextInput { config } => spawn_text_input(parent, config),
-            Self::Alert { value } => parent.spawn(value).id(),
-            Self::Toast { value, .. } => parent.spawn(value).id(),
+            Self::Alert {
+                value,
+                header,
+                body,
+                footer,
+            } => parent
+                .spawn((
+                    value,
+                    AlertSections {
+                        header,
+                        body,
+                        footer,
+                    },
+                ))
+                .id(),
+            Self::Toast {
+                value,
+                header,
+                body,
+                footer,
+            } => parent
+                .spawn((
+                    value,
+                    ToastSections {
+                        header,
+                        body,
+                        footer,
+                    },
+                ))
+                .id(),
             Self::Divider(value) => parent.spawn(value.build()).id(),
             Self::ProgressBar(value) => spawn_progress_bar_into(parent, value),
             Self::Dropdown(config) => spawn_dropdown(parent, config),
@@ -855,6 +1627,7 @@ impl UiElement {
             Self::Avatar(_) | Self::Photo(_) => {
                 panic!("asset-backed fluent element requires spawn_in_context")
             }
+            Self::Image(config) => spawn_image(parent, config),
             Self::Card { .. } | Self::ListItem { .. } => {
                 panic!("context-aware structural element requires spawn_in_context")
             }
@@ -886,6 +1659,7 @@ impl UiElement {
             Self::ContextCustom(_) => {
                 panic!("context-aware custom element requires spawn_in_context")
             }
+            Self::TypedSelect(_) => panic!("typed select requires spawn_in_context"),
             Self::Aria {
                 element,
                 description,
@@ -917,6 +1691,65 @@ impl UiElement {
                 .spawn(Node::default())
                 .with_children(|children| setup(children, Color::WHITE))
                 .id(),
+            Self::WithError { element, callback } => {
+                let mut control = None;
+                let host = parent
+                    .spawn(Node {
+                        width: percent(100),
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(4),
+                        ..default()
+                    })
+                    .with_children(|children| {
+                        control = Some(element.spawn(children));
+                    })
+                    .id();
+                let control = control.unwrap();
+                parent
+                    .commands()
+                    .entity(host)
+                    .insert(crate::primitives::binding::ErrorPresentationHost(control));
+                parent.commands().entity(control).insert(
+                    crate::primitives::binding::ErrorPresentation::new(callback, host),
+                );
+                parent
+                    .commands()
+                    .entity(control)
+                    .insert_if_new(crate::primitives::binding::BindingErrorState::default());
+                control
+            }
+            Self::WithFormState {
+                element,
+                submitting,
+                success,
+            } => {
+                let mut control = None;
+                let host = parent
+                    .spawn(Node {
+                        width: percent(100),
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(4),
+                        ..default()
+                    })
+                    .with_children(|children| control = Some(element.spawn(children)))
+                    .id();
+                let control = control.unwrap();
+                parent
+                    .commands()
+                    .entity(control)
+                    .insert(crate::primitives::binding::FormStatusState::default());
+                parent.commands().entity(control).insert(
+                    crate::primitives::binding::FormStatePresentation::new(
+                        host, submitting, success,
+                    ),
+                );
+                control
+            }
+            Self::Styled { element, style } => {
+                let entity = element.spawn(parent);
+                parent.commands().entity(entity).insert(style);
+                entity
+            }
         }
     }
 
@@ -924,13 +1757,31 @@ impl UiElement {
     /// parent entity. This is the path used by `app().children(...)`.
     pub fn spawn_in_context(self, context: &mut UiBuildContext<'_>) -> Entity {
         match self {
-            Self::Container { node, children } => {
+            Self::Container {
+                mut node,
+                children,
+                header,
+                mut body,
+                footer,
+            } => {
+                let sectioned = !header.is_empty() || !body.is_empty() || !footer.is_empty();
+                if sectioned {
+                    node.flex_direction = FlexDirection::Column;
+                }
                 let entity = context.world.spawn((node, ChildOf(context.parent))).id();
-                for child in children {
-                    child.spawn_in_context(&mut UiBuildContext {
-                        world: context.world,
-                        parent: entity,
-                    });
+                let mut content = UiBuildContext {
+                    world: context.world,
+                    parent: entity,
+                };
+                if sectioned {
+                    body.splice(0..0, children);
+                    spawn_section_in_context(&mut content, ContentSection::Header, header, false);
+                    spawn_section_in_context(&mut content, ContentSection::Body, body, true);
+                    spawn_section_in_context(&mut content, ContentSection::Footer, footer, false);
+                } else {
+                    for child in children {
+                        child.spawn_in_context(&mut content);
+                    }
                 }
                 entity
             }
@@ -969,7 +1820,23 @@ impl UiElement {
                     spawn_text_input(parent, config)
                 })
             }
-            Self::Alert { value } => context.world.spawn((value, ChildOf(context.parent))).id(),
+            Self::Alert {
+                value,
+                header,
+                body,
+                footer,
+            } => context
+                .world
+                .spawn((
+                    value,
+                    AlertSections {
+                        header,
+                        body,
+                        footer,
+                    },
+                    ChildOf(context.parent),
+                ))
+                .id(),
             Self::Toast {
                 value,
                 header,
@@ -1036,6 +1903,9 @@ impl UiElement {
             Self::Photo(photo) => spawn_with_children(context.world, context.parent, |parent| {
                 spawn_photo(parent, photo)
             }),
+            Self::Image(config) => spawn_with_children(context.world, context.parent, |parent| {
+                spawn_image(parent, config)
+            }),
             Self::Card {
                 style,
                 children,
@@ -1044,16 +1914,26 @@ impl UiElement {
                 footer,
             } => {
                 let theme = *context.world.resource::<ThemeResource>();
-                spawn_with_children(context.world, context.parent, |parent| {
-                    spawn_card(parent, style, &theme, |content| {
-                        for child in children {
-                            child.spawn(content);
-                        }
-                        spawn_card_section(content, CardHeader, header);
-                        spawn_card_section(content, CardBody, body);
-                        spawn_card_section(content, CardFooter, footer);
-                    })
-                })
+                let sectioned = !header.is_empty() || !body.is_empty() || !footer.is_empty();
+                let entity = spawn_with_children(context.world, context.parent, |parent| {
+                    spawn_card(parent, style, &theme, |_| {})
+                });
+                let mut content = UiBuildContext {
+                    world: context.world,
+                    parent: entity,
+                };
+                if sectioned {
+                    let mut body_children = children;
+                    body_children.extend(body);
+                    spawn_section_in_context(&mut content, CardHeader, header, false);
+                    spawn_section_in_context(&mut content, CardBody, body_children, true);
+                    spawn_section_in_context(&mut content, CardFooter, footer, false);
+                } else {
+                    for child in children {
+                        child.spawn_in_context(&mut content);
+                    }
+                }
+                entity
             }
             Self::ListItem {
                 title,
@@ -1062,14 +1942,69 @@ impl UiElement {
             } => spawn_with_children(context.world, context.parent, |parent| {
                 spawn_list_item(parent, title, subtitle, icon)
             }),
-            Self::Form { value, children } => {
-                spawn_with_children(context.world, context.parent, |parent| {
-                    spawn_form(parent, value, |content| {
-                        for child in children {
-                            child.spawn(content);
-                        }
-                    })
-                })
+            Self::Form {
+                value,
+                children,
+                header,
+                mut body,
+                footer,
+            } => {
+                let sectioned = !header.is_empty() || !body.is_empty() || !footer.is_empty();
+                body.splice(0..0, children);
+                let entity = spawn_with_children(context.world, context.parent, |parent| {
+                    spawn_form(parent, value, |_| {})
+                });
+                let submit = context
+                    .world
+                    .get::<Children>(entity)
+                    .and_then(|children| children.first())
+                    .copied();
+                let mut content = UiBuildContext {
+                    world: context.world,
+                    parent: entity,
+                };
+                if sectioned {
+                    spawn_section_in_context(&mut content, ContentSection::Header, header, false);
+                    spawn_section_in_context(&mut content, ContentSection::Body, body, true);
+                    spawn_section_in_context(&mut content, ContentSection::Footer, footer, false);
+                } else {
+                    for child in body {
+                        child.spawn_in_context(&mut content);
+                    }
+                }
+                if let Some(submit) = submit {
+                    if sectioned {
+                        let footer =
+                            context
+                                .world
+                                .get::<Children>(entity)
+                                .unwrap()
+                                .iter()
+                                .find(|child| {
+                                    context.world.get::<ContentSection>(*child)
+                                        == Some(&ContentSection::Footer)
+                                });
+                        let footer = footer.unwrap_or_else(|| {
+                            context
+                                .world
+                                .spawn((
+                                    ContentSection::Footer,
+                                    Node {
+                                        width: percent(100),
+                                        flex_direction: FlexDirection::Column,
+                                        ..default()
+                                    },
+                                    ChildOf(entity),
+                                ))
+                                .id()
+                        });
+                        context.world.entity_mut(footer).add_child(submit);
+                    } else {
+                        context.world.entity_mut(entity).detach_children(&[submit]);
+                        context.world.entity_mut(entity).add_child(submit);
+                    }
+                }
+                entity
             }
             Self::Radio(builder) => spawn_with_children(context.world, context.parent, |parent| {
                 builder.spawn(parent)
@@ -1077,14 +2012,57 @@ impl UiElement {
             Self::Table(config) => spawn_with_children(context.world, context.parent, |parent| {
                 Table::spawn_into(parent, config)
             }),
-            Self::Tabs { config, children } => {
-                spawn_with_children(context.world, context.parent, |parent| {
-                    spawn_tabs_in(parent, config, |zone, _, _| {
+            Self::Tabs {
+                config,
+                children,
+                header,
+                body,
+                footer,
+            } => {
+                let sectioned = !header.is_empty() || !body.is_empty() || !footer.is_empty();
+                let entity = spawn_with_children(context.world, context.parent, |parent| {
+                    spawn_tabs_in(parent, config, |_, _, _| {})
+                });
+                let zones: Vec<_> = context
+                    .world
+                    .query::<(Entity, &crate::components::tabs::TabZone)>()
+                    .iter(context.world)
+                    .filter(|(_, zone)| zone.tabs_entity == entity)
+                    .map(|(entity, _)| entity)
+                    .collect();
+                for zone in zones {
+                    let mut content = UiBuildContext {
+                        world: context.world,
+                        parent: zone,
+                    };
+                    if sectioned {
+                        let mut body_children = children.clone();
+                        body_children.extend(body.clone());
+                        spawn_section_in_context(
+                            &mut content,
+                            ContentSection::Header,
+                            header.clone(),
+                            false,
+                        );
+                        spawn_section_in_context(
+                            &mut content,
+                            ContentSection::Body,
+                            body_children,
+                            true,
+                        );
+                        spawn_section_in_context(
+                            &mut content,
+                            ContentSection::Footer,
+                            footer.clone(),
+                            false,
+                        );
+                    } else {
                         for child in &children {
-                            child.clone().spawn(zone);
+                            child.clone().spawn_in_context(&mut content);
                         }
-                    })
-                })
+                    }
+                }
+                entity
             }
             Self::Modal {
                 value,
@@ -1095,21 +2073,50 @@ impl UiElement {
                 footer,
             } => {
                 let theme = *context.world.resource::<ThemeResource>();
-                let mut commands = context.world.commands();
-                let title = content.title.clone();
-                spawn_modal_with_surface(
-                    &mut commands,
-                    context.parent,
-                    value,
-                    style,
-                    title,
-                    move |surface| {
-                        spawn_modal_section(surface, ModalHeader, header);
-                        spawn_modal_section(surface, ModalBody, body);
-                        spawn_modal_section(surface, ModalFooter, footer);
-                    },
-                    &theme,
-                )
+                let sectioned = !header.is_empty() || !body.is_empty() || !footer.is_empty();
+                let entity = if sectioned {
+                    spawn_modal_with_surface(
+                        &mut context.world.commands(),
+                        context.parent,
+                        value,
+                        style,
+                        content.title,
+                        |_| {},
+                        &theme,
+                    )
+                } else {
+                    spawn_modal(
+                        &mut context.world.commands(),
+                        context.parent,
+                        value,
+                        style,
+                        content,
+                        &theme,
+                    )
+                };
+                context.world.flush();
+                if sectioned {
+                    let surface = context
+                        .world
+                        .get::<Children>(entity)
+                        .unwrap()
+                        .iter()
+                        .find(|child| {
+                            context
+                                .world
+                                .get::<crate::components::modal::component::ModalSurface>(*child)
+                                .is_some()
+                        })
+                        .expect("modal surface must exist");
+                    let mut content = UiBuildContext {
+                        world: context.world,
+                        parent: surface,
+                    };
+                    spawn_section_in_context(&mut content, ModalHeader, header, false);
+                    spawn_section_in_context(&mut content, ModalBody, body, true);
+                    spawn_section_in_context(&mut content, ModalFooter, footer, false);
+                }
+                entity
             }
             Self::Search => {
                 let fonts = context.world.resource::<UiFonts>().clone();
@@ -1146,11 +2153,46 @@ impl UiElement {
                 context.world.flush();
                 entity
             }
-            Self::Sidebar { top_offset_px } => {
+            Self::Sidebar {
+                top_offset_px,
+                header,
+                body,
+                footer,
+            } => {
                 let fonts = context.world.resource::<UiFonts>().clone();
-                spawn_with_children(context.world, context.parent, |parent| {
+                let entity = spawn_with_children(context.world, context.parent, |parent| {
                     spawn_sidebar(parent, &fonts, top_offset_px)
-                })
+                });
+                if !header.is_empty() || !body.is_empty() || !footer.is_empty() {
+                    let navigation: Vec<_> = context
+                        .world
+                        .get::<Children>(entity)
+                        .unwrap()
+                        .iter()
+                        .filter(|child| {
+                            context
+                                .world
+                                .get::<crate::components::sidebar::component::SidebarDivider>(
+                                    *child,
+                                )
+                                .is_none()
+                        })
+                        .collect();
+                    let mut content = UiBuildContext {
+                        world: context.world,
+                        parent: entity,
+                    };
+                    spawn_section_in_context(&mut content, ContentSection::Header, header, false);
+                    let body =
+                        spawn_section_in_context(&mut content, ContentSection::Body, body, true)
+                            .unwrap();
+                    content
+                        .world
+                        .entity_mut(body)
+                        .insert_children(0, &navigation);
+                    spawn_section_in_context(&mut content, ContentSection::Footer, footer, false);
+                }
+                entity
             }
             Self::Link(value) => {
                 let label = value.text.clone();
@@ -1194,6 +2236,7 @@ impl UiElement {
                 .id(),
             Self::Custom(setup) => spawn_with_children(context.world, context.parent, setup),
             Self::ContextCustom(setup) => setup(context),
+            Self::TypedSelect(setup) => setup(context),
             Self::Aria {
                 element,
                 description,
@@ -1227,6 +2270,86 @@ impl UiElement {
                     entity.with_children(|children| setup(children, Color::WHITE));
                     entity.id()
                 })
+            }
+            Self::WithError { element, callback } => {
+                let host = context
+                    .world
+                    .spawn((
+                        Node {
+                            width: percent(100),
+                            flex_direction: FlexDirection::Column,
+                            row_gap: px(4),
+                            ..default()
+                        },
+                        ChildOf(context.parent),
+                    ))
+                    .id();
+                let control = element.spawn_in_context(&mut UiBuildContext {
+                    world: context.world,
+                    parent: host,
+                });
+                let width = context
+                    .world
+                    .get::<Node>(control)
+                    .map(|node| node.width)
+                    .unwrap_or(Val::Auto);
+                context.world.get_mut::<Node>(host).unwrap().width = width;
+                context
+                    .world
+                    .entity_mut(host)
+                    .insert(crate::primitives::binding::ErrorPresentationHost(control));
+                context.world.entity_mut(control).insert(
+                    crate::primitives::binding::ErrorPresentation::new(callback, host),
+                );
+                if context
+                    .world
+                    .get::<crate::primitives::binding::BindingErrorState>(control)
+                    .is_none()
+                {
+                    context
+                        .world
+                        .entity_mut(control)
+                        .insert(crate::primitives::binding::BindingErrorState::default());
+                }
+                control
+            }
+            Self::WithFormState {
+                element,
+                submitting,
+                success,
+            } => {
+                let host = context
+                    .world
+                    .spawn((
+                        Node {
+                            width: percent(100),
+                            flex_direction: FlexDirection::Column,
+                            row_gap: px(4),
+                            ..default()
+                        },
+                        ChildOf(context.parent),
+                    ))
+                    .id();
+                let control = element.spawn_in_context(&mut UiBuildContext {
+                    world: context.world,
+                    parent: host,
+                });
+                context
+                    .world
+                    .entity_mut(control)
+                    .insert(crate::primitives::binding::FormStatusState::default());
+                context.world.entity_mut(control).insert(
+                    crate::primitives::binding::FormStatePresentation::new(
+                        host, submitting, success,
+                    ),
+                );
+                control
+            }
+            Self::Styled { element, style } => {
+                let entity = element.spawn_in_context(context);
+                crate::primitives::style::apply_style(context.world, entity, &style);
+                context.world.entity_mut(entity).insert(style);
+                entity
             }
         }
     }
@@ -1263,9 +2386,1186 @@ impl From<BeverlyButton> for UiElement {
     }
 }
 
+impl From<ImageConfig> for UiElement {
+    fn from(value: ImageConfig) -> Self {
+        Self::Image(value)
+    }
+}
+
+macro_rules! impl_form_control_binding {
+    ($control:ty, $constructor:expr) => {
+        impl From<$control> for UiElement {
+            fn from(value: $control) -> Self {
+                ($constructor)(value)
+            }
+        }
+
+        impl $control {
+            pub fn submitting<F, I>(self, callback: F) -> UiElement
+            where
+                F: Fn() -> I + Send + Sync + 'static,
+                I: IntoIterator,
+                I::Item: Into<UiElement>,
+            {
+                UiElement::from(self).submitting(callback)
+            }
+
+            pub fn success<F, I>(self, callback: F) -> UiElement
+            where
+                F: Fn() -> I + Send + Sync + 'static,
+                I: IntoIterator,
+                I::Item: Into<UiElement>,
+            {
+                UiElement::from(self).success(callback)
+            }
+
+            pub fn error<F, I>(self, callback: F) -> UiElement
+            where
+                F: Fn(&[String]) -> I + Send + Sync + 'static,
+                I: IntoIterator,
+                I::Item: Into<UiElement>,
+            {
+                UiElement::from(self).error(callback)
+            }
+
+            /// Binds this control to a resource-model field, preserving its configuration.
+            pub fn bind<Model, Value>(
+                self,
+                binding: crate::primitives::binding::FieldBinding<Model, Value>,
+            ) -> UiElement
+            where
+                Model: Resource,
+                Value: crate::primitives::binding::BindingValueType,
+            {
+                UiElement::from(self).bind(binding)
+            }
+        }
+    };
+}
+
+impl_form_control_binding!(TextInputConfig, |config| UiElement::TextInput { config });
+impl_form_control_binding!(CheckboxConfig, |config| UiElement::Checkbox { config });
+impl_form_control_binding!(TextareaConfig, UiElement::Textarea);
+impl_form_control_binding!(ToggleConfig, UiElement::Toggle);
+impl_form_control_binding!(RadioGroupBuilder, UiElement::Radio);
+impl_form_control_binding!(Slider, UiElement::slider);
+impl_form_control_binding!(DropdownConfig, UiElement::Dropdown);
+impl_form_control_binding!(FileInput, UiElement::FileInput);
+
+impl From<Select<String>> for UiElement {
+    fn from(value: Select<String>) -> Self {
+        Self::Select(value)
+    }
+}
+
+impl<T> Select<T>
+where
+    T: crate::primitives::binding::BindingValueType + std::fmt::Display,
+{
+    pub fn bind<Model, Value>(
+        self,
+        binding: crate::primitives::binding::FieldBinding<Model, Value>,
+    ) -> UiElement
+    where
+        Model: Resource,
+        Value: crate::primitives::binding::BindingValueType,
+    {
+        if let Some(select) = (&self as &dyn std::any::Any).downcast_ref::<Select<String>>() {
+            return UiElement::Select(select.clone()).bind(binding);
+        }
+        UiElement::TypedSelect(Arc::new(move |context| {
+            let font = context.world.resource::<UiFonts>().text.clone();
+            let entity = spawn_with_children(context.world, context.parent, |parent| {
+                spawn_select(parent, self.clone(), font)
+            });
+            context
+                .world
+                .entity_mut(entity)
+                .insert(crate::primitives::binding::SelectBindingAdapter::new::<T>());
+            entity
+        }))
+        .bind(binding)
+    }
+}
+
+impl<T> Select<T>
+where
+    T: crate::components::select::SelectSemanticValue
+        + std::fmt::Display
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+{
+    pub fn submitting<F, I>(self, callback: F) -> UiElement
+    where
+        F: Fn() -> I + Send + Sync + 'static,
+        I: IntoIterator,
+        I::Item: Into<UiElement>,
+    {
+        UiElement::TypedSelect(Arc::new(move |context| {
+            let font = context.world.resource::<UiFonts>().text.clone();
+            spawn_with_children(context.world, context.parent, |parent| {
+                spawn_select(parent, self.clone(), font)
+            })
+        }))
+        .submitting(callback)
+    }
+
+    pub fn success<F, I>(self, callback: F) -> UiElement
+    where
+        F: Fn() -> I + Send + Sync + 'static,
+        I: IntoIterator,
+        I::Item: Into<UiElement>,
+    {
+        UiElement::TypedSelect(Arc::new(move |context| {
+            let font = context.world.resource::<UiFonts>().text.clone();
+            spawn_with_children(context.world, context.parent, |parent| {
+                spawn_select(parent, self.clone(), font)
+            })
+        }))
+        .success(callback)
+    }
+
+    pub fn error<F, I>(self, callback: F) -> UiElement
+    where
+        F: Fn(&[String]) -> I + Send + Sync + 'static,
+        I: IntoIterator,
+        I::Item: Into<UiElement>,
+    {
+        UiElement::TypedSelect(Arc::new(move |context| {
+            let font = context.world.resource::<UiFonts>().text.clone();
+            spawn_with_children(context.world, context.parent, |parent| {
+                spawn_select(parent, self.clone(), font)
+            })
+        }))
+        .error(callback)
+    }
+}
+
+impl Form {
+    pub fn submitting<F, I>(self, callback: F) -> UiElement
+    where
+        F: Fn() -> I + Send + Sync + 'static,
+        I: IntoIterator,
+        I::Item: Into<UiElement>,
+    {
+        UiElement::form(self).submitting(callback)
+    }
+
+    pub fn success<F, I>(self, callback: F) -> UiElement
+    where
+        F: Fn() -> I + Send + Sync + 'static,
+        I: IntoIterator,
+        I::Item: Into<UiElement>,
+    {
+        UiElement::form(self).success(callback)
+    }
+
+    pub fn error<F, I>(self, callback: F) -> UiElement
+    where
+        F: Fn(&[String]) -> I + Send + Sync + 'static,
+        I: IntoIterator,
+        I::Item: Into<UiElement>,
+    {
+        UiElement::form(self).error(callback)
+    }
+}
+
+impl BeverlyButton {
+    pub fn submitting<F, I>(self, callback: F) -> UiElement
+    where
+        F: Fn() -> I + Send + Sync + 'static,
+        I: IntoIterator,
+        I::Item: Into<UiElement>,
+    {
+        UiElement::from(self).submitting(callback)
+    }
+
+    pub fn on_success<F, I>(self, callback: F) -> UiElement
+    where
+        F: Fn() -> I + Send + Sync + 'static,
+        I: IntoIterator,
+        I::Item: Into<UiElement>,
+    {
+        UiElement::from(self).success(callback)
+    }
+
+    pub fn error<F, I>(self, callback: F) -> UiElement
+    where
+        F: Fn(&[String]) -> I + Send + Sync + 'static,
+        I: IntoIterator,
+        I::Item: Into<UiElement>,
+    {
+        UiElement::from(self).error(callback)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn submitting_and_success_presentations_follow_app_owned_status() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let submitting_calls = Arc::new(AtomicUsize::new(0));
+        let success_calls = Arc::new(AtomicUsize::new(0));
+        let submitting_counter = submitting_calls.clone();
+        let success_counter = success_calls.clone();
+        let mut app = App::new();
+        app.add_plugins(crate::primitives::binding::BindingPlugin);
+        let parent = app.world_mut().spawn(Node::default()).id();
+        let control = TextInputConfig::new("Email")
+            .label("Email")
+            .submitting(move || {
+                submitting_counter.fetch_add(1, Ordering::SeqCst);
+                [crate::components::text::text("Checking…")]
+            })
+            .success(move || {
+                success_counter.fetch_add(1, Ordering::SeqCst);
+                [crate::components::text::text("Verified")]
+            })
+            .spawn_in_context(&mut UiBuildContext {
+                world: app.world_mut(),
+                parent,
+            });
+        let host = app.world().get::<ChildOf>(control).unwrap().parent();
+        app.update();
+        assert_eq!(app.world().get::<Children>(host).unwrap().len(), 1);
+        assert_eq!(submitting_calls.load(Ordering::SeqCst), 0);
+        app.world_mut()
+            .get_mut::<crate::primitives::binding::FormStatusState>(control)
+            .unwrap()
+            .submitting();
+        app.update();
+        let pending = app.world().get::<Children>(host).unwrap()[1];
+        assert_eq!(section_text(app.world(), pending), ["Checking…"]);
+        let live = app
+            .world()
+            .get::<crate::primitives::semantic::SemanticNode>(pending)
+            .unwrap();
+        assert_eq!(live.role, crate::primitives::semantic::SemanticRole::Status);
+        assert_eq!(
+            live.live,
+            Some(crate::primitives::semantic::AnnouncementPriority::Polite)
+        );
+        assert!(live.state.busy);
+        assert_eq!(submitting_calls.load(Ordering::SeqCst), 1);
+        app.update();
+        assert_eq!(submitting_calls.load(Ordering::SeqCst), 1);
+        app.world_mut()
+            .get_mut::<crate::primitives::binding::FormStatusState>(control)
+            .unwrap()
+            .success();
+        app.update();
+        assert!(app.world().get_entity(pending).is_err());
+        let success = app.world().get::<Children>(host).unwrap()[1];
+        assert_eq!(section_text(app.world(), success), ["Verified"]);
+        assert_eq!(success_calls.load(Ordering::SeqCst), 1);
+        app.world_mut()
+            .get_mut::<crate::primitives::binding::FormStatusState>(control)
+            .unwrap()
+            .idle();
+        app.update();
+        assert_eq!(app.world().get::<Children>(host).unwrap().len(), 1);
+        assert!(app.world().get_entity(success).is_err());
+    }
+
+    #[test]
+    fn success_and_submitting_methods_cover_forms_and_control_builders() {
+        let callback = || crate::components::text::text("Working");
+        let elements = vec![
+            TextInputConfig::new("Email").submitting(callback),
+            CheckboxConfig::new().success(callback),
+            TextareaConfig::new("Notes").submitting(callback),
+            ToggleConfig::new().success(callback),
+            RadioGroupBuilder::new("plan").submitting(callback),
+            Select::new(vec!["free".to_owned()]).success(callback),
+            Select::new(vec![1_u32, 2]).submitting(callback),
+            Slider::new(0.0, 1.0).success(callback),
+            DropdownConfig::new("Plan").submitting(callback),
+            FileInput::new("Files").success(callback),
+            Form::new().submitting(callback),
+            Form::new().success(callback),
+            BeverlyButton::primary("Submit").submitting(callback),
+            BeverlyButton::primary("Submit").on_success(callback),
+        ];
+        assert_eq!(elements.len(), 14);
+        assert!(
+            elements
+                .iter()
+                .all(|element| matches!(element, UiElement::WithFormState { .. }))
+        );
+    }
+
+    #[test]
+    fn status_callbacks_wrap_bound_field_without_dropping_binding() {
+        let mut app = App::new();
+        app.add_plugins(crate::primitives::binding::BindingPlugin)
+            .insert_resource(BindingModel {
+                name: "Initial".to_owned(),
+                enabled: false,
+                age: 1,
+                rating: 0.0,
+                files: Vec::new(),
+            });
+        let parent = app.world_mut().spawn(Node::default()).id();
+        let control = TextInputConfig::new("Name")
+            .label("Name")
+            .bind(BindingModel::name)
+            .submitting(|| crate::components::text::text("Saving"))
+            .success(|| crate::components::text::text("Saved"))
+            .spawn_in_context(&mut UiBuildContext {
+                world: app.world_mut(),
+                parent,
+            });
+        app.update();
+        assert!(
+            app.world()
+                .get::<crate::primitives::binding::BoundField>(control)
+                .is_some()
+        );
+        assert_eq!(
+            app.world()
+                .get::<crate::components::input::TextInput>(control)
+                .unwrap()
+                .value,
+            "Initial"
+        );
+        app.world_mut()
+            .get_mut::<crate::primitives::binding::FormStatusState>(control)
+            .unwrap()
+            .success();
+        app.update();
+        let host = app.world().get::<ChildOf>(control).unwrap().parent();
+        let content = app.world().get::<Children>(host).unwrap()[1];
+        assert_eq!(section_text(app.world(), content), ["Saved"]);
+    }
+
+    #[test]
+    fn error_callback_supports_typed_select_without_string_conversion() {
+        let mut app = App::new();
+        app.add_plugins(crate::primitives::binding::BindingPlugin)
+            .insert_resource(UiFonts {
+                text: Handle::default(),
+            });
+        let parent = app.world_mut().spawn(Node::default()).id();
+        let control = Select::new(vec![10_u32, 20_u32])
+            .selected(1)
+            .label("Size")
+            .error(|errors| crate::components::text::text(errors.join("\n")))
+            .spawn_in_context(&mut UiBuildContext {
+                world: app.world_mut(),
+                parent,
+            });
+        assert_eq!(
+            app.world()
+                .get::<Select<u32>>(control)
+                .unwrap()
+                .selected_value(),
+            Some(&20)
+        );
+        app.world_mut()
+            .get_mut::<crate::primitives::binding::BindingErrorState>(control)
+            .unwrap()
+            .messages = vec!["Unsupported size".to_owned()];
+        app.update();
+        let host = app.world().get::<ChildOf>(control).unwrap().parent();
+        let content = app.world().get::<Children>(host).unwrap()[1];
+        assert_eq!(section_text(app.world(), content), ["Unsupported size"]);
+    }
+
+    #[test]
+    fn error_callback_removal_restores_focus_from_error_content() {
+        let mut app = App::new();
+        app.add_plugins(crate::primitives::binding::BindingPlugin)
+            .add_message::<crate::primitives::focus::FocusRequest>();
+        let parent = app.world_mut().spawn(Node::default()).id();
+        let control = UiElement::checkbox()
+            .error(|_| UiElement::button().text("Retry"))
+            .checked(true)
+            .spawn_in_context(&mut UiBuildContext {
+                world: app.world_mut(),
+                parent,
+            });
+        assert!(
+            app.world()
+                .get::<crate::components::checkbox::CheckboxState>(control)
+                .unwrap()
+                .checked
+        );
+        app.world_mut()
+            .get_mut::<crate::primitives::binding::BindingErrorState>(control)
+            .unwrap()
+            .messages = vec!["Problem".to_owned()];
+        app.update();
+        let host = app.world().get::<ChildOf>(control).unwrap().parent();
+        let content = app.world().get::<Children>(host).unwrap()[1];
+        let action = app.world().get::<Children>(content).unwrap()[0];
+        app.insert_resource(bevy::input_focus::InputFocus::from_entity(action));
+        app.world_mut()
+            .get_mut::<crate::primitives::binding::BindingErrorState>(control)
+            .unwrap()
+            .clear();
+        app.update();
+        let requests: Vec<_> = app
+            .world_mut()
+            .resource_mut::<bevy::ecs::message::Messages<crate::primitives::focus::FocusRequest>>()
+            .drain()
+            .collect();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].target, control);
+        assert!(app.world().get_entity(action).is_err());
+    }
+
+    #[test]
+    fn error_callback_replacement_across_binding_keeps_one_host() {
+        let mut app = App::new();
+        app.add_plugins(crate::primitives::binding::BindingPlugin)
+            .insert_resource(ErrorCallbackModel {
+                name: "Initial".to_owned(),
+            });
+        let parent = app.world_mut().spawn(Node::default()).id();
+        let input = UiElement::input("Name")
+            .label("Name")
+            .error(|_| crate::components::text::text("Old"))
+            .bind(ErrorCallbackModel::name)
+            .error(|errors| crate::components::text::text(format!("Latest: {}", errors.join("; "))))
+            .spawn_in_context(&mut UiBuildContext {
+                world: app.world_mut(),
+                parent,
+            });
+        app.update();
+        app.world_mut()
+            .get_mut::<crate::components::input::TextInput>(input)
+            .unwrap()
+            .value
+            .clear();
+        app.update();
+        let host = app.world().get::<ChildOf>(input).unwrap().parent();
+        assert_eq!(app.world().get::<ChildOf>(host).unwrap().parent(), parent);
+        let content = app.world().get::<Children>(host).unwrap()[1];
+        assert_eq!(
+            section_text(app.world(), content),
+            ["Latest: Name is required"]
+        );
+    }
+
+    #[crate::model]
+    struct ErrorCallbackModel {
+        #[setter = validate_name]
+        name: String,
+    }
+
+    impl ErrorCallbackModel {
+        fn validate_name(&mut self, value: String) -> Result<(), &'static str> {
+            if value.trim().is_empty() {
+                return Err("Name is required");
+            }
+            self.name = value.trim().to_owned();
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn error_callback_bound_field_tracks_rejection_and_recovery() {
+        let mut app = App::new();
+        app.add_plugins(crate::primitives::binding::BindingPlugin)
+            .insert_resource(ErrorCallbackModel {
+                name: "Initial".to_owned(),
+            });
+        let parent = app.world_mut().spawn(Node::default()).id();
+        let input = TextInputConfig::new("Name")
+            .label("Name")
+            .error(|errors| crate::components::text::text(errors.join("\n")))
+            .bind(ErrorCallbackModel::name)
+            .label("Full name")
+            .spawn_in_context(&mut UiBuildContext {
+                world: app.world_mut(),
+                parent,
+            });
+        let host = app.world().get::<ChildOf>(input).unwrap().parent();
+        app.update();
+        app.world_mut()
+            .get_mut::<crate::components::input::TextInput>(input)
+            .unwrap()
+            .value = " ".to_owned();
+        app.update();
+        assert_eq!(app.world().resource::<ErrorCallbackModel>().name, "Initial");
+        assert_eq!(
+            app.world()
+                .get::<crate::components::input::TextInput>(input)
+                .unwrap()
+                .accessible_label
+                .as_deref(),
+            Some("Full name")
+        );
+        let error = app.world().get::<Children>(host).unwrap()[1];
+        assert_eq!(section_text(app.world(), error), ["Name is required"]);
+        app.world_mut()
+            .get_mut::<crate::components::input::TextInput>(input)
+            .unwrap()
+            .value = "  Valid  ".to_owned();
+        app.update();
+        assert_eq!(app.world().resource::<ErrorCallbackModel>().name, "Valid");
+        assert_eq!(app.world().get::<Children>(host).unwrap().len(), 1);
+        assert!(app.world().get_entity(error).is_err());
+    }
+
+    #[test]
+    fn error_callback_supports_form_errors_and_child_spawner_path() {
+        let mut app = App::new();
+        app.add_plugins(crate::primitives::binding::BindingPlugin);
+        let parent = app.world_mut().spawn(Node::default()).id();
+        let field = spawn_with_children(app.world_mut(), parent, |children| {
+            CheckboxConfig::new()
+                .label("Consent")
+                .error(|errors| crate::components::text::text(errors.join("; ")))
+                .spawn(children)
+        });
+        let form = Form::new()
+            .error(|errors| [crate::components::text::text(errors.join("; "))])
+            .body(crate::components::text::text("Form body"))
+            .spawn_in_context(&mut UiBuildContext {
+                world: app.world_mut(),
+                parent,
+            });
+        for entity in [field, form] {
+            app.world_mut()
+                .get_mut::<crate::primitives::binding::BindingErrorState>(entity)
+                .unwrap()
+                .error(crate::primitives::binding::BindingErrors::new(
+                    "Manual error",
+                ));
+        }
+        app.update();
+        for entity in [field, form] {
+            let host = app.world().get::<ChildOf>(entity).unwrap().parent();
+            let content = app.world().get::<Children>(host).unwrap()[1];
+            assert_eq!(section_text(app.world(), content), ["Manual error"]);
+        }
+    }
+
+    #[test]
+    fn error_callback_rebuilds_on_changes_clears_on_recovery_and_cleans_host() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let calls = Arc::new(AtomicUsize::new(0));
+        let counted = calls.clone();
+        let mut app = App::new();
+        app.add_plugins(crate::primitives::binding::BindingPlugin)
+            .insert_resource(ThemeResource::default());
+        let parent = app.world_mut().spawn(Node::default()).id();
+        let control = CheckboxConfig::new()
+            .label("Consent")
+            .error(move |errors| {
+                counted.fetch_add(1, Ordering::SeqCst);
+                vec![
+                    crate::components::text::text(errors.join("; ")),
+                    UiElement::card(),
+                ]
+            })
+            .spawn_in_context(&mut UiBuildContext {
+                world: app.world_mut(),
+                parent,
+            });
+        let host = app.world().get::<ChildOf>(control).unwrap().parent();
+        app.update();
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        app.world_mut()
+            .get_mut::<crate::primitives::binding::BindingErrorState>(control)
+            .unwrap()
+            .messages = vec!["Required".to_owned(), "Must accept".to_owned()];
+        app.update();
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        let content = app.world().get::<Children>(host).unwrap()[1];
+        assert_eq!(
+            section_text(app.world(), content),
+            ["Required; Must accept"]
+        );
+        app.update();
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        assert_eq!(app.world().get::<Children>(host).unwrap()[1], content);
+        app.world_mut()
+            .get_mut::<crate::primitives::binding::BindingErrorState>(control)
+            .unwrap()
+            .messages = vec!["Changed".to_owned()];
+        app.update();
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+        assert!(app.world().get_entity(content).is_err());
+        app.world_mut()
+            .get_mut::<crate::primitives::binding::BindingErrorState>(control)
+            .unwrap()
+            .clear();
+        app.update();
+        assert_eq!(app.world().get::<Children>(host).unwrap().len(), 1);
+        app.world_mut().despawn(control);
+        app.update();
+        assert!(app.world().get_entity(host).is_err());
+    }
+
+    #[test]
+    fn error_callbacks_support_every_value_builder_forms_and_submit_controls() {
+        let callback = |errors: &[String]| crate::components::text::text(errors.join("\n"));
+        let controls = vec![
+            TextInputConfig::new("Name").error(callback),
+            CheckboxConfig::new().error(callback),
+            TextareaConfig::new("Notes").error(callback),
+            ToggleConfig::new().error(callback),
+            RadioGroupBuilder::new("plan").error(callback),
+            Select::new(vec!["free".to_owned()]).error(callback),
+            Slider::new(0.0, 100.0).error(callback),
+            DropdownConfig::new("Plan").error(callback),
+            FileInput::new("Files").error(callback),
+            Form::new().error(callback),
+            BeverlyButton::primary("Submit").error(callback),
+            UiElement::search().error(callback),
+            UiElement::searchbox("Search").error(callback),
+        ];
+        assert_eq!(controls.len(), 13);
+        assert!(
+            controls
+                .iter()
+                .all(|control| matches!(control, UiElement::WithError { .. }))
+        );
+    }
+
+    #[test]
+    fn binding_concrete_value_controls_sync_in_both_directions() {
+        let mut world = World::new();
+        world.insert_resource(ThemeResource::default());
+        world.insert_resource(UiFonts {
+            text: Handle::default(),
+        });
+        world.insert_resource(Assets::<ToggleShadowMaterial>::default());
+        world.insert_resource(BindingModel {
+            name: "free".to_owned(),
+            enabled: true,
+            age: 30,
+            rating: 5.0,
+            files: Vec::new(),
+        });
+        let parent = world.spawn(Node::default()).id();
+        let controls = vec![
+            TextareaConfig::new("Notes").bind(BindingModel::name),
+            ToggleConfig::new().bind(BindingModel::enabled),
+            RadioGroupBuilder::new("plan")
+                .option("free", "Free")
+                .option("pro", "Pro")
+                .bind(BindingModel::name),
+            Select::new(vec!["free".to_owned(), "pro".to_owned()]).bind(BindingModel::name),
+            Slider::new(0.0, 100.0).bind(BindingModel::rating),
+            DropdownConfig::new("Plan")
+                .option("Free", "free")
+                .option("Pro", "pro")
+                .bind(BindingModel::name),
+            FileInput::new("Files").bind(BindingModel::files),
+        ];
+        let entities: Vec<_> = controls
+            .into_iter()
+            .map(|control| {
+                control.spawn_in_context(&mut UiBuildContext {
+                    world: &mut world,
+                    parent,
+                })
+            })
+            .collect();
+        crate::primitives::binding::sync_bound_fields(&mut world);
+        assert_eq!(
+            world
+                .get::<crate::components::textarea::Textarea>(entities[0])
+                .unwrap()
+                .value,
+            "free"
+        );
+        assert!(
+            world
+                .get::<crate::components::toggle::Toggle>(entities[1])
+                .unwrap()
+                .checked
+        );
+        assert_eq!(
+            world
+                .get::<crate::components::radio::RadioGroup>(entities[2])
+                .unwrap()
+                .selected,
+            "free"
+        );
+        assert_eq!(
+            world.get::<Select<String>>(entities[3]).unwrap().selected,
+            Some(0)
+        );
+        assert_eq!(world.get::<Slider>(entities[4]).unwrap().value, 5.0);
+        assert_eq!(
+            world
+                .get::<crate::components::dropdown::DropdownState>(entities[5])
+                .unwrap()
+                .selected,
+            Some(0)
+        );
+
+        world
+            .get_mut::<crate::components::textarea::Textarea>(entities[0])
+            .unwrap()
+            .set_value("pro");
+        world
+            .get_mut::<crate::components::toggle::Toggle>(entities[1])
+            .unwrap()
+            .checked = false;
+        world
+            .get_mut::<crate::components::radio::RadioGroup>(entities[2])
+            .unwrap()
+            .selected = "pro".to_owned();
+        world
+            .get_mut::<Select<String>>(entities[3])
+            .unwrap()
+            .selected = Some(1);
+        world.get_mut::<Slider>(entities[4]).unwrap().value = 25.0;
+        world
+            .get_mut::<crate::components::dropdown::DropdownState>(entities[5])
+            .unwrap()
+            .selected = Some(1);
+        let file = crate::components::file_input::SelectedFile {
+            path: "report.txt".into(),
+            file_type: None,
+        };
+        world
+            .get_mut::<crate::components::file_input::FileInputSelectionState>(entities[6])
+            .unwrap()
+            .files = vec![file.clone()];
+        crate::primitives::binding::sync_bound_fields(&mut world);
+        assert_eq!(world.resource::<BindingModel>().name, "pro");
+        assert!(!world.resource::<BindingModel>().enabled);
+        assert_eq!(world.resource::<BindingModel>().rating, 25.0);
+        assert_eq!(world.resource::<BindingModel>().files, [file]);
+
+        let mut model = world.resource_mut::<BindingModel>();
+        model.name = "free".to_owned();
+        model.enabled = true;
+        model.rating = 50.0;
+        model.files.clear();
+        crate::primitives::binding::sync_bound_fields(&mut world);
+        assert_eq!(
+            world
+                .get::<crate::components::textarea::Textarea>(entities[0])
+                .unwrap()
+                .value,
+            "free"
+        );
+        assert!(
+            world
+                .get::<crate::components::toggle::Toggle>(entities[1])
+                .unwrap()
+                .checked
+        );
+        assert_eq!(
+            world
+                .get::<crate::components::radio::RadioGroup>(entities[2])
+                .unwrap()
+                .selected,
+            "free"
+        );
+        assert_eq!(
+            world.get::<Select<String>>(entities[3]).unwrap().selected,
+            Some(0)
+        );
+        assert_eq!(world.get::<Slider>(entities[4]).unwrap().value, 50.0);
+        assert_eq!(
+            world
+                .get::<crate::components::dropdown::DropdownState>(entities[5])
+                .unwrap()
+                .selected,
+            Some(0)
+        );
+        assert!(
+            world
+                .get::<crate::components::file_input::FileInputSelectionState>(entities[6])
+                .unwrap()
+                .files
+                .is_empty()
+        );
+        for entity in entities {
+            assert!(
+                world
+                    .get::<crate::primitives::binding::BindingErrorState>(entity)
+                    .unwrap()
+                    .messages
+                    .is_empty()
+            );
+        }
+    }
+
+    #[test]
+    fn binding_concrete_builders_preserve_configuration_and_sync_values() {
+        let mut world = World::new();
+        world.insert_resource(BindingModel {
+            name: "Model name".to_owned(),
+            enabled: true,
+            age: 30,
+            rating: 5.0,
+            files: Vec::new(),
+        });
+        let parent = world.spawn(Node::default()).id();
+        let input = TextInputConfig::new("Name")
+            .label("Name")
+            .bind(BindingModel::name)
+            .spawn_in_context(&mut UiBuildContext {
+                world: &mut world,
+                parent,
+            });
+        let checkbox = CheckboxConfig::new()
+            .label("Enabled")
+            .bind(BindingModel::enabled)
+            .spawn_in_context(&mut UiBuildContext {
+                world: &mut world,
+                parent,
+            });
+        crate::primitives::binding::sync_bound_fields(&mut world);
+        let control = world
+            .get::<crate::components::input::TextInput>(input)
+            .unwrap();
+        assert_eq!(control.value, "Model name");
+        assert_eq!(control.placeholder, "Name");
+        assert_eq!(control.accessible_label.as_deref(), Some("Name"));
+        assert!(
+            world
+                .get::<crate::components::checkbox::CheckboxState>(checkbox)
+                .unwrap()
+                .checked
+        );
+        world
+            .get_mut::<crate::components::input::TextInput>(input)
+            .unwrap()
+            .value = "Edited".to_owned();
+        world
+            .get_mut::<crate::components::checkbox::CheckboxState>(checkbox)
+            .unwrap()
+            .checked = false;
+        crate::primitives::binding::sync_bound_fields(&mut world);
+        assert_eq!(world.resource::<BindingModel>().name, "Edited");
+        assert!(!world.resource::<BindingModel>().enabled);
+        world.resource_mut::<BindingModel>().name = "External".to_owned();
+        world.resource_mut::<BindingModel>().enabled = true;
+        crate::primitives::binding::sync_bound_fields(&mut world);
+        assert_eq!(
+            world
+                .get::<crate::components::input::TextInput>(input)
+                .unwrap()
+                .value,
+            "External"
+        );
+        assert!(
+            world
+                .get::<crate::components::checkbox::CheckboxState>(checkbox)
+                .unwrap()
+                .checked
+        );
+    }
+
+    #[test]
+    fn sections_form_footer_submit_collects_body_fields() {
+        let mut app = App::new();
+        app.add_plugins(crate::components::form::FormPlugin);
+        let parent = app.world_mut().spawn(Node::default()).id();
+        let form = UiElement::form(Form::get("/search"))
+            .header(crate::components::text::text("Search"))
+            .body(UiElement::input("Query").label("Query").name("q"))
+            .footer(crate::components::text::text("Submit the query"))
+            .spawn_in_context(&mut UiBuildContext {
+                world: app.world_mut(),
+                parent,
+            });
+        app.world_mut()
+            .query::<&mut crate::components::input::TextInput>()
+            .single_mut(app.world_mut())
+            .unwrap()
+            .value = "beverly".to_owned();
+        app.update();
+        let button = app
+            .world_mut()
+            .query_filtered::<Entity, With<crate::components::form::FormSubmitButton>>()
+            .single(app.world())
+            .unwrap();
+        app.world_mut()
+            .entity_mut(button)
+            .insert(Interaction::Pressed);
+        app.update();
+        let submissions: Vec<_> = app
+            .world_mut()
+            .resource_mut::<bevy::ecs::message::Messages<crate::components::form::FormSubmitted>>()
+            .drain()
+            .collect();
+        assert_eq!(submissions.len(), 1);
+        assert_eq!(submissions[0].form, form);
+        assert_eq!(
+            submissions[0].request.fields,
+            [("q".to_owned(), "beverly".to_owned())]
+        );
+    }
+
+    fn sectioned(element: UiElement) -> UiElement {
+        element
+            .footer(crate::components::text::text("bottom"))
+            .children(crate::components::text::text("ordinary"))
+            .body(crate::components::text::text("middle"))
+            .header(crate::components::text::text("top"))
+    }
+
+    fn section_text(world: &World, entity: Entity) -> Vec<String> {
+        world
+            .get::<Children>(entity)
+            .unwrap()
+            .iter()
+            .filter_map(|child| world.get::<Text>(child).map(|text| text.0.clone()))
+            .collect()
+    }
+
+    #[test]
+    fn sections_order_container_and_form_content_in_both_spawn_paths() {
+        for contextual in [false, true] {
+            let mut world = World::new();
+            let parent = world.spawn(Node::default()).id();
+            let element = sectioned(UiElement::row());
+            let container = if contextual {
+                element.spawn_in_context(&mut UiBuildContext {
+                    world: &mut world,
+                    parent,
+                })
+            } else {
+                spawn_with_children(&mut world, parent, |children| element.spawn(children))
+            };
+            assert_eq!(
+                world.get::<Node>(container).unwrap().flex_direction,
+                FlexDirection::Column
+            );
+            let sections: Vec<_> = world.get::<Children>(container).unwrap().iter().collect();
+            assert_eq!(sections.len(), 3);
+            assert_eq!(section_text(&world, sections[0]), ["top"]);
+            assert_eq!(section_text(&world, sections[1]), ["ordinary", "middle"]);
+            assert_eq!(section_text(&world, sections[2]), ["bottom"]);
+            assert_eq!(world.get::<Node>(sections[1]).unwrap().flex_grow, 1.0);
+        }
+        let mut world = World::new();
+        let parent = world.spawn(Node::default()).id();
+        let form = sectioned(UiElement::form(Form::new())).spawn_in_context(&mut UiBuildContext {
+            world: &mut world,
+            parent,
+        });
+        let sections: Vec<_> = world.get::<Children>(form).unwrap().iter().collect();
+        assert_eq!(sections.len(), 3);
+        assert_eq!(section_text(&world, sections[0]), ["top"]);
+        assert_eq!(section_text(&world, sections[1]), ["ordinary", "middle"]);
+        assert_eq!(section_text(&world, sections[2]), ["bottom"]);
+        assert!(
+            world
+                .get::<Children>(sections[2])
+                .unwrap()
+                .iter()
+                .any(|child| world
+                    .get::<crate::components::form::FormSubmitButton>(child)
+                    .is_some())
+        );
+    }
+
+    #[test]
+    fn sections_card_body_accepts_nested_cards_and_ordinary_children() {
+        let mut world = World::new();
+        world.insert_resource(ThemeResource::default());
+        let parent = world.spawn(Node::default()).id();
+        let card = sectioned(UiElement::card())
+            .body(UiElement::card())
+            .spawn_in_context(&mut UiBuildContext {
+                world: &mut world,
+                parent,
+            });
+        let sections: Vec<_> = world
+            .get::<Children>(card)
+            .unwrap()
+            .iter()
+            .filter(|child| {
+                world.get::<CardHeader>(*child).is_some()
+                    || world.get::<CardBody>(*child).is_some()
+                    || world.get::<CardFooter>(*child).is_some()
+            })
+            .collect();
+        assert_eq!(sections.len(), 3);
+        assert!(world.get::<CardHeader>(sections[0]).is_some());
+        assert!(world.get::<CardBody>(sections[1]).is_some());
+        assert!(world.get::<CardFooter>(sections[2]).is_some());
+        assert_eq!(section_text(&world, sections[1]), ["ordinary", "middle"]);
+        assert!(
+            world
+                .get::<Children>(sections[1])
+                .unwrap()
+                .iter()
+                .any(|child| world.get::<crate::components::card::Card>(child).is_some())
+        );
+    }
+
+    #[test]
+    fn sections_preserve_unsectioned_row_layout() {
+        let mut world = World::new();
+        let parent = world.spawn(Node::default()).id();
+        let row = UiElement::row()
+            .children(crate::components::text::text("direct"))
+            .spawn_in_context(&mut UiBuildContext {
+                world: &mut world,
+                parent,
+            });
+        assert_eq!(
+            world.get::<Node>(row).unwrap().flex_direction,
+            FlexDirection::Row
+        );
+        assert_eq!(section_text(&world, row), ["direct"]);
+    }
+
+    #[test]
+    fn sections_tabs_and_sidebar_keep_content_inside_their_panels() {
+        let mut world = World::new();
+        world.insert_resource(UiFonts {
+            text: Handle::default(),
+        });
+        let parent = world.spawn(Node::default()).id();
+        let tabs = sectioned(UiElement::tabs(TabsConfig::new(vec![
+            crate::components::tabs::Tab::new("first", "First"),
+            crate::components::tabs::Tab::new("second", "Second"),
+        ])))
+        .spawn_in_context(&mut UiBuildContext {
+            world: &mut world,
+            parent,
+        });
+        let zones: Vec<_> = world
+            .query::<(Entity, &crate::components::tabs::TabZone)>()
+            .iter(&world)
+            .filter(|(_, zone)| zone.tabs_entity == tabs)
+            .map(|(entity, _)| entity)
+            .collect();
+        assert_eq!(zones.len(), 2);
+        for zone in zones {
+            let parts = world.get::<Children>(zone).unwrap();
+            assert_eq!(parts.len(), 3);
+            assert_eq!(section_text(&world, parts[0]), ["top"]);
+            assert_eq!(section_text(&world, parts[1]), ["ordinary", "middle"]);
+            assert_eq!(section_text(&world, parts[2]), ["bottom"]);
+        }
+        let sidebar = UiElement::sidebar(0.0)
+            .header(crate::components::text::text("top"))
+            .body(crate::components::text::text("middle"))
+            .footer(crate::components::text::text("bottom"))
+            .spawn_in_context(&mut UiBuildContext {
+                world: &mut world,
+                parent,
+            });
+        let parts: Vec<_> = world
+            .get::<Children>(sidebar)
+            .unwrap()
+            .iter()
+            .filter(|child| world.get::<ContentSection>(*child).is_some())
+            .collect();
+        assert_eq!(parts.len(), 3);
+        assert_eq!(section_text(&world, parts[0]), ["top"]);
+        assert_eq!(section_text(&world, parts[2]), ["bottom"]);
+        assert!(world.get::<Children>(parts[1]).unwrap().len() > 1);
+    }
+
+    #[test]
+    fn sections_modal_preserves_default_content_and_composes_nested_cards() {
+        let mut world = World::new();
+        world.insert_resource(ThemeResource::default());
+        let parent = world.spawn(Node::default()).id();
+        UiElement::modal(
+            Modal::new(),
+            ModalStyle::default(),
+            BasicModalContent::new("Details", "Default body"),
+        )
+        .spawn_in_context(&mut UiBuildContext {
+            world: &mut world,
+            parent,
+        });
+        assert!(
+            world
+                .query::<&Text>()
+                .iter(&world)
+                .any(|text| text.0 == "Default body")
+        );
+        let modal = UiElement::modal(
+            Modal::new(),
+            ModalStyle::default(),
+            BasicModalContent::new("Details", ""),
+        )
+        .aria("Dialog details")
+        .footer(crate::components::text::text("bottom"))
+        .body(UiElement::card())
+        .header(crate::components::text::text("top"))
+        .spawn_in_context(&mut UiBuildContext {
+            world: &mut world,
+            parent,
+        });
+        let surface = world
+            .get::<Children>(modal)
+            .unwrap()
+            .iter()
+            .find(|child| {
+                world
+                    .get::<crate::components::modal::component::ModalSurface>(*child)
+                    .is_some()
+            })
+            .unwrap();
+        let parts = world.get::<Children>(surface).unwrap();
+        assert!(world.get::<ModalHeader>(parts[1]).is_some());
+        assert!(world.get::<ModalBody>(parts[2]).is_some());
+        assert!(world.get::<ModalFooter>(parts[3]).is_some());
+        assert!(
+            world
+                .get::<Children>(parts[2])
+                .unwrap()
+                .iter()
+                .any(|child| world.get::<crate::components::card::Card>(child).is_some())
+        );
+    }
+
+    #[test]
+    fn sections_alert_preserves_message_and_orders_custom_content() {
+        let mut app = App::new();
+        app.init_resource::<Time>()
+            .insert_resource(ThemeResource::default())
+            .add_plugins(crate::components::alert::AlertPlugin);
+        let parent = app.world_mut().spawn(Node::default()).id();
+        UiElement::alert(Alert::info("Built-in message"))
+            .header(crate::components::text::text("top"))
+            .body(crate::components::text::text("middle"))
+            .body(UiElement::card())
+            .footer(crate::components::text::text("bottom"))
+            .spawn_in_context(&mut UiBuildContext {
+                world: app.world_mut(),
+                parent,
+            });
+        app.update();
+        let mut query = app.world_mut().query::<(Entity, &Name)>();
+        let sections: Vec<_> = query
+            .iter(app.world())
+            .filter(|(_, name)| name.as_str().starts_with("alert-"))
+            .map(|(entity, name)| (entity, name.as_str().to_owned()))
+            .collect();
+        assert_eq!(sections.len(), 3);
+        let content = app.world().get::<ChildOf>(sections[0].0).unwrap().parent();
+        let parts = app.world().get::<Children>(content).unwrap();
+        assert_eq!(
+            app.world().get::<Name>(parts[0]).unwrap().as_str(),
+            "alert-header"
+        );
+        assert_eq!(
+            app.world().get::<Text>(parts[1]).unwrap().0,
+            "Built-in message"
+        );
+        assert_eq!(
+            app.world().get::<Name>(parts[2]).unwrap().as_str(),
+            "alert-body"
+        );
+        assert_eq!(
+            app.world().get::<Name>(parts[3]).unwrap().as_str(),
+            "alert-footer"
+        );
+    }
 
     #[crate::model]
     struct BindingModel {
@@ -1359,6 +3659,7 @@ mod tests {
             UiElement::radio(RadioGroupBuilder::new("plan").option("free", "Free"))
                 .bind(BindingModel::name),
             UiElement::select(vec!["free".to_owned(), "pro".to_owned()]).bind(BindingModel::name),
+            Select::new(vec![1_u32, 2]).bind(BindingModel::age),
             UiElement::slider(Slider::new(0.0, 100.0)).bind(BindingModel::rating),
             UiElement::dropdown(DropdownConfig::new("Plan").option("Free", "free"))
                 .bind(BindingModel::name),
@@ -1371,7 +3672,32 @@ mod tests {
                 .iter()
                 .all(|control| matches!(control, UiElement::Bound { .. }))
         );
-        let _ = BindingModel::age;
+    }
+
+    #[test]
+    fn binding_is_available_on_each_concrete_value_builder() {
+        let controls = vec![
+            TextInputConfig::new("Name").bind(BindingModel::name),
+            CheckboxConfig::new().bind(BindingModel::enabled),
+            TextareaConfig::new("Notes").bind(BindingModel::name),
+            ToggleConfig::new().bind(BindingModel::enabled),
+            RadioGroupBuilder::new("plan")
+                .option("free", "Free")
+                .bind(BindingModel::name),
+            Select::new(vec!["free".to_owned(), "pro".to_owned()]).bind(BindingModel::name),
+            Select::new(vec![1_u32, 2]).bind(BindingModel::age),
+            Slider::new(0.0, 100.0).bind(BindingModel::rating),
+            DropdownConfig::new("Plan")
+                .option("Free", "free")
+                .bind(BindingModel::name),
+            FileInput::new("Files").bind(BindingModel::files),
+        ];
+        assert_eq!(controls.len(), 10);
+        assert!(
+            controls
+                .iter()
+                .all(|control| matches!(control, UiElement::Bound { .. }))
+        );
     }
 
     #[test]

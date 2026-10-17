@@ -104,9 +104,23 @@ This makes components reusable without requiring the framework to predict every 
 
 ## Named Sections
 
-Cards implement `.header(...)`, `.body(...)`, and `.footer(...)` as real
-composition sections. Other components use the shared `.children([...])` API
-unless their reference page documents a specialized surface builder.
+Card, Container (`column()` and `row()`), Form, Modal, Alert, Toast, Tabs, and
+Sidebar implement `.header(...)`, `.body(...)`, and `.footer(...)` as real
+composition sections. They map to top, middle, and bottom, regardless of
+builder-call order. Each accepts one `UiElement` or an iterable; repeated calls
+append to the selected section. In a sized panel, the body grows into the
+available height so the footer stays below it.
+
+For Card, Container, Form, and Tabs, ordinary `.children(...)` content becomes
+part of the body when sections are used. Tabs apply sections within each tab
+zone; Sidebar keeps its navigation controls in the body. Modal retains its
+dialog title and close control. Alert and Toast retain their built-in message,
+icon, and dismissal behavior alongside custom content.
+
+Navbar and the standalone Footer use horizontal left/center/right regions
+instead. Table headers describe columns, not a generic panel header. Buttons,
+fields, typography, and other leaf components do not have vertical sections;
+compose them inside a sectioned container instead.
 
 Some components have a meaningful internal structure.
 

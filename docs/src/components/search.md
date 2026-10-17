@@ -10,6 +10,21 @@
 
 Search controls help users filter or locate items in a data-heavy interface. They are especially useful when a user is trying to find an item quickly without scanning a long list manually.
 
+## Validation Errors
+
+Both Search and SearchBox use the shared error callback API:
+
+```rust
+UiElement::search()
+    .bind(User::query)
+    .error(|errors| text(errors.join("\n")))
+```
+
+Use `UiElement::searchbox("Search")` for the SearchBox variant. The callback
+renders errors below the search control, while the accessible invalid/error
+relationships remain attached to the editor. See
+[Error Callbacks](forms/overview.md#error-callbacks).
+
 ## Example
 
 ```rust

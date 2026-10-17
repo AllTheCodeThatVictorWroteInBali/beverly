@@ -26,7 +26,7 @@ pub fn textarea_focus_gained_system(
     }
 
     for (candidate, mut textarea) in &mut textareas {
-        textarea.focused = candidate == entity;
+        textarea.focused = candidate == entity && !textarea.disabled;
         if textarea.focused {
             textarea.reset_caret();
         }
@@ -48,13 +48,17 @@ pub fn textarea_focus_system(
     mut textareas: Query<(Entity, &mut Textarea), With<TextareaSurface>>,
     mouse: Res<ButtonInput<MouseButton>>,
 ) {
-    let pressed = interaction_query
-        .iter()
-        .find_map(|(entity, interaction)| (*interaction == Interaction::Pressed).then_some(entity));
+    let pressed = interaction_query.iter().find_map(|(entity, interaction)| {
+        (*interaction == Interaction::Pressed
+            && textareas
+                .get(entity)
+                .is_ok_and(|(_, textarea)| !textarea.disabled))
+        .then_some(entity)
+    });
 
     if let Some(focused_entity) = pressed {
         for (entity, mut textarea) in &mut textareas {
-            textarea.focused = entity == focused_entity;
+            textarea.focused = entity == focused_entity && !textarea.disabled;
 
             if textarea.focused {
                 textarea.reset_caret();
@@ -168,7 +172,7 @@ pub fn textarea_keyboard_system(
         || keyboard.pressed(KeyCode::SuperRight);
 
     for (entity, mut textarea) in &mut textareas {
-        if !textarea.focused {
+        if !textarea.focused || textarea.disabled {
             continue;
         }
 

@@ -12,6 +12,7 @@ use std::collections::HashMap;
 
 #[derive(Component)]
 pub struct Search {
+    pub disabled: bool,
     pub id: String,
     pub placeholder: String,
     pub query: String,
@@ -32,6 +33,7 @@ pub struct Search {
 impl Search {
     pub fn new(id: impl Into<String>) -> Self {
         Self {
+            disabled: false,
             id: id.into(),
             placeholder: "Search...".into(),
             query: String::new(),
@@ -74,6 +76,7 @@ pub fn spawn_search(
     parent
         .spawn((
             SearchBar,
+            SearchCompletion::default(),
             search,
             SemanticNode::new(SemanticRole::SearchBox).label("Search"),
             Node {
@@ -102,7 +105,7 @@ pub fn spawn_search(
 // SUGGESTIONS
 // ============================================================
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SearchSuggestion {
     pub value: String,
     pub label: String,
@@ -260,6 +263,16 @@ impl Plugin for SearchPlugin {
             .add_message::<SearchSuggestionSelected>()
             .add_message::<SearchCompletionRequested>()
             .insert_resource(SearchProviders::new())
-            .add_systems(Update, update_search_visuals);
+            .add_systems(
+                Update,
+                (
+                    crate::components::search::events::sync_search_editor,
+                    crate::components::search::events::search_completion_system,
+                    crate::components::search::events::search_keyboard_system,
+                    crate::components::search::events::sync_search_suggestions,
+                    update_search_visuals,
+                )
+                    .chain(),
+            );
     }
 }

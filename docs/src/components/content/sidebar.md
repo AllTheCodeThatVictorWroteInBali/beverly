@@ -6,6 +6,25 @@
 
 <a href="../../assets/demos/index.html?demo=sidebar" target="_blank" rel="noopener">Open the demo in a separate tab</a>.
 
+## Header, Body, and Footer
+
+Use `UiElement::sidebar(top_offset_px)` for the concrete fluent Sidebar API:
+
+```rust
+UiElement::sidebar(0.0)
+    .header(text("Workspace"))
+    .body(text("Navigation details"))
+    .footer(text("Signed in locally"))
+```
+
+`.header(...)`, `.body(...)`, and `.footer(...)` place content at the top,
+middle, and bottom of the Sidebar panel, regardless of builder-call order.
+Each accepts a single element or an iterable; repeated calls append content.
+The existing drawer toggle and navigation buttons remain inside the body,
+before custom body content. The body grows into available height, keeping the
+footer at the bottom. `ContentSection` markers identify each region. Supply
+the `UiFonts` resource when building a Sidebar in a custom application.
+
 A Sidebar is a layout primitive for organizing content along the side of an interface.
 
 A Sidebar can be positioned on either the **left** or **right** side of its containing layout.

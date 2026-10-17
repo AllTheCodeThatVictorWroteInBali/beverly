@@ -366,6 +366,14 @@ fn derive_default_keyboard_actions(
     switches: Query<(), With<Toggle>>,
     sliders: Query<(), With<Slider>>,
     generic_buttons: Query<(), With<Button>>,
+    dropdowns: Query<(), With<crate::components::dropdown::component::DropdownSurface>>,
+    table_cells: Query<
+        (),
+        Or<(
+            With<crate::components::table::component::TableCellNode>,
+            With<crate::components::table::component::TableHeaderNode>,
+        )>,
+    >,
 ) {
     let capacity = debug.capacity;
     for key_event in keyboard.read() {
@@ -379,7 +387,11 @@ fn derive_default_keyboard_actions(
 
         let target = key_event.target;
 
-        if text_inputs.contains(target) || textareas.contains(target) {
+        if text_inputs.contains(target)
+            || textareas.contains(target)
+            || dropdowns.contains(target)
+            || table_cells.contains(target)
+        {
             continue;
         }
 
