@@ -92,6 +92,7 @@ jobs:
           cp -R docs/book/* _site/docs/
 
           cp index.html _site/
+          cp privacy.html terms.html _site/
           cp -R assets _site/
 
           echo "=== Published site ==="
